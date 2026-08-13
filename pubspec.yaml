@@ -1,0 +1,76 @@
+name: personal_monitor_mobile
+description: "Personal Monitor — mobile companion app (iOS + Android, one Flutter codebase)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management — kept intentionally simple (Provider, not
+  # Riverpod/Bloc) since this app is a fairly direct mirror of the web
+  # app's screens, not a complex reactive UI.
+  provider: ^6.1.2
+
+  # Networking
+  http: ^1.2.1
+  http_parser: ^4.1.2
+
+  # Secure on-device storage for the Sanctum Bearer token — NOT
+  # shared_preferences, which is plain-text on both platforms.
+  flutter_secure_storage: ^10.3.1
+
+  # A stable per-install device identifier, generated once and kept —
+  # see DeviceTokenController's device_id column.
+  shared_preferences: ^2.2.3
+  connectivity_plus: ^6.0.5  # checks for a live data/wifi connection before/while using the app — see ConnectivityGate in main.dart
+  file_picker: 10.3.8      # existing audio-file picker for meeting transcription
+  uuid: ^4.4.0
+
+  # Firebase Cloud Messaging (push notifications for reminders)
+  firebase_core: ^3.1.0
+  firebase_messaging: ^15.0.1
+  flutter_local_notifications: ^17.1.2
+  timezone: ^0.9.4
+
+  # Date/time formatting matching the web app's Y-m-d / Y-m-d H:i displays
+  intl: ^0.19.0
+
+  cupertino_icons: ^1.0.6
+
+  # ---- Added for this update — NOT verified against a real `flutter pub
+  # get` from this sandbox (no Flutter/pub network access here). All
+  # three are widely-used, stable, official-or-near-official packages,
+  # but please run `flutter pub get` and check for any version conflict
+  # before trusting this blindly.
+  url_launcher: ^6.3.0     # open Stripe checkout, PDFs, tel:/mailto: links externally
+  share_plus: ^12.0.2      # native share sheet for links, QR cards, transcripts, and summaries
+  record: ^7.1.1           # microphone recording for meeting audio — bumped from ^5.1.2 after a genuine record_linux/record_platform_interface incompatibility in the 5.x line (confirmed via a real build failure, not theoretical) — 7.x's API needs re-checking against meeting_detail_screen.dart if this introduces new compile errors
+  path_provider: ^2.1.3    # writable temp directory for the record package to save to
+  image_picker: ^1.1.2     # business card photo — camera or gallery
+  fl_chart: ^0.68.0        # dashboard doughnut/bar charts, matching the web app's Chart.js visuals
+  google_fonts: ^6.2.1     # named font family choices in profile appearance settings (Poppins, Lato, etc.)
+  speech_to_text: ^7.0.0   # voice dictation on form fields, matching the web app's mic button
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1  # generates all Android/iOS icon sizes from one source image — see the app icon guide
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+
+# Config for flutter_launcher_icons — run `flutter pub run flutter_launcher_icons`
+# after placing your real logo at the path below (not delivered here, since
+# it's a binary image asset — see the guide for how to get it).
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true  # Apple rejects icons with transparency — this strips it automatically, only affects the iOS build
+  image_path: "assets/icon/app_icon.png"
