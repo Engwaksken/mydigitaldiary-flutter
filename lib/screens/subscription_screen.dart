@@ -843,7 +843,7 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<PaymentGatewayInfo>(
-              value: gateway,
+              initialValue: gateway,
               decoration: const InputDecoration(labelText: 'Payment method'),
               items: widget.gateways
                   .map(
@@ -860,7 +860,7 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
             const SizedBox(height: 12),
             if (isMobileMoney) ...[
               DropdownButtonFormField<String>(
-                value: _network,
+                initialValue: _network,
                 decoration: const InputDecoration(labelText: 'Network'),
                 items: [
                   if (gateway.supportsMtn)
