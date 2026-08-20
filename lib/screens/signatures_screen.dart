@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import '../models/signed_document.dart';
 import '../services/signature_service.dart';
 import '../services/api_client.dart';
+import '../widgets/confirm_action_dialog.dart';
 import 'sign_document_screen.dart';
 
 /// Upload, preview, and remove saved signatures directly from mobile
@@ -77,21 +78,39 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Stack(
-          alignment: Alignment.topRight,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-              child: _signatureImage(sig),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              style: IconButton.styleFrom(backgroundColor: Colors.black54),
-              onPressed: () => Navigator.of(ctx).pop(),
-            ),
-          ],
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(sig.label.isEmpty ? 'Signature preview' : sig.label, style: Theme.of(ctx).textTheme.titleMedium)),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(ctx).pop()),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Container(
+                width: double.infinity,
+                height: 260,
+                padding: const EdgeInsets.all(20),
+                color: const Color(0xFFF5F6F8),
+                child: InteractiveViewer(
+                  minScale: .8,
+                  maxScale: 4,
+                  child: Center(child: _signatureImage(sig, fit: BoxFit.contain)),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('Pinch to zoom the signature preview.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -116,7 +135,7 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
 
   Future<void> _uploadSignature() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
 
     final label = await showDialog<String>(
       context: context,
@@ -177,17 +196,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
   }
 
   Future<void> _delete(SignedDocument doc) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete this document?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final confirmed = await showAppConfirmDialog(context, title: 'Delete this document?', message: 'This signed document will be permanently deleted.', confirmText: 'Delete document');
+    if (!confirmed) return;
 
     try {
       await _service.deleteDocument(doc.id);
@@ -250,17 +260,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
   }
 
   Future<void> _bulkDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete ${_selectedIds.length} document(s)?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final confirmed = await showAppConfirmDialog(context, title: 'Delete selected documents?', message: 'Delete ${_selectedIds.length} selected document${_selectedIds.length == 1 ? '' : 's'}? This action cannot be undone.', confirmText: 'Delete selected');
+    if (!confirmed) return;
 
     setState(() => _bulkWorking = true);
     try {

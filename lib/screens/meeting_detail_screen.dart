@@ -12,6 +12,7 @@ import '../models/meeting_recording.dart';
 import '../services/meeting_recording_service.dart';
 import '../services/pending_recording_sync_service.dart';
 import '../services/api_client.dart';
+import '../widgets/confirm_action_dialog.dart';
 
 /// Recording, transcript, and AI summary for one meeting — the mobile
 /// equivalent of the web app's MediaRecorder-based flow, using the
@@ -43,6 +44,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   String? _currentAudioPath;
   List<PendingRecording> _pendingRecordings = [];
   bool _uploadingRecording = false;
+  String _transcriptionLanguage = 'en-GB';
 
   @override
   void initState() {
@@ -211,7 +213,18 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/meeting_${widget.meeting.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    await _recorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        sampleRate: 44100,
+        numChannels: 1,
+        autoGain: true,
+        echoCancel: true,
+        noiseSuppress: true,
+      ),
+      path: path,
+    );
 
     setState(() {
       _currentAudioPath = path;
@@ -472,7 +485,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   Future<void> _transcribe(MeetingRecording recording) async {
     try {
-      await _service.transcribe(recording.id);
+      await _service.transcribe(recording.id, language: _transcriptionLanguage);
       await _load();
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -489,18 +502,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _deleteRecording(MeetingRecording recording) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete this recording?'),
-        content: const Text('This also removes its transcript and summary.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final confirmed = await showAppConfirmDialog(context, title: 'Delete this recording?', message: 'This also removes its transcript and summary. This action cannot be undone.', confirmText: 'Delete recording');
+    if (!confirmed) return;
 
     try {
       await _service.delete(widget.meeting.id, recording.id);
@@ -533,18 +536,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _deletePendingRecording(PendingRecording recording) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete queued recording?'),
-        content: const Text('This removes the saved audio from this phone and cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final confirmed = await showAppConfirmDialog(context, title: 'Delete queued recording?', message: 'This removes the saved audio from this phone and cannot be undone.', confirmText: 'Delete recording');
+    if (!confirmed) return;
 
     await PendingRecordingSyncService().remove(recording.localId);
     final pending = await PendingRecordingSyncService().pendingFor(widget.meeting.id);
@@ -619,6 +612,30 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         children: [
                           const Text('Recording', style: TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: _transcriptionLanguage,
+                            decoration: const InputDecoration(
+                              labelText: 'Transcription language',
+                              prefixIcon: Icon(Icons.language),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'en-GB', child: Text('UK English')),
+                              DropdownMenuItem(value: 'lg', child: Text('Luganda')),
+                              DropdownMenuItem(value: 'sw', child: Text('Kiswahili')),
+                              DropdownMenuItem(value: 'auto', child: Text('Auto detect')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) setState(() => _transcriptionLanguage = value);
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Choose the language actually spoken. Recording uses mono voice capture with automatic gain, echo cancellation and noise suppression when supported by the phone.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 10),
                           if (_recordingStatus == 'idle')
                             Wrap(
                               spacing: 8,

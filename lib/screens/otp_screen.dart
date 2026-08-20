@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_logo.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
@@ -60,12 +61,8 @@ class _OtpScreenState extends State<OtpScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Image.asset(
-                    'assets/icon/logo.png',
-                    height: 88,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.show_chart_rounded, size: 64, color: Color(0xFF00897B)),
-                  ),
+                const Center(
+                  child: AppLogo(size: 78),
                 ),
                 const SizedBox(height: 20),
                 Text(

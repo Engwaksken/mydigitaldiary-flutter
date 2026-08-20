@@ -10,7 +10,7 @@ class AiPlanService {
     return rows.map(AiPlan.fromJson).toList();
   }
 
-  Future<AiPlan> generate() async {
+  Future<AiPlan> generate({String? customPrompt}) async {
     // DateTime.now() (not .toUtc()) is intentional — this should be
     // exactly what the phone's own clock shows right now, since
     // that's what "today" and "next 7 days" mean to the person
@@ -18,6 +18,7 @@ class AiPlanService {
     // corresponds to on the server.
     final response = await _api.post('ai-plans', {
       'client_datetime': DateTime.now().toIso8601String(),
+      if (customPrompt != null && customPrompt.trim().isNotEmpty) 'custom_prompt': customPrompt.trim(),
     });
     return AiPlan.fromJson(response['data']);
   }

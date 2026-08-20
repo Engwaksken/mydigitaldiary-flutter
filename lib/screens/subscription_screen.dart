@@ -4,11 +4,6 @@ import '../models/subscription.dart';
 import '../services/subscription_service.dart';
 import '../services/api_client.dart';
 
-Color _colorFromHex(String hex) {
-  var value = hex.replaceAll('#', '');
-  if (value.length == 6) value = 'FF$value';
-  return Color(int.parse(value, radix: 16));
-}
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -114,6 +109,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       // worth rebuilding natively for a page most people see once).
       if (category == 'organization') {
         widgets.add(_buildContactSalesCard());
+      } else if (category == 'individual') {
+        final primary = plansInCategory.where((p) => p.durationMonths == 1 || p.durationMonths == 12).toList();
+        final shown = primary.isNotEmpty ? primary : plansInCategory.take(2).toList();
+        widgets.addAll(shown.map(_buildPlanCard));
+        final shownIds = shown.map((p) => p.id).toSet();
+        final more = plansInCategory.where((p) => !shownIds.contains(p.id)).toList();
+        if (more.isNotEmpty) {
+          widgets.add(ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('More billing options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            children: more.map(_buildPlanCard).toList(),
+          ));
+        }
       } else {
         widgets.addAll(plansInCategory.map(_buildPlanCard));
       }
@@ -157,13 +165,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  ({Color background, Color border, Color text}) _stickyColors(int months) {
+    if (months <= 1) {
+      return (background: const Color(0xFFFFF8C5), border: const Color(0xFFE7CF62), text: const Color(0xFF5F5112));
+    }
+    if (months <= 3) {
+      return (background: const Color(0xFFDFF4FF), border: const Color(0xFF8BC9E8), text: const Color(0xFF155B7A));
+    }
+    if (months <= 6) {
+      return (background: const Color(0xFFF3E5FF), border: const Color(0xFFC9A5ED), text: const Color(0xFF63398A));
+    }
+    if (months <= 12) {
+      return (background: const Color(0xFFDFF6E8), border: const Color(0xFF8BCDA5), text: const Color(0xFF16613A));
+    }
+    return (background: const Color(0xFFFFE8E2), border: const Color(0xFFEAB0A0), text: const Color(0xFF7D3E30));
+  }
+
   Widget _buildPlanCard(SubscriptionPlanInfo plan) {
-    final color = _colorFromHex(plan.color);
+    final sticky = _stickyColors(plan.durationMonths ?? 0);
+    final color = sticky.text;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: color.withValues(alpha: 0.4), width: 1.5)),
-      color: Colors.white,
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 10),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: sticky.border, width: 1.7)),
+      color: sticky.background,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () => _openCheckout(plan),
@@ -302,8 +329,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               _status!['has_active_access'] == true ? 'Active' : 'Inactive',
                               style: TextStyle(color: _status!['has_active_access'] == true ? Colors.green : Colors.red),
                             ),
-                            if (_status!['subscription_expires_at'] != null)
-                              Text('Expires: ${_status!['subscription_expires_at'].toString().substring(0, 10)}'),
+                            if (_status!['days_remaining'] != null)
+                              Text(
+                                '${_status!['days_remaining']} day(s) remaining',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            if ((_status!['expiry_date'] ?? _status!['subscription_expires_at']) != null)
+                              Text('Expires: ${(_status!['expiry_date'] ?? _status!['subscription_expires_at']).toString().substring(0, 10)}'),
                             const SizedBox(height: 6),
                             Text(
                               'Payment phone: ${(_status!['account_phone'] ?? 'Not set yet')}',
@@ -314,7 +346,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       ),
                     ),
                   const SizedBox(height: 10),
-                  Text('Plans', style: Theme.of(context).textTheme.titleMedium),
+                  if (_status?['value_summary'] is Map)
+                    _SubscriptionValueCard(summary: Map<String, dynamic>.from(_status!['value_summary'] as Map)),
+                  const SizedBox(height: 10),
+                  Text('Choose your plan', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  const Text('Monthly and Annual are shown first. Open More billing options for other durations.', style: TextStyle(fontSize: 12, color: Colors.black54)),
                   const SizedBox(height: 4),
                   ..._buildGroupedPlans(),
                   const SizedBox(height: 24),
@@ -491,6 +528,46 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
     );
   }
+}
+
+
+class _SubscriptionValueCard extends StatelessWidget {
+  final Map<String, dynamic> summary;
+  const _SubscriptionValueCard({required this.summary});
+  String _money(dynamic value) => 'UGX ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFFECFDF5),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Your value this month', style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 3),
+          const Text('A quick look at what My Digital Diary is already helping you manage.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 18, runSpacing: 10, children: [
+            _ValueMetric(label: 'Tasks', value: '${summary['tasks_completed'] ?? 0}'),
+            _ValueMetric(label: 'Expenses', value: _money(summary['expenses_tracked'])),
+            _ValueMetric(label: 'Saved', value: _money(summary['saved'])),
+            _ValueMetric(label: 'AI plans', value: '${summary['ai_plans'] ?? 0}'),
+            _ValueMetric(label: 'Meetings', value: '${summary['meetings'] ?? 0}'),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+class _ValueMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  const _ValueMetric({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => SizedBox(width: 92, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+    Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+  ]));
 }
 
 class _CheckoutSheet extends StatefulWidget {

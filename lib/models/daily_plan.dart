@@ -1,35 +1,61 @@
+int _dailyInt(dynamic value, [int fallback = 0]) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString().trim() ?? '') ?? fallback;
+}
+
+bool _dailyBool(dynamic value) {
+  if (value is bool) return value;
+  final text = value?.toString().toLowerCase().trim();
+  return text == '1' || text == 'true' || text == 'yes';
+}
+
 class DailyPlanItem {
   final int id;
   final String title;
   final String? description;
+  final String? achievements;
+  final String? challenges;
   final String priority;
   final String? startTime;
   final String? endTime;
   final bool isCompleted;
   final DateTime? completedAt;
+  final DateTime? updatedAt;
+  final bool offlinePending;
+  final int? personalGoalId;
 
   const DailyPlanItem({
     required this.id,
     required this.title,
     this.description,
+    this.achievements,
+    this.challenges,
     required this.priority,
     this.startTime,
     this.endTime,
     required this.isCompleted,
     this.completedAt,
+    this.updatedAt,
+    this.offlinePending = false,
+    this.personalGoalId,
   });
 
   factory DailyPlanItem.fromJson(Map<String, dynamic> json) => DailyPlanItem(
-        id: (json['id'] as num?)?.toInt() ?? 0,
+        id: _dailyInt(json['id']),
         title: json['title']?.toString() ?? '',
         description: json['description']?.toString(),
+      achievements: json['achievements']?.toString(),
+      challenges: json['challenges']?.toString(),
         priority: json['priority']?.toString() ?? 'medium',
         startTime: json['start_time']?.toString(),
         endTime: json['end_time']?.toString(),
-        isCompleted: json['is_completed'] == true || json['is_completed'] == 1,
+        isCompleted: _dailyBool(json['is_completed']),
         completedAt: json['completed_at'] != null
             ? DateTime.tryParse(json['completed_at'].toString())?.toLocal()
             : null,
+        updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString())?.toLocal() : null,
+        offlinePending: json['_offline_pending'] == true,
+        personalGoalId: json['personal_goal_id'] == null ? null : _dailyInt(json['personal_goal_id']),
       );
 }
 
@@ -38,22 +64,30 @@ class DailyPlan {
   final DateTime date;
   final String title;
   final String? notes;
+  final String? achievements;
+  final String? challenges;
   final int total;
   final int completed;
   final int progress;
   final int timed;
   final List<DailyPlanItem> items;
+  final DateTime? updatedAt;
+  final bool offlinePending;
 
   const DailyPlan({
     required this.id,
     required this.date,
     required this.title,
     this.notes,
+    this.achievements,
+    this.challenges,
     required this.total,
     required this.completed,
     required this.progress,
     required this.timed,
     required this.items,
+    this.updatedAt,
+    this.offlinePending = false,
   });
 
   int get pending => total - completed;
@@ -71,17 +105,19 @@ class DailyPlan {
     final dateValue = plan['plan_date'] ?? json['date'] ?? json['plan_date'];
 
     return DailyPlan(
-      id: (plan['id'] as num?)?.toInt() ?? 0,
+      id: _dailyInt(plan['id']),
       date: DateTime.tryParse(dateValue?.toString() ?? '')?.toLocal() ?? DateTime.now(),
       title: plan['title']?.toString() ?? 'My Daily Plan',
       notes: plan['notes']?.toString(),
-      total: (json['total'] as num?)?.toInt() ?? rows.length,
-      completed: (json['completed'] as num?)?.toInt() ??
-          rows.where((e) => e['is_completed'] == true || e['is_completed'] == 1).length,
-      progress: (json['progress'] as num?)?.toInt() ?? 0,
-      timed: (json['timed'] as num?)?.toInt() ??
-          rows.where((e) => (e['start_time']?.toString().isNotEmpty ?? false)).length,
+      achievements: plan['achievements']?.toString(),
+      challenges: plan['challenges']?.toString(),
+      total: _dailyInt(json['total'], rows.length),
+      completed: _dailyInt(json['completed'], rows.where((e) => _dailyBool(e['is_completed'])).length),
+      progress: _dailyInt(json['progress']),
+      timed: _dailyInt(json['timed'], rows.where((e) => (e['start_time']?.toString().isNotEmpty ?? false)).length),
       items: rows.map(DailyPlanItem.fromJson).toList(),
+      updatedAt: plan['updated_at'] != null ? DateTime.tryParse(plan['updated_at'].toString())?.toLocal() : null,
+      offlinePending: plan['_offline_pending'] == true,
     );
   }
 }
@@ -91,6 +127,8 @@ class DailyPlanHistoryItem {
   final DateTime date;
   final String title;
   final String? notes;
+  final String? achievements;
+  final String? challenges;
   final int total;
   final int completed;
   final int progress;
@@ -100,19 +138,23 @@ class DailyPlanHistoryItem {
     required this.date,
     required this.title,
     this.notes,
+    this.achievements,
+    this.challenges,
     required this.total,
     required this.completed,
     required this.progress,
   });
 
   factory DailyPlanHistoryItem.fromJson(Map<String, dynamic> json) => DailyPlanHistoryItem(
-        id: (json['id'] as num?)?.toInt() ?? 0,
+        id: _dailyInt(json['id']),
         date: DateTime.parse(json['plan_date'].toString()).toLocal(),
         title: json['title']?.toString() ?? 'My Daily Plan',
         notes: json['notes']?.toString(),
+      achievements: json['achievements']?.toString(),
+      challenges: json['challenges']?.toString(),
         total: (json['total'] as num?)?.toInt() ?? 0,
         completed: (json['completed'] as num?)?.toInt() ?? 0,
-        progress: (json['progress'] as num?)?.toInt() ?? 0,
+        progress: _dailyInt(json['progress']),
       );
 }
 

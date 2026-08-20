@@ -1,25 +1,46 @@
 import 'package:flutter/material.dart';
 
-/// A feature-tour screen for the Home tab's "Explore What's Included"
-/// link — mirrors the same module groupings shown in the drawer (see
-/// widgets/app_drawer.dart) and the feature list on the web app's own
-/// guest/login page, just presented as a browsable tour rather than a
-/// functional navigation list.
 class WhatsIncludedScreen extends StatelessWidget {
   const WhatsIncludedScreen({super.key});
 
   static const _sections = [
     (
-      'Finance',
-      Icons.savings_outlined,
+      'Planning & Productivity',
+      Icons.event_note_outlined,
+      Color(0xFF4F46E5),
+      [
+        'Annual & Monthly Plans - set yearly goals, break them into months, track progress, target dates and reminders',
+        'Daily Planner & Top 3 - plan each day, prioritize important items, use timed tasks and review planner history',
+        'Daily 8:00 AM Top 3 Digest - receive your most important items for the day as a reminder',
+        'Smart Reminders - one-time or recurring reminders with in-app, email and push delivery',
+        'AI Planner - generate personalized planning suggestions from your tracked information',
+      ],
+    ),
+    (
+      'Money & Financial Planning',
+      Icons.account_balance_wallet_outlined,
       Color(0xFF059669),
       [
-        'Annual Plans — set yearly goals and track completion progress',
-        'Income — track every source of money coming in',
-        'Budgets — set spending limits by category',
-        'Expenses — log spending with running totals',
-        'Debts — track what you owe and to whom',
-        'Savings Goals & Contributions — save toward something specific',
+        'Income - record and review money received',
+        'Budgets - create category spending limits and track performance',
+        'Expenses - log purchases manually or scan a receipt/document to extract expense details automatically',
+        'Itemized Receipts - keep the individual purchased items, quantities and prices with an expense',
+        'Debts - monitor amounts you owe or amounts owed to you',
+        'Savings Goals & Contributions - track progress toward specific savings targets',
+        'Financial Planner - model retirement savings, contributions, expected returns, inflation and future income goals',
+      ],
+    ),
+    (
+      'Work, Projects & Meetings',
+      Icons.work_outline,
+      Color(0xFF2563EB),
+      [
+        'Projects - organize work by status and deadline',
+        'Project Tasks - choose a project and manage actionable tasks without entering project IDs',
+        'Meetings - schedule and manage meeting details',
+        'Meeting Recording - record or upload meeting audio',
+        'Transcripts & AI Summaries - process recordings into meeting notes and summaries',
+        'Shareable Meeting Notes - email or share meeting outputs when needed',
       ],
     ),
     (
@@ -27,52 +48,46 @@ class WhatsIncludedScreen extends StatelessWidget {
       Icons.favorite_border,
       Color(0xFFE11D48),
       [
-        'Diet Logs — what you ate and when',
-        'Exercise Logs — workouts and activity',
-        'Sleep Logs — track sleep duration and quality',
-        'Health Checkups — upcoming and past appointments',
+        'Diet Logs - track meals, foods and nutrition information',
+        'Exercise Logs - record workouts, duration and intensity',
+        'Sleep Logs - monitor sleep duration and quality',
+        'Health Checkups - keep upcoming and completed health appointments',
       ],
     ),
     (
-      'Work & Projects',
-      Icons.work_outline,
-      Color(0xFF3B82F6),
-      [
-        'Projects — track work with statuses and deadlines',
-        'Project Tasks — break projects into actionable steps',
-        'Meetings — schedule, record, and get AI summaries',
-      ],
-    ),
-    (
-      'Personal Life',
-      Icons.groups_2_outlined,
+      'Personal Growth',
+      Icons.auto_awesome_outlined,
       Color(0xFF8B5CF6),
       [
-        'Education Plans — courses and learning goals',
-        'Network Contacts — professional relationships',
-        'Personal Relationships — stay in touch with people who matter',
-        'Spiritual Practices — track personal practices and habits',
+        'Education Plans - manage learning goals, courses and completion targets',
+        'Network Contacts - track professional contacts and follow-ups',
+        'Personal Relationships - plan check-ins with people who matter',
+        'Spiritual Growth - track prayer, devotion, fasting, meditation and other practices',
       ],
     ),
     (
-      'Productivity & AI',
-      Icons.bolt_outlined,
+      'Documents & Identity',
+      Icons.description_outlined,
+      Color(0xFF0F766E),
+      [
+        'Document Scanner - scan paper receipts/documents with automatic edge detection and cleanup',
+        'Digital Signatures - save signatures and apply them to documents',
+        'Signed Documents - keep and manage signed-document history',
+        'Digital Business Card - create a branded shareable card with profile image, link and QR code',
+        'Profile & Avatar - manage your profile information and photo across the app',
+      ],
+    ),
+    (
+      'Reports, Billing & Account',
+      Icons.dashboard_customize_outlined,
       Color(0xFFD97706),
       [
-        'Reminders — with in-app alarms, not just notifications',
-        'AI Planner — a personalized plan generated from your own data',
-        'Global Search — find anything across your tracked data',
-      ],
-    ),
-    (
-      'Tools & Account',
-      Icons.build_outlined,
-      Color(0xFF00897B),
-      [
-        'Signatures — save and use signatures to sign documents',
-        'Business Card — a shareable digital card with your own colors',
-        'Family, Team & Organization — invite others to a shared plan',
-        'Appearance — your own colors and font, just for you',
+        'Personal Report PDF - download a cross-module summary of your tracked information',
+        'Subscription - view your current plan and account payment phone',
+        'Invoices & Receipts - review and download billing documents',
+        'Mobile Money - start or complete pending MTN/Airtel payment prompts',
+        'Bank Transfer - submit a reference for supported bank/manual payments',
+        'Push Notifications - receive supported reminders even when the app is in the background',
       ],
     ),
   ];
@@ -82,18 +97,28 @@ class WhatsIncludedScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("What's Included")),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          const Text(
-            'Everything below is included in your plan — one app for the parts of life '
-            "you're already keeping track of.",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          Text(
+            'Explore My Digital Diary',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          Text(
+            'A single workspace for planning, finances, wellness, projects, meetings, reminders, documents and personal reporting.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.black54,
+                  height: 1.4,
+                ),
+          ),
+          const SizedBox(height: 18),
           ..._sections.map((section) {
-            final (title, icon, color, items) = section;
+            final (title, icon, color, features) = section;
             return Card(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 14),
+              clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -101,23 +126,48 @@ class WhatsIncludedScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(icon, color: color, size: 20),
-                        const SizedBox(width: 8),
-                        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 15)),
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: .10),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(icon, color: color),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    ...items.map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.check_circle_outline, size: 16, color: color.withValues(alpha: 0.6)),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(item, style: const TextStyle(fontSize: 13))),
-                            ],
-                          ),
-                        )),
+                    const SizedBox(height: 12),
+                    ...features.map(
+                      (feature) => Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Icon(Icons.check_circle_outline, size: 18, color: color),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                feature,
+                                style: const TextStyle(height: 1.35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

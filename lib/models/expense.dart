@@ -33,6 +33,8 @@ class Expense {
   final String? paymentMethod;
   final String? notes;
   final List<ExpenseItem> items;
+  final DateTime? updatedAt;
+  final bool offlinePending;
 
   Expense({
     required this.id,
@@ -42,6 +44,8 @@ class Expense {
     required this.paymentMethod,
     required this.notes,
     this.items = const [],
+    this.updatedAt,
+    this.offlinePending = false,
   });
 
   factory Expense.fromJson(Map<String, dynamic> json) {
@@ -52,7 +56,9 @@ class Expense {
       spentAt: DateTime.parse(json['spent_at'] as String).toLocal(),
       paymentMethod: json['payment_method'] as String?,
       notes: json['notes'] as String?,
-      items: json['items'] != null ? (json['items'] as List).map((e) => ExpenseItem.fromJson(e)).toList() : const [],
+      items: json['items'] != null ? (json['items'] as List).map((e) => ExpenseItem.fromJson(Map<String, dynamic>.from(e))).toList() : const [],
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString())?.toLocal() : null,
+      offlinePending: json['_offline_pending'] == true,
     );
   }
 

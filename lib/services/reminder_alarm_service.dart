@@ -4,14 +4,21 @@ class DueReminder {
   final int id;
   final String title;
   final String? message;
+  final DateTime? nextRunAt;
 
-  DueReminder({required this.id, required this.title, this.message});
+  DueReminder({required this.id, required this.title, this.message, this.nextRunAt});
 
   factory DueReminder.fromJson(Map<String, dynamic> json) => DueReminder(
         id: json['id'],
         title: json['title'] ?? '',
         message: json['message'],
+        nextRunAt: json['next_run_at'] != null ? DateTime.tryParse(json['next_run_at'].toString())?.toLocal() : null,
       );
+
+  String get occurrenceKey {
+    final stamp = nextRunAt?.toIso8601String() ?? 'unknown';
+    return '$id:$stamp';
+  }
 }
 
 /// Mobile equivalent of the web dashboard's alarm-popup polling —

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/ai_plan.dart';
 import '../services/ai_plan_service.dart';
 import '../services/api_client.dart';
+import '../widgets/confirm_action_dialog.dart';
 
 class AiPlannerScreen extends StatefulWidget {
   const AiPlannerScreen({super.key});
@@ -17,12 +18,16 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
   List<AiPlan> _plans = [];
   bool _loading = true;
   bool _generating = false;
+  final _promptController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
   }
+
+  @override
+  void dispose() { _promptController.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -41,7 +46,7 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
   Future<void> _generate() async {
     setState(() => _generating = true);
     try {
-      await _service.generate();
+      await _service.generate(customPrompt: _promptController.text);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New plan generated.')));
       await _load();
     } on ApiException catch (e) {
@@ -52,17 +57,8 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
   }
 
   Future<void> _delete(AiPlan plan) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete this plan?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    final confirmed = await showAppConfirmDialog(context, title: 'Delete this plan?', message: 'This AI plan will be permanently deleted. This action cannot be undone.', confirmText: 'Delete plan');
+    if (!confirmed) return;
 
     try {
       await _service.delete(plan.id);
@@ -88,6 +84,18 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  Row(children: [
+                    Expanded(child: _statCard('Plans', _plans.length, Icons.auto_awesome, const Color(0xFF8B5CF6))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _statCard('Latest', _plans.isEmpty ? 0 : 1, Icons.schedule_outlined, const Color(0xFF0EA5E9))),
+                  ]),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _promptController,
+                    minLines: 3, maxLines: 6, maxLength: 3000,
+                    decoration: const InputDecoration(labelText: 'What should the AI Planner generate?', hintText: 'Example: Build a 7-day plan focused on savings, exercise, overdue tasks and spiritual growth.', prefixIcon: Icon(Icons.edit_note_outlined)),
+                  ),
+                  const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: _generating ? null : _generate,
                     icon: _generating
@@ -126,4 +134,31 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
             ),
     );
   }
+
+  Widget _statCard(String label, int value, IconData icon, Color accent) {
+    final backgrounds = <String, Color>{
+      'Total': const Color(0xFFEFF8FF),
+      'Saved': const Color(0xFFECFDF5),
+      'This month': const Color(0xFFF5F3FF),
+      'Selected': const Color(0xFFFFFBEB),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: backgrounds[label] ?? const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border(left: BorderSide(color: accent, width: 4)),
+      ),
+      child: Row(children: [
+        Container(width: 32, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)), child: Icon(icon, color: accent, size: 17)),
+        const SizedBox(width: 8),
+        Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$value', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+          const SizedBox(height: 3),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569), fontWeight: FontWeight.w600)),
+        ])),
+      ]),
+    );
+  }
+
 }

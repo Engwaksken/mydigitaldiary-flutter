@@ -6,6 +6,7 @@ import '../models/user.dart';
 import 'api_client.dart';
 import 'notification_service.dart';
 import 'reminder_service.dart';
+import 'branding_service.dart';
 
 enum AuthStatus { unknown, loggedOut, otpPending, loggedIn }
 
@@ -21,9 +22,7 @@ class AuthService extends ChangeNotifier {
   int? _pendingOtpUserId;
   bool _pendingRemember = true;
 
-  // Monotonically increasing local signal used by avatar widgets.
-  // Do not use avatarUrl as a cache/version key because the app streams
-  // the protected image endpoint and the public URL may be unchanged/stale.
+  // Local cache-busting signal for the protected avatar endpoint.
   int _avatarRevision = 0;
   int get avatarRevision => _avatarRevision;
 
@@ -75,6 +74,11 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> _postLoginSetup() async {
+    try {
+      await BrandingService().syncPreferredCurrency();
+    } catch (_) {
+      // Display-currency sync should never block startup or navigation.
+    }
     try {
       await NotificationService.instance.registerDeviceToken();
     } catch (_) {
@@ -201,9 +205,9 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Call after Laravel confirms a new avatar was stored. The revision is
-  /// deliberately independent of avatarUrl because the protected image route
-  /// is the source of truth and public storage URLs can be cached or blocked.
+  /// Call after Laravel confirms that a new profile image was stored.
+  /// The revision forces Profile/Edit Profile/Drawer to reload the protected
+  /// avatar stream even when the public avatar URL itself has not changed.
   void markAvatarUpdated({String? avatarUrl}) {
     if (user != null && avatarUrl != null && avatarUrl.trim().isNotEmpty) {
       user = user!.copyWith(avatarUrl: avatarUrl);

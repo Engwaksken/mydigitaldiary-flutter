@@ -78,8 +78,10 @@ class MeetingRecordingService {
     }
   }
 
-  Future<MeetingRecording> transcribe(int recordingId) async {
-    final response = await _api.post('meeting-recordings/$recordingId/transcribe', {});
+  Future<MeetingRecording> transcribe(int recordingId, {String language = 'en-GB'}) async {
+    final response = await _api.post('meeting-recordings/$recordingId/transcribe', {
+      'transcription_language': language,
+    });
     final data = response is Map ? response['data'] : null;
     if (data is! Map) {
       throw ApiException(500, 'The server returned an invalid recording response.');

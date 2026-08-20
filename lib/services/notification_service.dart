@@ -22,7 +22,7 @@ class NotificationService {
 
   final _localNotifications = FlutterLocalNotificationsPlugin();
   static const _deviceIdKey = 'device_id';
-  static const _reminderChannelId = 'reminders';
+  static const _reminderChannelId = 'reminders_v2';
   static const _maxScheduledSlotsPerReminder = 48;
 
   bool _localInitialized = false;
@@ -33,8 +33,10 @@ class NotificationService {
       _reminderChannelId,
       'Reminders',
       channelDescription: 'My Digital Diary reminder alerts',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
     ),
     iOS: DarwinNotificationDetails(),
   );
@@ -51,17 +53,30 @@ class NotificationService {
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
+      onDidReceiveNotificationResponse: (response) async {
+        await _handleNotificationPayload(response.payload);
+      },
     );
 
     // Android 13+ requires runtime notification permission. Older Android
     // versions simply return null/no-op here.
     try {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final android = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await android?.requestNotificationsPermission();
+      await android?.requestExactAlarmsPermission();
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _reminderChannelId,
+          'Reminders',
+          description: 'My Digital Diary reminder alerts',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
     } catch (_) {
-      // Permission APIs differ between platform/plugin versions. Scheduling
-      // still proceeds and the OS will apply whatever permission state exists.
+      // Exact-alarm permission can be denied. Scheduling falls back safely.
     }
 
     _localInitialized = true;
@@ -74,25 +89,58 @@ class NotificationService {
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-    FirebaseMessaging.onMessage.listen((message) {
+    FirebaseMessaging.onMessage.listen((message) async {
+      // FCM may deliver either a notification payload or a data-only payload.
+      // Previously data-only messages were silently ignored while the app was
+      // open, which made reminders look unreliable. Always turn either form
+      // into a visible local heads-up notification.
       final notification = message.notification;
-      if (notification == null) return;
+      final title = notification?.title ??
+          message.data['title']?.toString() ??
+          (message.data['type'] == 'daily_planner'
+              ? 'Daily Planner reminder'
+              : 'My Digital Diary reminder');
+      final body = notification?.body ??
+          message.data['body']?.toString() ??
+          message.data['message']?.toString() ??
+          'You have an upcoming item in My Digital Diary.';
 
-      _localNotifications.show(
-        message.hashCode,
-        notification.title,
-        notification.body,
+      await initializeLocalNotifications();
+      await _localNotifications.show(
+        message.hashCode & 0x7fffffff,
+        title,
+        body,
         _reminderDetails,
+        payload: _payloadFromPushData(message.data),
       );
     });
 
+    await messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) async {
+      await _markPushAsRead(message.data);
+    });
+
+    final initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      await _markPushAsRead(initialMessage.data);
+    }
+
     messaging.onTokenRefresh.listen((_) => registerDeviceToken());
     _pushInitialized = true;
+
+    // Fix the login/Firebase race: if login completed before Firebase was ready,
+    // register the token now instead of waiting for a future token rotation.
+    await registerDeviceToken();
   }
 
   Future<void> showReminderAlarm(int id, String title, String? body) async {
     await initializeLocalNotifications();
-    await _localNotifications.show(id, title, body, _reminderDetails);
+    await _localNotifications.show(id, title, body, _reminderDetails, payload: 'reminder:$id');
   }
 
   /// Rebuilds the local schedules from reminders returned by the API.
@@ -191,20 +239,38 @@ class NotificationService {
     final scheduled = tz.TZDateTime.from(when.toUtc(), tz.UTC);
     if (scheduled.isBefore(tz.TZDateTime.now(tz.UTC))) return;
 
-    await _localNotifications.zonedSchedule(
-      _notificationId(reminder.id, slot),
-      reminder.title,
-      reminder.message?.trim().isNotEmpty == true
-          ? reminder.message
-          : 'You have a reminder in My Digital Diary.',
-      scheduled,
-      _reminderDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: match,
-      payload: 'reminder:${reminder.id}',
-    );
+    final id = _notificationId(reminder.id, slot);
+    final body = reminder.message?.trim().isNotEmpty == true
+        ? reminder.message
+        : 'You have a reminder in My Digital Diary.';
+
+    try {
+      await _localNotifications.zonedSchedule(
+        id,
+        reminder.title,
+        body,
+        scheduled,
+        _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: match,
+        payload: 'reminder:${reminder.id}',
+      );
+    } catch (_) {
+      await _localNotifications.zonedSchedule(
+        id,
+        reminder.title,
+        body,
+        scheduled,
+        _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: match,
+        payload: 'reminder:${reminder.id}',
+      );
+    }
   }
 
   int _notificationId(int reminderId, int slot) {
@@ -265,6 +331,59 @@ class NotificationService {
       value.millisecond,
       value.microsecond,
     );
+  }
+
+  String? _payloadFromPushData(Map<String, dynamic> data) {
+    final notificationId = data['notification_id']?.toString();
+    if (notificationId != null && notificationId.isNotEmpty) {
+      return 'notification:$notificationId';
+    }
+
+    final reminderId = int.tryParse(data['reminder_id']?.toString() ?? '');
+    if (reminderId != null) {
+      return 'reminder:$reminderId';
+    }
+
+    final type = data['type']?.toString();
+    return type == null || type.isEmpty ? null : 'type:$type';
+  }
+
+  Future<void> _markPushAsRead(Map<String, dynamic> data) async {
+    final notificationId = data['notification_id']?.toString();
+    if (notificationId != null && notificationId.isNotEmpty) {
+      try {
+        await ApiClient.instance.post('notifications/$notificationId/read', {});
+      } catch (_) {}
+      return;
+    }
+
+    final reminderId = int.tryParse(data['reminder_id']?.toString() ?? '');
+    if (reminderId != null) {
+      try {
+        await ApiClient.instance.post('notifications/reminder/$reminderId/read', {});
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _handleNotificationPayload(String? payload) async {
+    if (payload == null || payload.isEmpty) return;
+
+    if (payload.startsWith('notification:')) {
+      final id = payload.substring('notification:'.length).trim();
+      if (id.isEmpty) return;
+      try {
+        await ApiClient.instance.post('notifications/$id/read', {});
+      } catch (_) {}
+      return;
+    }
+
+    if (payload.startsWith('reminder:')) {
+      final id = int.tryParse(payload.substring('reminder:'.length).trim());
+      if (id == null) return;
+      try {
+        await ApiClient.instance.post('notifications/reminder/$id/read', {});
+      } catch (_) {}
+    }
   }
 
   Future<void> registerDeviceToken() async {

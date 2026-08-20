@@ -17,6 +17,26 @@ import '../theme/app_theme.dart';
 /// approach, called out here rather than silently.
 final List<ModuleConfig> moduleConfigs = [
   const ModuleConfig(
+    title: 'Plans',
+    endpoint: 'plans',
+    icon: Icons.checklist_outlined,
+    color: Colors.indigo,
+    titleField: 'title',
+    subtitleField: 'status',
+    dateField: 'target_date',
+    fields: [
+      FieldConfig(name: 'title', label: 'Title', type: FieldType.text, required: true, hint: 'e.g. Finish quarterly report'),
+      FieldConfig(name: 'period', label: 'Period', type: FieldType.select, required: true, options: [
+        FieldOption('daily', 'Daily'), FieldOption('weekly', 'Weekly'), FieldOption('monthly', 'Monthly'), FieldOption('annually', 'Annually'),
+      ]),
+      FieldConfig(name: 'status', label: 'Status', type: FieldType.select, required: true, options: [
+        FieldOption('pending', 'Pending'), FieldOption('in_progress', 'In Progress'), FieldOption('completed', 'Completed'),
+      ]),
+      FieldConfig(name: 'target_date', label: 'Target Date', type: FieldType.date),
+      FieldConfig(name: 'description', label: 'Description', type: FieldType.textarea),
+    ],
+  ),
+  const ModuleConfig(
     title: 'Income',
     endpoint: 'incomes',
     icon: Icons.trending_up,
@@ -217,10 +237,12 @@ final List<ModuleConfig> moduleConfigs = [
     fields: [
       FieldConfig(
         name: 'project_id',
-        label: 'Project ID',
-        type: FieldType.number,
+        label: 'Project',
+        type: FieldType.select,
         required: true,
-        hint: 'Enter the numeric ID shown on that project in Projects',
+        optionsEndpoint: 'projects',
+        optionsLabelField: 'name',
+        hint: 'Select one of your projects',
       ),
       FieldConfig(name: 'title', label: 'Task', type: FieldType.text, required: true, hint: 'e.g. Buy paint'),
       FieldConfig(name: 'status', label: 'Status', type: FieldType.select, required: true, options: [
@@ -315,10 +337,84 @@ final List<ModuleConfig> moduleConfigs = [
         FieldOption('journaling', 'Journaling'), FieldOption('other', 'Other'),
       ]),
       FieldConfig(name: 'title', label: 'Title', type: FieldType.text, hint: 'e.g. Morning Devotion'),
+      FieldConfig(name: 'preacher', label: 'Preacher', type: FieldType.text),
+      FieldConfig(name: 'theme_topic', label: 'Theme / Topic', type: FieldType.text),
       FieldConfig(name: 'practiced_at', label: 'Date', type: FieldType.date, required: true),
+      FieldConfig(name: 'practice_time', label: 'Time (HH:MM)', type: FieldType.text),
       FieldConfig(name: 'duration_minutes', label: 'Duration (minutes)', type: FieldType.number),
+      FieldConfig(name: 'scriptures', label: 'Bible Readings / Scriptures', type: FieldType.textarea),
+      FieldConfig(name: 'lessons_learnt', label: 'Lessons Learnt', type: FieldType.textarea),
       FieldConfig(name: 'next_planned_date', label: 'Next Planned', type: FieldType.date),
       FieldConfig(name: 'reflection', label: 'Reflection', type: FieldType.textarea),
+    ],
+  ),
+  const ModuleConfig(
+    title: 'Notes',
+    endpoint: 'notes',
+    icon: Icons.note_alt_outlined,
+    color: Colors.amber,
+    titleField: 'title',
+    subtitleField: 'category',
+    fields: [
+      FieldConfig(name: 'title', label: 'Title', type: FieldType.text, required: true),
+      FieldConfig(name: 'category', label: 'Category', type: FieldType.text),
+      FieldConfig(name: 'tags', label: 'Tags', type: FieldType.text, hint: 'e.g. work, ideas, personal'),
+      FieldConfig(name: 'content', label: 'Note', type: FieldType.textarea),
+      FieldConfig(name: 'is_pinned', label: 'Pinned (1 = yes)', type: FieldType.number),
+      FieldConfig(name: 'is_favorite', label: 'Favourite (1 = yes)', type: FieldType.number),
+    ],
+  ),
+  const ModuleConfig(
+    title: 'Goals',
+    endpoint: 'personal-goals',
+    icon: Icons.track_changes_outlined,
+    color: Colors.deepPurple,
+    titleField: 'title',
+    subtitleField: 'module',
+    dateField: 'target_date',
+    fields: [
+      FieldConfig(name: 'module', label: 'Life Area', type: FieldType.select, required: true, options: [
+        FieldOption('finance', 'Finance'), FieldOption('savings', 'Savings'), FieldOption('education', 'Education'),
+        FieldOption('spiritual', 'Spiritual Growth'), FieldOption('health', 'Health & Self-care'), FieldOption('exercise', 'Exercise & Fitness'),
+        FieldOption('diet', 'Diet & Nutrition'), FieldOption('productivity', 'Productivity'), FieldOption('projects', 'Projects'), FieldOption('personal', 'Personal Development'),
+      ]),
+      FieldConfig(name: 'title', label: 'Goal', type: FieldType.text, required: true),
+      FieldConfig(name: 'description', label: 'Why this matters', type: FieldType.textarea),
+      FieldConfig(name: 'start_date', label: 'Start Date', type: FieldType.date),
+      FieldConfig(name: 'target_date', label: 'Target Date', type: FieldType.date),
+      FieldConfig(name: 'target_value', label: 'Target Value (optional)', type: FieldType.number),
+      FieldConfig(name: 'current_value', label: 'Current Value (optional)', type: FieldType.number),
+      FieldConfig(name: 'progress_percent', label: 'Progress %', type: FieldType.number, required: true),
+      FieldConfig(name: 'status', label: 'Status', type: FieldType.select, required: true, options: [
+        FieldOption('not_started', 'Not Started'), FieldOption('in_progress', 'In Progress'), FieldOption('completed', 'Completed'), FieldOption('paused', 'Paused'),
+      ]),
+      FieldConfig(name: 'priority', label: 'Priority', type: FieldType.select, required: true, options: [
+        FieldOption('low', 'Low'), FieldOption('medium', 'Medium'), FieldOption('high', 'High'),
+      ]),
+      FieldConfig(name: 'reminder_at', label: 'Reminder', type: FieldType.datetime),
+      FieldConfig(name: 'notes', label: 'Notes', type: FieldType.textarea),
+    ],
+  ),
+  const ModuleConfig(
+    title: 'Daily Wellbeing',
+    endpoint: 'wellbeing',
+    icon: Icons.self_improvement_outlined,
+    color: Colors.teal,
+    titleField: 'log_date',
+    subtitleField: 'mood',
+    dateField: 'log_date',
+    fields: [
+      FieldConfig(name: 'log_date', label: 'Date', type: FieldType.date, required: true),
+      FieldConfig(name: 'water_ml', label: 'Water Drunk (ml)', type: FieldType.number, required: true),
+      FieldConfig(name: 'water_target_ml', label: 'Daily Water Target (ml)', type: FieldType.number, required: true),
+      FieldConfig(name: 'exercise_minutes', label: 'Exercise (minutes)', type: FieldType.number),
+      FieldConfig(name: 'steps', label: 'Steps (optional)', type: FieldType.number),
+      FieldConfig(name: 'mood', label: 'Mood', type: FieldType.select, options: [FieldOption('low','Low'), FieldOption('okay','Okay'), FieldOption('good','Good'), FieldOption('great','Great')]),
+      FieldConfig(name: 'self_care_done', label: 'Self-care completed?', type: FieldType.select, options: [FieldOption('1','Yes'), FieldOption('0','No')]),
+      FieldConfig(name: 'screen_break_done', label: 'Took a screen break?', type: FieldType.select, options: [FieldOption('1','Yes'), FieldOption('0','No')]),
+      FieldConfig(name: 'reflection_done', label: 'Reflection / prayer / meditation?', type: FieldType.select, options: [FieldOption('1','Yes'), FieldOption('0','No')]),
+      FieldConfig(name: 'self_care_activity', label: 'Self-care activity', type: FieldType.text),
+      FieldConfig(name: 'notes', label: 'Notes', type: FieldType.textarea),
     ],
   ),
   const ModuleConfig(
@@ -340,7 +436,7 @@ final List<ModuleConfig> moduleConfigs = [
   ),
 ];
 
-/// Looked up by endpoint (e.g. 'incomes', 'diet-logs') rather than indexed
+/// Looked up by endpoint (e.g. 'plans', 'diet-logs') rather than indexed
 /// by position — DashboardScreen's grouped navigation uses this so
 /// reordering the list above can never silently point a nav entry at the
 /// wrong module.

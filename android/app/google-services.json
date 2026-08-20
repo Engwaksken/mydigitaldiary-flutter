@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "164229204047",
+    "project_id": "my-digital-diary-b391c",
+    "storage_bucket": "my-digital-diary-b391c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:164229204047:android:180f074407bcb4846e023a",
+        "android_client_info": {
+          "package_name": "com.example.personal_monitor_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "164229204047-s426kl4h8dh0ekreab2jv63i7c5bd9ah.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuUokmMg0qzhmarHPT_7_1FQ0sG-R8e7k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "164229204047-s426kl4h8dh0ekreab2jv63i7c5bd9ah.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -62,4 +62,18 @@ class ProfileService {
     final data = response is Map ? response['data'] : null;
     return data is Map ? data['avatar_url']?.toString() : null;
   }
+
+
+  Future<Map<String, dynamic>> currencyPreference() async {
+    final response = await _api.get('profile/currency');
+    return Map<String, dynamic>.from(response['data'] ?? const {});
+  }
+
+  Future<Map<String, dynamic>> updateCurrencyPreference(String code) async {
+    final response = await _api.put('profile/currency', {
+      'preferred_currency_code': code.toUpperCase(),
+    });
+    return Map<String, dynamic>.from(response['data'] ?? const {});
+  }
+
 }

@@ -14,16 +14,13 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 class _SharedSpeech {
   static final stt.SpeechToText _speech = stt.SpeechToText();
   static Future<bool>? _initFuture;
-  static bool _isListening = false;
+  static bool isListening = false;
 
   static Future<bool> ensureInitialized() {
     return _initFuture ??= _speech.initialize();
   }
 
   static stt.SpeechToText get instance => _speech;
-
-  static bool get isListening => _isListening;
-  static set isListening(bool value) => _isListening = value;
 }
 
 /// Mobile equivalent of the web app's mic button on text fields

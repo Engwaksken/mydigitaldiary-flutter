@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'firebase_options.dart';
+
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
@@ -48,7 +50,7 @@ Future<void> _initializeBackgroundServices() async {
   }
 
   try {
-    await Firebase.initializeApp().timeout(const Duration(seconds: 4));
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).timeout(const Duration(seconds: 4));
     unawaited(NotificationService.instance.initializePushNotifications());
   } catch (e) {
     debugPrint('Firebase push notifications not configured/reachable yet: $e');

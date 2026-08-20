@@ -41,6 +41,15 @@ class SignatureService {
   /// server stamps it immediately and returns the result; there's no
   /// separate preview/confirm round-trip since the mobile UI already
   /// shows a live drag preview before this ever gets called.
+
+  Future<Map<String, dynamic>> bundlePages(List<int> documentIds, {String? filename}) async {
+    final response = await _api.post('signed-documents/bundle-pages', {
+      'document_ids': documentIds,
+      if (filename != null && filename.trim().isNotEmpty) 'filename': filename.trim(),
+    });
+    return Map<String, dynamic>.from(response['data']);
+  }
+
   Future<Map<String, dynamic>> stampImage({
     required List<int> documentBytes,
     required String documentFilename,

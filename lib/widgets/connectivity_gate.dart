@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/api_client.dart';
 import '../services/pending_recording_sync_service.dart';
+import '../services/sync_status_service.dart';
+import '../services/offline_mutation_queue.dart';
 
 /// Wraps the rest of the app. Previously this fully blocked the UI
 /// whenever offline — reconsidered after realizing that's actively
@@ -34,6 +36,11 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _isConnected = true;
   bool _dismissed = false;
+  bool _showSyncedBanner = false;
+  int _pendingUploads = 0;
+  int _pendingChanges = 0;
+  int _conflicts = 0;
+  Timer? _syncedTimer;
 
   @override
   void initState() {
@@ -45,6 +52,7 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
   @override
   void dispose() {
     _subscription?.cancel();
+    _syncedTimer?.cancel();
     super.dispose();
   }
 
@@ -70,7 +78,7 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
     // recordings queued from a previous offline session. Always worth
     // attempting once at startup regardless of prior state.
     if (result.any((r) => r != ConnectivityResult.none)) {
-      PendingRecordingSyncService().syncAll();
+      _syncAfterReconnect();
     }
   }
 
@@ -90,10 +98,32 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
       // Fire-and-forget — any meeting detail screen currently open
       // reloads its own pending list via its own _load(), this just
       // needs to actually attempt the uploads.
-      PendingRecordingSyncService().syncAll();
+      _syncAfterReconnect();
     }
   }
 
+
+  Future<void> _syncAfterReconnect() async {
+    try {
+      await OfflineMutationQueue.instance.syncAll();
+      await PendingRecordingSyncService().syncAll();
+      final snapshot = await SyncStatusService().refresh();
+      if (!mounted) return;
+      setState(() {
+        _pendingUploads = snapshot.pendingUploads;
+        _pendingChanges = snapshot.pendingChanges;
+        _conflicts = snapshot.conflicts;
+        _showSyncedBanner = true;
+      });
+      _syncedTimer?.cancel();
+      _syncedTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _showSyncedBanner = false);
+      });
+    } catch (_) {
+      // Connectivity is advisory; failed sync will be attempted again on the
+      // next reconnect/app launch without blocking the user.
+    }
+  }
   String _cacheAgeLabel() {
     final at = ApiClient.lastServedFromCacheAt;
     if (at == null) return '';
@@ -111,6 +141,41 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
     return Stack(
       children: [
         widget.child,
+        if (_isConnected && _showSyncedBanner)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  margin: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF047857),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          (_pendingUploads + _pendingChanges) > 0
+                              ? 'Back online. ${_pendingUploads + _pendingChanges} item${(_pendingUploads + _pendingChanges) == 1 ? '' : 's'} still waiting to sync${_conflicts > 0 ? ' · $_conflicts need review' : ''}.'
+                              : 'Back online. Your latest changes are synced.',
+                          style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (!_isConnected && !_dismissed)
           Positioned(
             top: 0,
@@ -134,7 +199,7 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'No internet connection.${_cacheAgeLabel()} New changes won\'t be saved until you\'re back online.',
+                          'No internet connection.${_cacheAgeLabel()} Planner, Notes, Tasks and Expenses can still be saved and will sync when you reconnect.',
                           style: const TextStyle(color: Colors.white, fontSize: 12.5),
                         ),
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_logo.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -71,12 +72,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Image.asset(
-                    'assets/icon/logo.png',
-                    height: 88,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.show_chart_rounded, size: 64, color: Color(0xFF00897B)),
-                  ),
+                const Center(
+                  child: AppLogo(size: 82),
                 ),
                 const SizedBox(height: 20),
                 if (_error != null) ...[
@@ -130,6 +127,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   validator: (v) => (v != _passwordController.text) ? 'Passwords do not match' : null,
                 ),
                 const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCCFBF1)),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.privacy_tip_outlined, size: 19, color: Color(0xFF0F766E)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(
+                        'Your diary entries are private to your account by default. We do not sell private diary data for advertising, and AI access can be controlled by life area.',
+                        style: TextStyle(fontSize: 11.5, height: 1.4, color: Color(0xFF475569)),
+                      )),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 InkWell(
                   onTap: () => setState(() => _agreedToPolicy = !_agreedToPolicy),
                   borderRadius: BorderRadius.circular(10),

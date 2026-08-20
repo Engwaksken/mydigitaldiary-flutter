@@ -4,8 +4,10 @@ import '../models/daily_plan.dart';
 import '../models/reminder.dart';
 import '../services/api_client.dart';
 import '../services/daily_planner_service.dart';
+import '../services/goal_link_service.dart';
 import '../services/notification_service.dart';
 import '../services/reminder_service.dart';
+import '../widgets/confirm_action_dialog.dart';
 
 class DailyPlannerScreen extends StatefulWidget {
   const DailyPlannerScreen({super.key});
@@ -29,6 +31,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
   bool _loading = true;
   bool _historyLoading = false;
   String? _error;
+  final Set<int> _selectedTaskIds = {};
+  bool _bulkDeleting = false;
 
   Color get _primary => Theme.of(context).colorScheme.primary;
 
@@ -58,6 +62,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
       if (mounted) setState(() => _plan = plan);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Offline. No saved planner copy is available for this date yet.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,9 +144,11 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Planner'),
+        title: Text(_selectedTaskIds.isEmpty ? 'Daily Planner' : '${_selectedTaskIds.length} selected'),
+        leading: _selectedTaskIds.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedTaskIds.clear())),
         actions: [
-          IconButton(
+          if (_selectedTaskIds.isNotEmpty) IconButton(tooltip: 'Delete selected', onPressed: _bulkDeleting ? null : _bulkDeleteTasks, icon: _bulkDeleting ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.delete_outline)),
+          if (_selectedTaskIds.isEmpty) IconButton(
             onPressed: _pickDate,
             tooltip: 'Choose date',
             icon: const Icon(Icons.calendar_month_outlined),
@@ -231,7 +239,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
             ),
             const SizedBox(height: 8),
             if (items.isEmpty) _emptyTasks() else ...items.map(_taskCard),
-            if ((plan.notes ?? '').trim().isNotEmpty) ...[
+            if ((plan.notes ?? '').trim().isNotEmpty || (plan.achievements ?? '').trim().isNotEmpty || (plan.challenges ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 18),
               _notesCard(plan),
             ],
@@ -309,48 +317,59 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
       );
 
   Widget _stats(DailyPlan p) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _stat('Total', p.total, Icons.list_alt_outlined)),
-                Expanded(child: _stat('Completed', p.completed, Icons.task_alt)),
-                Expanded(child: _stat('Pending', p.pending, Icons.pending_actions_outlined)),
-                Expanded(child: _stat('Timed', p.timed, Icons.schedule)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Day progress', style: TextStyle(fontWeight: FontWeight.w700)),
-                Text('${p.progress}%', style: TextStyle(color: _primary, fontWeight: FontWeight.w800)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: p.progress / 100,
-              minHeight: 8,
-              color: _primary,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ],
-        ),
+    return Column(children: [
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 2.15,
+        children: [
+          _statCard('Total', p.total, Icons.list_alt_outlined, const Color(0xFF0EA5E9)),
+          _statCard('Completed', p.completed, Icons.task_alt, const Color(0xFF10B981)),
+          _statCard('Pending', p.pending, Icons.pending_actions_outlined, const Color(0xFFF59E0B)),
+          _statCard('Timed', p.timed, Icons.schedule, const Color(0xFF8B5CF6)),
+        ],
       ),
-    );
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+        decoration: BoxDecoration(color: _primary.withValues(alpha: .05), borderRadius: BorderRadius.circular(14), border: Border(left: BorderSide(color: _primary, width: 4), top: BorderSide(color: _primary.withValues(alpha: .12)), right: BorderSide(color: _primary.withValues(alpha: .12)), bottom: BorderSide(color: _primary.withValues(alpha: .12)))),
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Day progress', style: TextStyle(fontWeight: FontWeight.w700)), Text('${p.progress}%', style: TextStyle(color: _primary, fontWeight: FontWeight.w900))]),
+          const SizedBox(height: 7),
+          LinearProgressIndicator(value: p.progress / 100, minHeight: 7, color: _primary, borderRadius: BorderRadius.circular(99)),
+        ]),
+      ),
+    ]);
   }
 
-  Widget _stat(String label, int value, IconData icon) => Column(
-        children: [
-          Icon(icon, color: _primary, size: 20),
-          const SizedBox(height: 5),
-          Text('$value', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(label, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
-        ],
-      );
+  Widget _statCard(String label, int value, IconData icon, Color accent) {
+    final backgrounds = <String, Color>{
+      'Total': const Color(0xFFEFF8FF),
+      'Completed': const Color(0xFFECFDF5),
+      'Pending': const Color(0xFFFFFBEB),
+      'Timed': const Color(0xFFF5F3FF),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: backgrounds[label] ?? const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border(left: BorderSide(color: accent, width: 4)),
+      ),
+      child: Row(children: [
+        Container(width: 32, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)), child: Icon(icon, color: accent, size: 17)),
+        const SizedBox(width: 8),
+        Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$value', style: const TextStyle(fontSize: 17, height: 1.0, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+          const SizedBox(height: 3),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, height: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+        ])),
+      ]),
+    );
+  }
 
   Widget _emptyTasks() => Card(
         child: Padding(
@@ -378,7 +397,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
       margin: const EdgeInsets.only(bottom: 9),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _taskModal(item: item),
+        onLongPress: () => setState(() => _selectedTaskIds.add(item.id)),
+        onTap: () { if (_selectedTaskIds.isNotEmpty) { setState(() { if (_selectedTaskIds.contains(item.id)) {_selectedTaskIds.remove(item.id);} else {_selectedTaskIds.add(item.id);} }); } else { _taskModal(item: item); } },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
           child: Row(
@@ -386,8 +406,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
             children: [
               Checkbox(
                 activeColor: _primary,
-                value: item.isCompleted,
-                onChanged: (_) => _toggle(item),
+                value: _selectedTaskIds.isNotEmpty ? _selectedTaskIds.contains(item.id) : item.isCompleted,
+                onChanged: (_) { if (_selectedTaskIds.isNotEmpty) { setState(() { if (_selectedTaskIds.contains(item.id)) {_selectedTaskIds.remove(item.id);} else {_selectedTaskIds.add(item.id);} }); } else { _toggle(item); } },
               ),
               SizedBox(
                 width: 76,
@@ -425,6 +445,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                         runSpacing: 4,
                         children: [
                           _pill(item.priority.toUpperCase()),
+                          if (item.offlinePending) _pill('WAITING TO SYNC'),
                           if ((item.description ?? '').trim().isNotEmpty)
                             Text(
                               item.description!,
@@ -432,6 +453,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
+                          if ((item.achievements ?? '').trim().isNotEmpty) Text('Achievement: ${item.achievements}', maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+                          if ((item.challenges ?? '').trim().isNotEmpty) Text('Challenge: ${item.challenges}', maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                     ],
@@ -468,7 +491,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
         child: ListTile(
           leading: Icon(Icons.notes_outlined, color: _primary),
           title: Text(plan.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text(plan.notes!),
+          subtitle: Text([if ((plan.notes ?? '').trim().isNotEmpty) 'Notes: ${plan.notes}', if ((plan.achievements ?? '').trim().isNotEmpty) 'Achievements: ${plan.achievements}', if ((plan.challenges ?? '').trim().isNotEmpty) 'Challenges: ${plan.challenges}'].join('\n\n')),
           trailing: const Icon(Icons.edit_outlined),
           onTap: _dayPlanModal,
         ),
@@ -660,7 +683,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
 
   Future<void> _toggle(DailyPlanItem item) async {
     try {
-      await _service.toggle(item.id);
+      await _service.toggle(item.id, baseUpdatedAt: item.updatedAt);
       await Future.wait([_loadPlan(), _loadHistory()]);
     } on ApiException catch (e) {
       _message(e.message, error: true);
@@ -668,35 +691,33 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
   }
 
   Future<void> _delete(DailyPlanItem item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete task?'),
-        content: Text(item.title),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(c).colorScheme.error),
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
+    final ok = await showAppConfirmDialog(context, title: 'Delete task?', message: 'Delete “${item.title}”? This action cannot be undone.', confirmText: 'Delete task');
+    if (!ok) return;
     try {
-      await _service.delete(item.id);
+      await _service.delete(item.id, baseUpdatedAt: item.updatedAt);
       _message('Task deleted.');
       await Future.wait([_loadPlan(), _loadHistory()]);
-    } on ApiException catch (e) {
-      _message(e.message, error: true);
-    }
+    } on ApiException catch (e) { _message(e.message, error: true); }
+  }
+
+  Future<void> _bulkDeleteTasks() async {
+    if (_selectedTaskIds.isEmpty) return;
+    final ok = await showAppConfirmDialog(context, title: 'Delete selected tasks?', message: 'Delete ${_selectedTaskIds.length} selected task${_selectedTaskIds.length == 1 ? '' : 's'}? This action cannot be undone.', confirmText: 'Delete selected');
+    if (!ok) return;
+    setState(() => _bulkDeleting = true);
+    try {
+      await _service.bulkDeleteItems(_selectedTaskIds.toList());
+      _selectedTaskIds.clear();
+      await Future.wait([_loadPlan(), _loadHistory()]);
+    } on ApiException catch (e) { _message(e.message, error: true); } finally { if (mounted) setState(() => _bulkDeleting = false); }
   }
 
   Future<void> _dayPlanModal() async {
     final plan = _plan!;
     final title = TextEditingController(text: plan.title);
     final notes = TextEditingController(text: plan.notes ?? '');
+    final achievements = TextEditingController(text: plan.achievements ?? '');
+    final challenges = TextEditingController(text: plan.challenges ?? '');
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -714,6 +735,10 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
             TextField(controller: title, decoration: const InputDecoration(labelText: 'Plan title')),
             const SizedBox(height: 12),
             TextField(controller: notes, minLines: 3, maxLines: 6, decoration: const InputDecoration(labelText: 'Day notes')),
+            const SizedBox(height: 12),
+            TextField(controller: achievements, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Achievements', hintText: 'What did you achieve today?')),
+            const SizedBox(height: 12),
+            TextField(controller: challenges, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Challenges', hintText: 'What challenges did you face?')),
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -734,6 +759,8 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
         _date,
         title: title.text.trim().isEmpty ? 'My Daily Plan' : title.text.trim(),
         notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
+        achievements: achievements.text.trim().isEmpty ? null : achievements.text.trim(),
+        challenges: challenges.text.trim().isEmpty ? null : challenges.text.trim(),
       );
       _message('Day plan saved.');
       await Future.wait([_loadPlan(), _loadHistory()]);
@@ -746,10 +773,17 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     final editing = item != null;
     final title = TextEditingController(text: item?.title ?? '');
     final desc = TextEditingController(text: item?.description ?? '');
+    final achievements = TextEditingController(text: item?.achievements ?? '');
+    final challenges = TextEditingController(text: item?.challenges ?? '');
+    DateTime taskDate = _date;
     var priority = item?.priority ?? 'medium';
     TimeOfDay? start = _parseTime(item?.startTime);
     TimeOfDay? end = _parseTime(item?.endTime);
     var remind = false;
+    int? personalGoalId = item?.personalGoalId;
+    List<GoalLinkOption> goalOptions = const [];
+    try { goalOptions = await GoalLinkService().activeGoals(); } catch (_) {}
+    if (!mounted) return;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -768,6 +802,19 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                 TextField(controller: title, autofocus: !editing, decoration: const InputDecoration(labelText: 'Task *')),
                 const SizedBox(height: 10),
                 TextField(controller: desc, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description')),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int?>(
+                  initialValue: personalGoalId,
+                  decoration: const InputDecoration(labelText: 'Linked goal (optional)'),
+                  items: [const DropdownMenuItem<int?>(value: null, child: Text('No linked goal')), ...goalOptions.map((g) => DropdownMenuItem<int?>(value: g.id, child: Text(g.title, overflow: TextOverflow.ellipsis)))],
+                  onChanged: (v) => setLocal(() => personalGoalId = v),
+                ),
+                const SizedBox(height: 10),
+                ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.calendar_month_outlined, color: Theme.of(c).colorScheme.primary), title: const Text('Task date'), subtitle: Text(DateFormat('EEE, d MMM y').format(taskDate)), trailing: const Icon(Icons.edit_calendar_outlined), onTap: () async { final picked = await showDatePicker(context: c, initialDate: taskDate, firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days:3650))); if (picked != null) setLocal(() => taskDate = picked); }),
+                const SizedBox(height: 6),
+                TextField(controller: achievements, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Task Achievement')),
+                const SizedBox(height: 10),
+                TextField(controller: challenges, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Task Challenge')),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: priority,
@@ -841,26 +888,34 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
 
     try {
       if (editing) {
-        await _service.updateItem(
+        final savedItem = await _service.updateItem(
           item.id,
           title: title.text.trim(),
           description: desc.text.trim().isEmpty ? null : desc.text.trim(),
+          achievements: achievements.text.trim().isEmpty ? null : achievements.text.trim(),
+          challenges: challenges.text.trim().isEmpty ? null : challenges.text.trim(),
+          planDate: taskDate,
           priority: priority,
           startTime: _timeValue(start),
           endTime: _timeValue(end),
+          personalGoalId: personalGoalId,
+          baseUpdatedAt: item.updatedAt,
         );
-        _message('Task updated.');
+        _message(savedItem.offlinePending ? 'Task updated on this device. It will sync when you reconnect.' : 'Task updated.');
       } else {
-        await _service.addItem(
-          _date,
+        final savedItem = await _service.addItem(
+          taskDate,
           title: title.text.trim(),
           description: desc.text.trim().isEmpty ? null : desc.text.trim(),
+          achievements: achievements.text.trim().isEmpty ? null : achievements.text.trim(),
+          challenges: challenges.text.trim().isEmpty ? null : challenges.text.trim(),
           priority: priority,
           startTime: _timeValue(start),
           endTime: _timeValue(end),
+          personalGoalId: personalGoalId,
         );
         if (remind && start != null) await _createReminder(title.text.trim(), desc.text.trim(), start!);
-        _message('Task added.');
+        _message(savedItem.offlinePending ? 'Task saved on this device. It will sync when you reconnect.' : 'Task added.');
       }
       await Future.wait([_loadPlan(), _loadHistory()]);
     } on ApiException catch (e) {

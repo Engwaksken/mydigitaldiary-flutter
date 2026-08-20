@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/meeting.dart';
 import '../services/meeting_service.dart';
 import '../services/api_client.dart';
+import '../widgets/confirm_action_dialog.dart';
 import 'meeting_detail_screen.dart';
 
 class MeetingsScreen extends StatefulWidget {
@@ -149,20 +150,12 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     }
   }
 
-  Future<bool> _confirmDelete(Meeting meeting) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete meeting?'),
-        content: Text('Delete “${meeting.title}”? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    return confirmed == true;
-  }
+  Future<bool> _confirmDelete(Meeting meeting) => showAppConfirmDialog(
+        context,
+        title: 'Delete meeting?',
+        message: 'Delete “${meeting.title}”? This action cannot be undone.',
+        confirmText: 'Delete meeting',
+      );
 
   void _openForm({Meeting? existing}) {
     showModalBottomSheet(

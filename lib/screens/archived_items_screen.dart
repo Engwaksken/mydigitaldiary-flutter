@@ -3,6 +3,7 @@ import '../models/field_config.dart';
 import '../models/dynamic_item.dart';
 import '../services/dynamic_crud_service.dart';
 import '../services/api_client.dart';
+import '../widgets/confirm_action_dialog.dart';
 
 /// Shows only archived items for one module, with an unarchive action
 /// per item — reached from that module's own list screen. No edit/add
@@ -54,22 +55,13 @@ class _ArchivedItemsScreenState extends State<ArchivedItemsScreen> {
 
   Future<void> _delete(DynamicItem item) async {
     final title = _formatValue(item[widget.config.titleField]);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete permanently?'),
-        content: Text(
-          title.isEmpty
-              ? 'This archived item will be permanently deleted.'
-              : 'Delete “$title” permanently? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Delete permanently?',
+      message: title.isEmpty ? 'This archived item will be permanently deleted.' : 'Delete “$title” permanently? This action cannot be undone.',
+      confirmText: 'Delete permanently',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     try {
       await _service.delete(item.id);

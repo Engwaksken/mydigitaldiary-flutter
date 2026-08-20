@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// Thrown for any non-2xx response, carrying the server's own JSON
 /// message (Laravel's validation/auth error responses all shape their
@@ -86,6 +87,8 @@ class ApiClient {
   /// "showing saved data from [time]" indicator without each screen
   /// needing its own plumbing for it.
   static DateTime? lastServedFromCacheAt;
+  static DateTime? lastSuccessfulSyncAt;
+  static bool lastWriteWasRetried = false;
 
   /// [cacheable] is opt-in, not the default — most GET endpoints
   /// either shouldn't be cached at all (reminders/due-now, which is
@@ -171,45 +174,121 @@ class ApiClient {
     return response.bodyBytes;
   }
 
-  Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final response = await http
-        .post(
-          Uri.parse('$baseUrl/$path'),
-          headers: await _headers(auth: auth),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
-    return _handle(response);
+  Future<void> _invalidateApiCaches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys().where((key) => key.startsWith('api_cache_')).toList();
+      for (final key in keys) {
+        await prefs.remove(key);
+      }
+    } catch (_) {
+      // Cache invalidation must never make a successful write look failed.
+    }
   }
 
-  Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final response = await http
-        .put(
-          Uri.parse('$baseUrl/$path'),
-          headers: await _headers(auth: auth),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
-    return _handle(response);
+  static bool isTransientNetworkError(Object error) =>
+      error is SocketException || error is http.ClientException || error is TimeoutException;
+
+  bool _isTransientNetworkError(Object error) => isTransientNetworkError(error);
+
+  Future<dynamic> _performJsonWrite(
+    String path,
+    Future<http.Response> Function(Map<String, String> headers) send, {
+    bool auth = true,
+    String? fixedIdempotencyKey,
+    String? baseUpdatedAt,
+  }) async {
+    final key = fixedIdempotencyKey ?? const Uuid().v4();
+    lastWriteWasRetried = false;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final headers = await _headers(auth: auth);
+        headers['X-Idempotency-Key'] = key;
+        if (baseUpdatedAt != null && baseUpdatedAt.isNotEmpty) {
+          headers['X-Offline-Base-Updated-At'] = baseUpdatedAt;
+        }
+        final response = await send(headers).timeout(requestTimeout);
+        final decoded = _handle(response);
+        lastSuccessfulSyncAt = DateTime.now();
+        await _invalidateApiCaches();
+        return decoded;
+      } catch (error) {
+        if (attempt == 0 && _isTransientNetworkError(error)) {
+          lastWriteWasRetried = true;
+          await Future<void>.delayed(const Duration(milliseconds: 650));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw StateError('Unreachable write retry state.');
   }
 
-  Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final response = await http
-        .patch(
-          Uri.parse('$baseUrl/$path'),
-          headers: await _headers(auth: auth),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
-    return _handle(response);
+
+  /// Replays a mutation previously saved by OfflineMutationQueue. The original
+  /// idempotency key is deliberately reused across reconnect attempts so a
+  /// lost response can never create the same record twice.
+  Future<dynamic> replayOfflineMutation(
+    String method,
+    String path,
+    Map<String, dynamic> body, {
+    required String idempotencyKey,
+    String? baseUpdatedAt,
+  }) {
+    final upper = method.toUpperCase();
+    return _performJsonWrite(
+      path,
+      (headers) {
+        final uri = Uri.parse('$baseUrl/$path');
+        final encoded = body.isEmpty ? null : jsonEncode(body);
+        return switch (upper) {
+          'POST' => http.post(uri, headers: headers, body: encoded),
+          'PUT' => http.put(uri, headers: headers, body: encoded),
+          'PATCH' => http.patch(uri, headers: headers, body: encoded),
+          'DELETE' => http.delete(uri, headers: headers, body: encoded),
+          _ => throw ArgumentError('Unsupported offline mutation method: $method'),
+        };
+      },
+      fixedIdempotencyKey: idempotencyKey,
+      baseUpdatedAt: baseUpdatedAt,
+    );
   }
 
-  Future<dynamic> delete(String path, {bool auth = true}) async {
-    final response = await http
-        .delete(Uri.parse('$baseUrl/$path'), headers: await _headers(auth: auth))
-        .timeout(requestTimeout);
-    return _handle(response);
-  }
+  Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) =>
+      _performJsonWrite(
+        path,
+        (headers) => http.post(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        auth: auth,
+      );
+
+  Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) =>
+      _performJsonWrite(
+        path,
+        (headers) => http.put(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        auth: auth,
+      );
+
+  Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) =>
+      _performJsonWrite(
+        path,
+        (headers) => http.patch(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        auth: auth,
+      );
+
+  Future<dynamic> deleteWithBody(String path, Map<String, dynamic> body, {bool auth = true}) =>
+      _performJsonWrite(
+        path,
+        (headers) => http.delete(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        auth: auth,
+      );
+
+  Future<dynamic> delete(String path, {bool auth = true}) =>
+      _performJsonWrite(
+        path,
+        (headers) => http.delete(Uri.parse('$baseUrl/$path'), headers: headers),
+        auth: auth,
+      );
 
   /// For endpoints that accept a file — business card photo, meeting
   /// audio. [fields] are the other form values (Laravel reads these the
@@ -227,26 +306,42 @@ class ApiClient {
     String? contentType,
     Map<String, String> fields = const {},
   }) async {
-    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/$path'));
-    final token = await getToken();
-    request.headers['Accept'] = 'application/json';
-    if (token != null) request.headers['Authorization'] = 'Bearer $token';
-    request.fields.addAll(fields);
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        fileFieldName,
-        fileBytes,
-        filename: fileName,
-        contentType: contentType != null ? MediaType.parse(contentType) : null,
-      ),
-    );
+    final idempotencyKey = const Uuid().v4();
+    lastWriteWasRetried = false;
 
-    // File uploads (especially meeting recordings on mobile data) need longer
-    // than normal JSON calls. Keep splash/list requests fast, but allow
-    // multipart uploads up to five minutes.
-    final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
-    final response = await http.Response.fromStream(streamedResponse);
-    return _handle(response);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/$path'));
+        final token = await getToken();
+        request.headers['Accept'] = 'application/json';
+        request.headers['X-Idempotency-Key'] = idempotencyKey;
+        if (token != null) request.headers['Authorization'] = 'Bearer $token';
+        request.fields.addAll(fields);
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileFieldName,
+            fileBytes,
+            filename: fileName,
+            contentType: contentType != null ? MediaType.parse(contentType) : null,
+          ),
+        );
+
+        final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
+        final response = await http.Response.fromStream(streamedResponse);
+        final decoded = _handle(response);
+        lastSuccessfulSyncAt = DateTime.now();
+        await _invalidateApiCaches();
+        return decoded;
+      } catch (error) {
+        if (attempt == 0 && _isTransientNetworkError(error)) {
+          lastWriteWasRetried = true;
+          await Future<void>.delayed(const Duration(milliseconds: 900));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw StateError('Unreachable upload retry state.');
   }
 
   dynamic _handle(http.Response response) {

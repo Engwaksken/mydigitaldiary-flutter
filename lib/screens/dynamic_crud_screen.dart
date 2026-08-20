@@ -9,6 +9,7 @@ import '../services/dynamic_crud_service.dart';
 import '../services/api_client.dart';
 import '../services/branding_service.dart';
 import '../widgets/voice_text_field.dart';
+import '../widgets/confirm_action_dialog.dart';
 import 'archived_items_screen.dart';
 
 /// One screen that works for any module described by a ModuleConfig —
@@ -48,12 +49,17 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     } on ApiException catch (e) {
       setState(() => _loading = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline. No saved copy of this list is available yet.')));
+      }
     }
   }
 
   Future<void> _delete(DynamicItem item) async {
     try {
-      await _service.delete(item.id);
+      await _service.delete(item.id, baseUpdatedAt: item['updated_at']?.toString());
       if (!mounted) return;
       setState(() => _items.removeWhere((i) => i.id == item.id));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,24 +70,14 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     }
   }
 
-  Future<bool> _confirmDelete(DynamicItem item) async {
+  Future<bool> _confirmDelete(DynamicItem item) {
     final title = _formatValue(item[widget.config.titleField]);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete ${widget.config.title} item?'),
-        content: Text(
-          title.isEmpty
-              ? 'This item will be permanently deleted.'
-              : 'Delete “$title”? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
+    return showAppConfirmDialog(
+      context,
+      title: 'Delete ${widget.config.title} item?',
+      message: title.isEmpty ? 'This item will be permanently deleted.' : 'Delete “$title”? This action cannot be undone.',
+      confirmText: 'Delete',
     );
-    return confirmed == true;
   }
 
   Future<void> _archive(DynamicItem item) async {
@@ -95,6 +91,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
   }
 
   bool _downloadingPdf = false;
+  final Set<int> _selectedIds = {};
+  bool _bulkDeleting = false;
 
   Future<void> _downloadPdfReport() async {
     setState(() => _downloadingPdf = true);
@@ -235,8 +233,10 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(config.title),
+        title: Text(_selectedIds.isEmpty ? config.title : '${_selectedIds.length} selected'),
+        leading: _selectedIds.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedIds.clear())),
         actions: [
+          if (_selectedIds.isNotEmpty) IconButton(icon: _bulkDeleting ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)) : const Icon(Icons.delete_outline), tooltip: 'Delete selected', onPressed: _bulkDeleting ? null : () async { final ok = await showAppConfirmDialog(context, title: 'Delete selected items?', message: 'You are about to permanently delete ${_selectedIds.length} selected item${_selectedIds.length == 1 ? '' : 's'}.', confirmText: 'Delete selected'); if(ok){ setState(()=>_bulkDeleting=true); try{ await _service.bulkDelete(_selectedIds.toList()); _selectedIds.clear(); await _load(); } finally { if(mounted)setState(()=>_bulkDeleting=false); } } }),
           IconButton(
             icon: _downloadingPdf
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -273,8 +273,9 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                             ),
                           ],
                         )
-                      : ListView.builder(
+                      : ListView.separated(
                           itemCount: _items.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                       final item = _items[index];
                       final subtitleParts = <String>[];
@@ -311,20 +312,19 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                           child: const Icon(Icons.delete, color: Colors.white),
                         ),
                         child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                           elevation: 1,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            leading: CircleAvatar(
-                              backgroundColor: config.color.withValues(alpha: 0.12),
-                              child: Icon(config.icon, color: config.color),
-                            ),
+                            leading: _selectedIds.isNotEmpty ? Checkbox(value: _selectedIds.contains(item.id), onChanged: (_) => setState(() { if (_selectedIds.contains(item.id)) {_selectedIds.remove(item.id);} else {_selectedIds.add(item.id);} })) : CircleAvatar(backgroundColor: config.color.withValues(alpha: 0.12), child: Icon(config.icon, color: config.color)),
                             title: Text(
                               _formatValue(item[config.titleField]).isEmpty ? '(untitled)' : _formatValue(item[config.titleField]),
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
-                            subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
+                            subtitle: (item['_offline_pending'] == true)
+                                ? Text([if (subtitleParts.isNotEmpty) subtitleParts.join(' · '), 'Waiting to sync'].join(' · '), style: const TextStyle(color: Colors.orange))
+                                : (subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · '))),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -349,7 +349,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                                 const Icon(Icons.chevron_right, color: Colors.black38),
                               ],
                             ),
-                            onTap: () => _openForm(existing: item),
+                            onLongPress: () => setState(() => _selectedIds.add(item.id)),
+                            onTap: () { if (_selectedIds.isNotEmpty) { setState(() { if (_selectedIds.contains(item.id)) {_selectedIds.remove(item.id);} else {_selectedIds.add(item.id);} }); } else { _openForm(existing: item); } },
                           ),
                         ),
                       );
@@ -515,10 +516,11 @@ class _DynamicFormState extends State<_DynamicForm> {
 
     try {
       final payload = _buildPayload();
-      if (widget.existing != null) {
-        await _service.update(widget.existing!.id, payload);
-      } else {
-        await _service.create(payload);
+      final saved = widget.existing != null
+          ? await _service.update(widget.existing!.id, payload, baseUpdatedAt: widget.existing!['updated_at']?.toString())
+          : await _service.create(payload);
+      if (mounted && saved['_offline_pending'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved on this device. It will sync when you reconnect.')));
       }
       widget.onSaved();
     } on ApiException catch (e) {

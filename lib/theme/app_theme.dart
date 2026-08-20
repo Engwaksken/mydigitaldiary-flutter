@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Same four hex values as the web app's brand palette
@@ -80,11 +81,20 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       // A light tint of the ACTUAL chosen primary color, not a fixed
       // slate — subtle (5% blend into white) so this stays safely
       // light regardless of which primary color a user picks,
       // including bright ones like the sticky-notes Yellow.
-      scaffoldBackgroundColor: Color.alphaBlend(primary.withValues(alpha: 0.05), Colors.white),
+      scaffoldBackgroundColor: const Color(0xFFF3F5F7),
       textTheme: TextTheme(
         headlineSmall: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: s(24))),
         titleLarge: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: s(22))),
@@ -103,9 +113,10 @@ class AppTheme {
         labelMedium: applyFont(textStyle: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500, fontSize: s(12))),
         labelSmall: applyFont(textStyle: TextStyle(color: AppColors.textTertiary, fontWeight: FontWeight.w500, fontSize: s(11))),
       ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFF3F5F7),
+        foregroundColor: Color(0xFF111318),
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
       ),
@@ -115,7 +126,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           disabledBackgroundColor: primary.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -160,8 +171,8 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: Colors.white.withValues(alpha: 0.94),
         margin: EdgeInsets.zero,
       ),
       dividerTheme: const DividerThemeData(color: Color(0xFFE2E8F0)), // slate-200

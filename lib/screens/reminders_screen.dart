@@ -4,6 +4,7 @@ import '../models/reminder.dart';
 import '../services/reminder_service.dart';
 import '../services/api_client.dart';
 import '../services/notification_service.dart';
+import '../widgets/confirm_action_dialog.dart';
 
 /// Full CRUD example — the pattern to copy for every other module
 /// (Meetings, Expenses, Income, Plans, ...): a list with pull-to-refresh,
@@ -55,20 +56,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
   }
 
-  Future<bool> _confirmDelete(Reminder reminder) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete reminder?'),
-        content: Text('Delete “${reminder.title}”? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    return confirmed == true;
-  }
+  Future<bool> _confirmDelete(Reminder reminder) => showAppConfirmDialog(
+        context,
+        title: 'Delete reminder?',
+        message: 'Delete “${reminder.title}”? This action cannot be undone.',
+        confirmText: 'Delete reminder',
+      );
 
   void _openForm({Reminder? existing}) {
     showModalBottomSheet(
@@ -321,121 +314,146 @@ class _ReminderFormState extends State<_ReminderForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.existing != null ? 'Edit Reminder' : 'New Reminder',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          if (_error != null) ...[
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 8),
-          ],
-          TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title')),
-          const SizedBox(height: 12),
-          TextField(controller: _messageController, decoration: const InputDecoration(labelText: 'Message (optional)'), maxLines: 2),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _frequency,
-            decoration: const InputDecoration(labelText: 'Repeats'),
-            items: _frequencies.map((f) => DropdownMenuItem(value: f, child: Text(f.replaceAll('_', ' ')))).toList(),
-            onChanged: (v) => setState(() => _frequency = v!),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _channel,
-            decoration: const InputDecoration(labelText: 'Send Via'),
-            items: const [
-              DropdownMenuItem(value: 'database', child: Text('In-App Only')),
-              DropdownMenuItem(value: 'mail', child: Text('In-App + Email')),
-            ],
-            onChanged: (v) => setState(() => _channel = v!),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _module,
-            decoration: const InputDecoration(
-              labelText: 'Related Module (optional)',
-              helperText: 'Includes Finance, Health, Work and Personal Life items',
-            ),
-            items: [
-              const DropdownMenuItem<String>(value: null, child: Text('None')),
-              ..._modules.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
-            ],
-            onChanged: (v) {
-              setState(() {
-                _module = v;
-                _selectedItemIds.clear();
-              });
-              if (v != null && v.isNotEmpty && v != 'custom' && v != 'budget') {
-                _loadItemsForModule(v);
-              } else {
-                setState(() => _moduleItems = []);
-              }
-            },
-          ),
-          if (_module != null && _module != 'custom' && _module != 'budget' && _module != 'daily_planner') ...[
-            const SizedBox(height: 12),
-            if (_loadingItems)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-            else if (_moduleItems.isEmpty)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Text('No records found in this module yet.', style: TextStyle(color: Colors.grey, fontSize: 12)))
-            else ...[
-              const Text('Specific item(s) (optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              const Text(
-                'Leave nothing selected to keep this reminder general to the whole module.',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.92;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The form itself scrolls. The action bar below does not, so the
+              // Save button is always visible even when a module has many
+              // selectable records or the keyboard is open.
+              Flexible(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        widget.existing != null ? 'Edit Reminder' : 'New Reminder',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      if (_error != null) ...[
+                        Text(_error!, style: const TextStyle(color: Colors.red)),
+                        const SizedBox(height: 8),
+                      ],
+                      TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title')),
+                      const SizedBox(height: 12),
+                      TextField(controller: _messageController, decoration: const InputDecoration(labelText: 'Message (optional)'), maxLines: 2),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _frequency,
+                        decoration: const InputDecoration(labelText: 'Repeats'),
+                        items: _frequencies.map((f) => DropdownMenuItem(value: f, child: Text(f.replaceAll('_', ' ')))).toList(),
+                        onChanged: (v) => setState(() => _frequency = v!),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _channel,
+                        decoration: const InputDecoration(labelText: 'Send Via'),
+                        items: const [
+                          DropdownMenuItem(value: 'database', child: Text('In-App Only')),
+                          DropdownMenuItem(value: 'mail', child: Text('In-App + Email')),
+                        ],
+                        onChanged: (v) => setState(() => _channel = v!),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _module,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Related Module (optional)',
+                          helperText: 'Includes Finance, Health, Work and Personal Life items',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(value: null, child: Text('None')),
+                          ..._modules.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            _module = v;
+                            _selectedItemIds.clear();
+                          });
+                          if (v != null && v.isNotEmpty && v != 'custom' && v != 'budget') {
+                            _loadItemsForModule(v);
+                          } else {
+                            setState(() => _moduleItems = []);
+                          }
+                        },
+                      ),
+                      if (_module != null && _module != 'custom' && _module != 'budget' && _module != 'daily_planner') ...[
+                        const SizedBox(height: 12),
+                        if (_loadingItems)
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+                        else if (_moduleItems.isEmpty)
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Text('No records found in this module yet.', style: TextStyle(color: Colors.grey, fontSize: 12)))
+                        else ...[
+                          const Text('Specific item(s) (optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          const Text(
+                            'Leave nothing selected to keep this reminder general to the whole module.',
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 4),
+                          ..._moduleItems.map((item) {
+                            final id = int.tryParse(item['id'].toString()) ?? 0;
+                            return CheckboxListTile(
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(item['label']?.toString() ?? '', style: const TextStyle(fontSize: 13)),
+                              value: _selectedItemIds.contains(id),
+                              onChanged: id <= 0 ? null : (checked) => setState(() {
+                                if (checked == true) {
+                                  _selectedItemIds.add(id);
+                                } else {
+                                  _selectedItemIds.remove(id);
+                                }
+                              }),
+                            );
+                          }),
+                        ],
+                      ],
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Next run at'),
+                        subtitle: Text(DateFormat('yMMMd – jm').format(_nextRunAt)),
+                        trailing: const Icon(Icons.calendar_today),
+                        onTap: _pickDateTime,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 160),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: _moduleItems.map((item) {
-                    final id = item['id'] as int;
-                    return CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(item['label']?.toString() ?? '', style: const TextStyle(fontSize: 13)),
-                      value: _selectedItemIds.contains(id),
-                      onChanged: (checked) => setState(() {
-                        if (checked == true) {
-                          _selectedItemIds.add(id);
-                        } else {
-                          _selectedItemIds.remove(id);
-                        }
-                      }),
-                    );
-                  }).toList(),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.35))),
+                ),
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.save_outlined),
+                    label: Text(_saving ? 'Saving...' : (widget.existing != null ? 'Update Reminder' : 'Save Reminder')),
+                  ),
                 ),
               ),
             ],
-          ],
-          const SizedBox(height: 12),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Next run at'),
-            subtitle: Text(DateFormat('yMMMd – jm').format(_nextRunAt)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: _pickDateTime,
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Save'),
-          ),
-        ],
+        ),
       ),
     );
   }
