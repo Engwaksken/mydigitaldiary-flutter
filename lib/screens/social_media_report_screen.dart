@@ -15,6 +15,7 @@ class _SocialMediaReportScreenState extends State<SocialMediaReportScreen> {
   String _status = '';
   Map<String,dynamic> _report = {};
   bool _loading = true;
+  bool _syncing = false;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -34,15 +35,51 @@ class _SocialMediaReportScreenState extends State<SocialMediaReportScreen> {
     }
   }
 
+
+  Future<void> _syncAnalytics() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    try {
+      final result = await _service.syncAnalytics();
+      await _load();
+      if (!mounted) return;
+      final synced = _int(result['synced']);
+      final failed = _int(result['failed']);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Analytics sync complete: $synced synced${failed > 0 ? ', $failed failed' : ''}.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not sync analytics: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = _report['summary'] is Map ? Map<String,dynamic>.from(_report['summary']) : <String,dynamic>{};
     final platforms = _report['platform_breakdown'] is Map ? Map<String,dynamic>.from(_report['platform_breakdown']) : <String,dynamic>{};
+    final sync = _report['sync'] is Map ? Map<String,dynamic>.from(_report['sync']) : <String,dynamic>{};
+    final analytics = _report['analytics'] is Map ? Map<String,dynamic>.from(_report['analytics']) : <String,dynamic>{};
     final raw = _report['posts'];
     final posts = raw is List ? raw.whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList() : <Map<String,dynamic>>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Social Media Reports')),
+      appBar: AppBar(
+        title: const Text('Social Media Reports'),
+        actions: [
+          IconButton(
+            tooltip: 'Sync analytics now',
+            onPressed: _syncing ? null : _syncAnalytics,
+            icon: _syncing
+                ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+                : const Icon(Icons.sync),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -98,6 +135,42 @@ class _SocialMediaReportScreenState extends State<SocialMediaReportScreen> {
               ]),
             )),
             const SizedBox(height:14),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_sync_outlined),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Automatic analytics', style: TextStyle(fontWeight: FontWeight.w800)),
+                          Text(
+                            sync['last_synced_at'] == null
+                                ? 'Waiting for the first provider sync'
+                                : 'Last sync: ${sync['last_synced_at']}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                          if (_int(sync['error_rows']) > 0)
+                            Text(
+                              '${_int(sync['error_rows'])} record(s) need account/API attention',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Sync now',
+                      onPressed: _syncing ? null : _syncAnalytics,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height:14),
             GridView.count(
               crossAxisCount:2, shrinkWrap:true,
               physics:const NeverScrollableScrollPhysics(),
@@ -109,8 +182,12 @@ class _SocialMediaReportScreenState extends State<SocialMediaReportScreen> {
                 _Metric('Ready',_int(summary['ready_to_post'])),
                 _Metric('Overdue',_int(summary['overdue'])),
                 _Metric('Drafts',_int(summary['draft'])),
-                _Metric('Views',_int((_report['analytics'] is Map ? (_report['analytics'] as Map)['total_views'] : 0))),
-                _Metric('Likes',_int((_report['analytics'] is Map ? (_report['analytics'] as Map)['total_likes'] : 0))),
+                _Metric('Views',_int(analytics['total_views'])),
+                _Metric('Reach',_int(analytics['total_reach'])),
+                _Metric('Impressions',_int(analytics['total_impressions'])),
+                _Metric('Likes',_int(analytics['total_likes'])),
+                _Metric('Comments',_int(analytics['total_comments'])),
+                _Metric('Shares',_int(analytics['total_shares'])),
               ],
             ),
             const SizedBox(height:18),

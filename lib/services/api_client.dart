@@ -290,19 +290,17 @@ class ApiClient {
         auth: auth,
       );
 
-  /// For endpoints that accept a file — business card photo, meeting
-  /// audio. [fields] are the other form values (Laravel reads these the
-  /// same as a normal POST body when the request is multipart), [file]
-  /// is raw bytes with the field name the backend expects (e.g. 'photo',
-  /// 'audio'). Does NOT set Content-Type manually — MultipartRequest
-  /// sets its own with the correct boundary, which a manual
-  /// 'application/json' header (like every other method here uses)
-  /// would silently break.
-  Future<dynamic> postMultipart(
+  /// Sends multipart/form-data. Used by profile/meeting uploads and by the
+  /// Social Media Planner where the same request can contain normal fields,
+  /// arrays (encoded by the caller as platforms[0], platforms[1], ...), and
+  /// an optional image/video attachment. Multipart uploads are always sent as
+  /// POST so PHP/Laravel reliably populate uploaded files on every host.
+  Future<dynamic> multipart(
     String path, {
-    required String fileFieldName,
-    required List<int> fileBytes,
-    required String fileName,
+    String method = 'POST',
+    String? fileFieldName,
+    List<int>? fileBytes,
+    String? fileName,
     String? contentType,
     Map<String, String> fields = const {},
   }) async {
@@ -311,20 +309,26 @@ class ApiClient {
 
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/$path'));
+        final request = http.MultipartRequest(method.toUpperCase(), Uri.parse('$baseUrl/$path'));
         final token = await getToken();
         request.headers['Accept'] = 'application/json';
         request.headers['X-Idempotency-Key'] = idempotencyKey;
         if (token != null) request.headers['Authorization'] = 'Bearer $token';
         request.fields.addAll(fields);
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            fileFieldName,
-            fileBytes,
-            filename: fileName,
-            contentType: contentType != null ? MediaType.parse(contentType) : null,
-          ),
-        );
+
+        if (fileFieldName != null &&
+            fileBytes != null &&
+            fileName != null &&
+            fileBytes.isNotEmpty) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              fileFieldName,
+              fileBytes,
+              filename: fileName,
+              contentType: contentType != null ? MediaType.parse(contentType) : null,
+            ),
+          );
+        }
 
         final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
         final response = await http.Response.fromStream(streamedResponse);
@@ -343,6 +347,22 @@ class ApiClient {
     }
     throw StateError('Unreachable upload retry state.');
   }
+
+  Future<dynamic> postMultipart(
+    String path, {
+    required String fileFieldName,
+    required List<int> fileBytes,
+    required String fileName,
+    String? contentType,
+    Map<String, String> fields = const {},
+  }) => multipart(
+        path,
+        fileFieldName: fileFieldName,
+        fileBytes: fileBytes,
+        fileName: fileName,
+        contentType: contentType,
+        fields: fields,
+      );
 
   dynamic _handle(http.Response response) {
     dynamic decoded;

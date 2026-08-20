@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/social_media_planner_service.dart';
@@ -40,6 +41,28 @@ class _SocialMediaPlannerScreenState
   DateTime? _date(dynamic value) {
     if (value == null) return null;
     return DateTime.tryParse(value.toString())?.toLocal();
+  }
+
+
+  String _contentTypeFor(XFile file, String mediaType) {
+    final name = file.name.toLowerCase();
+    if (mediaType == 'video') {
+      if (name.endsWith('.mov')) return 'video/quicktime';
+      if (name.endsWith('.webm')) return 'video/webm';
+      return 'video/mp4';
+    }
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.webp')) return 'image/webp';
+    if (name.endsWith('.gif')) return 'image/gif';
+    return 'image/jpeg';
+  }
+
+  String _existingLink(Map<String, dynamic>? post) {
+    final content = post?['platform_content'];
+    if (content is Map) {
+      return (content['link_url'] ?? '').toString();
+    }
+    return '';
   }
 
   Future<void> _load() async {
@@ -86,6 +109,15 @@ class _SocialMediaPlannerScreenState
     final hashtags = TextEditingController(
       text: post?['hashtags']?.toString() ?? '',
     );
+    final link = TextEditingController(
+      text: _existingLink(post),
+    );
+    final picker = ImagePicker();
+    XFile? attachment;
+    String? attachmentType;
+    bool removeExistingMedia = false;
+    final existingMediaType = (post?['media_type'] ?? 'text').toString();
+    final hasExistingMedia = existingMediaType == 'image' || existingMediaType == 'video';
 
     DateTime? scheduledAt = _date(
       post?['scheduled_at'],
@@ -201,6 +233,131 @@ class _SocialMediaPlannerScreenState
                       labelText: 'Hashtags',
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: link,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Attach link (optional)',
+                      hintText: 'https://example.com/page',
+                      prefixIcon: Icon(Icons.link_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Media attachment',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final selected = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 92,
+                          );
+                          if (selected != null) {
+                            setLocal(() {
+                              attachment = selected;
+                              attachmentType = 'image';
+                              removeExistingMedia = false;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.image_outlined),
+                        label: const Text('Image'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final selected = await picker.pickVideo(
+                            source: ImageSource.gallery,
+                          );
+                          if (selected != null) {
+                            setLocal(() {
+                              attachment = selected;
+                              attachmentType = 'video';
+                              removeExistingMedia = false;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.videocam_outlined),
+                        label: const Text('Video'),
+                      ),
+                    ],
+                  ),
+                  if (attachment != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(attachmentType == 'video' ? Icons.movie_outlined : Icons.image_outlined),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              attachment!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove selected attachment',
+                            onPressed: () {
+                              setLocal(() {
+                                attachment = null;
+                                attachmentType = null;
+                              });
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasExistingMedia && !removeExistingMedia) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(existingMediaType == 'video' ? Icons.movie_outlined : Icons.image_outlined),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Existing ${existingMediaType == 'video' ? 'video' : 'image'} will be kept.')),
+                          TextButton(
+                            onPressed: () => setLocal(() => removeExistingMedia = true),
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasExistingMedia && removeExistingMedia) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Existing media will be removed when you save.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setLocal(() => removeExistingMedia = false),
+                          child: const Text('Undo'),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   const Text(
                     'Platforms',
@@ -360,30 +517,41 @@ class _SocialMediaPlannerScreenState
     if (save == true) {
       try {
         if (post == null) {
+          final bytes = attachment == null ? null : await attachment!.readAsBytes();
           await _service.create(
             title: title.text,
             caption: caption.text,
             hashtags: hashtags.text,
-            mediaType: 'text',
             platforms: selectedPlatforms.toList(),
             scheduledAt: scheduledAt,
             postingMode: postingMode,
+            linkUrl: link.text,
+            attachmentBytes: bytes,
+            attachmentName: attachment?.name,
+            attachmentContentType: attachment == null
+                ? null
+                : _contentTypeFor(attachment!, attachmentType ?? 'image'),
           );
         } else {
           final id = _id(post);
 
           if (id != null) {
+            final bytes = attachment == null ? null : await attachment!.readAsBytes();
             await _service.update(
               id: id,
               title: title.text,
               caption: caption.text,
               hashtags: hashtags.text,
-              mediaType:
-                  (post['media_type'] ?? 'text')
-                      .toString(),
               platforms: selectedPlatforms.toList(),
               scheduledAt: scheduledAt,
               postingMode: postingMode,
+              linkUrl: link.text,
+              removeMedia: removeExistingMedia,
+              attachmentBytes: bytes,
+              attachmentName: attachment?.name,
+              attachmentContentType: attachment == null
+                  ? null
+                  : _contentTypeFor(attachment!, attachmentType ?? 'image'),
             );
           }
         }
@@ -406,6 +574,7 @@ class _SocialMediaPlannerScreenState
     title.dispose();
     caption.dispose();
     hashtags.dispose();
+    link.dispose();
   }
 
   String _shareText(
@@ -414,6 +583,7 @@ class _SocialMediaPlannerScreenState
     return <String>[
       (post['caption'] ?? '').toString().trim(),
       (post['hashtags'] ?? '').toString().trim(),
+      _existingLink(post).trim(),
     ].where((value) => value.isNotEmpty).join('\n\n');
   }
 
@@ -856,6 +1026,36 @@ class _SocialMediaPlannerScreenState
                                     : () =>
                                         _toggle(id),
                           ),
+                          if (!_selectionMode &&
+                              ((post['media_type'] ?? 'text').toString() != 'text' ||
+                                  _existingLink(post).isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  if ((post['media_type'] ?? 'text').toString() == 'image')
+                                    const Chip(
+                                      avatar: Icon(Icons.image_outlined, size: 16),
+                                      label: Text('Image'),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  if ((post['media_type'] ?? 'text').toString() == 'video')
+                                    const Chip(
+                                      avatar: Icon(Icons.movie_outlined, size: 16),
+                                      label: Text('Video'),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  if (_existingLink(post).isNotEmpty)
+                                    const Chip(
+                                      avatar: Icon(Icons.link_rounded, size: 16),
+                                      label: Text('Link'),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                ],
+                              ),
+                            ),
                           if (!_selectionMode)
                             Padding(
                               padding:

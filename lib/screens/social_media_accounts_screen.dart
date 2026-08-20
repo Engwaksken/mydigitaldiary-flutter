@@ -372,7 +372,7 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
             const Text('Social Media Accounts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
             const Text(
-              'Save your Instagram, Facebook, TikTok and LinkedIn identities. Official publishing authorisation remains separate.',
+              'Save your Instagram, Facebook, X, TikTok and LinkedIn identities. Configure automatic publishing for supported authorised accounts.',
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 8),
@@ -385,18 +385,110 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
                 ),
               )
             else
-              ..._accounts.map((account) => Card(
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.alternate_email_rounded)),
-                  title: Text('${account['platform'] ?? ''} · ${account['account_name'] ?? ''}'),
-                  subtitle: Text((account['username'] ?? '').toString().isEmpty ? 'No username saved' : account['username'].toString()),
-                  trailing: IconButton(
-                    tooltip: 'Remove account',
-                    onPressed: () => _remove(account),
-                    icon: const Icon(Icons.delete_outline_rounded),
+              ..._accounts.map((account) {
+                final connected = account['is_connected'] == true ||
+                    account['is_connected'] == 1 ||
+                    account['is_connected']?.toString() == '1';
+                final autoEnabled = account['auto_publish_enabled'] == true ||
+                    account['auto_publish_enabled'] == 1 ||
+                    account['auto_publish_enabled']?.toString() == '1';
+                final username = (account['username'] ?? '').toString().trim();
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const CircleAvatar(
+                              child: Icon(Icons.alternate_email_rounded),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    (account['platform'] ?? '').toString().toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    (account['account_name'] ?? 'Unnamed account').toString(),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    username.isEmpty ? 'No username saved' : username,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            Chip(
+                              avatar: Icon(
+                                connected ? Icons.link_rounded : Icons.link_off_rounded,
+                                size: 16,
+                              ),
+                              label: Text(connected ? 'Connected' : 'Not connected'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            Chip(
+                              avatar: Icon(
+                                autoEnabled ? Icons.auto_awesome_rounded : Icons.schedule_outlined,
+                                size: 16,
+                              ),
+                              label: Text(autoEnabled ? 'Automatic on' : 'Automatic off'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => _configureAutomaticPublishing(account),
+                              icon: const Icon(Icons.settings_outlined, size: 18),
+                              label: const Text('Automatic Posting'),
+                            ),
+                            IconButton.filledTonal(
+                              tooltip: 'Remove account',
+                              onPressed: () => _remove(account),
+                              icon: const Icon(Icons.delete_outline_rounded),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )),
+                );
+              }),
           ],
         ),
       ),

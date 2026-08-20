@@ -13,6 +13,7 @@ class _SocialMediaPostAnalyticsScreenState extends State<SocialMediaPostAnalytic
   final _service = const SocialMediaPlannerService();
   Map<String,dynamic> _data = {};
   bool _loading = true;
+  bool _syncing = false;
 
   int get _postId { final v=widget.post['id']; return v is int ? v : int.tryParse(v?.toString() ?? '') ?? 0; }
   int _int(dynamic v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
@@ -30,6 +31,30 @@ class _SocialMediaPostAnalyticsScreenState extends State<SocialMediaPostAnalytic
       if(!mounted) return;
       setState(()=>_loading=false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not load post performance: $e')));
+    }
+  }
+
+
+  Future<void> _syncNow() async {
+    if (_syncing || _postId <= 0) return;
+    setState(() => _syncing = true);
+    try {
+      final result = await _service.syncPostAnalytics(_postId);
+      await _load();
+      if (!mounted) return;
+      final entries = result.values.whereType<Map>().toList();
+      final synced = entries.where((e) => e['ok'] == true).length;
+      final failed = entries.where((e) => e['ok'] != true && e['skipped'] != true).length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Post analytics: $synced synced${failed > 0 ? ', $failed failed' : ''}.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not sync post analytics: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
@@ -66,13 +91,30 @@ class _SocialMediaPostAnalyticsScreenState extends State<SocialMediaPostAnalytic
     final by={for(final m in metrics)(m['platform']??'').toString():m};
     final rp=post['platforms']; final platforms=rp is List ? rp.map((e)=>e.toString()).toList() : <String>[];
     return Scaffold(
-      appBar:AppBar(title:const Text('Post Performance')),
+      appBar:AppBar(
+        title:const Text('Post Performance'),
+        actions:[
+          IconButton(
+            tooltip:'Sync analytics now',
+            onPressed:_syncing ? null : _syncNow,
+            icon:_syncing
+              ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+              : const Icon(Icons.sync),
+          ),
+        ],
+      ),
       body:RefreshIndicator(onRefresh:_load,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(16,12,16,80),children:[
         if(_loading)...[const LinearProgressIndicator(minHeight:2),const SizedBox(height:12)],
         Card(child:ListTile(title:Text((post['title']??'Social media post').toString()),subtitle:const Text('Views, reach, likes, comments, shares, saves, clicks and engagement.'))),
         const SizedBox(height:12),
         ...platforms.map((platform){final m=by[platform]; return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-          Row(children:[Expanded(child:Text(platform.replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800))),TextButton(onPressed:()=>_edit(platform,m),child:Text(m==null?'Add Metrics':'Update'))]),
+          Row(children:[Expanded(child:Text(platform.replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800))),TextButton(onPressed:()=>_edit(platform,m),child:Text(m==null?'Add Metrics':'Edit Manual'))]),
+          if (m?['synced_at'] != null) Text('Last API/manual sync: ${m?['synced_at']}',style:const TextStyle(fontSize:11,color:Color(0xFF64748B))),
+          if (m?['raw_metrics'] is Map && (m?['raw_metrics'] as Map)['sync_status'] == 'error')
+            Padding(
+              padding:const EdgeInsets.only(top:4),
+              child:Text("API sync needs attention: ${(m?['raw_metrics'] as Map)['sync_error'] ?? 'Unknown provider error'}",style:const TextStyle(fontSize:11)),
+            ),
           const SizedBox(height:8),
           GridView.count(crossAxisCount:3,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),mainAxisSpacing:8,crossAxisSpacing:8,childAspectRatio:1.25,children:[
             _Metric('Views',_int(m?['views'])),_Metric('Reach',_int(m?['reach'])),_Metric('Likes',_int(m?['likes'])),_Metric('Comments',_int(m?['comments'])),_Metric('Shares',_int(m?['shares'])),_Metric('Saves',_int(m?['saves'])),

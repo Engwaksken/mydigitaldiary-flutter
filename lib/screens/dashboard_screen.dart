@@ -46,6 +46,15 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   bool _loadingTodayFocus = false;
   String? _todayFocusError;
 
+  // Guards against two dashboard refreshes finishing out of order. This can
+  // happen immediately after login/resume and previously allowed a later,
+  // empty response to wipe a valid Today's Focus list.
+  int _dashboardLoadGeneration = 0;
+
+  // Once valid focus data has been shown, keep it on screen while a refresh is
+  // in progress or when a secondary endpoint temporarily fails.
+  bool _hasLoadedFocusOnce = false;
+
   Map<String, dynamic> _engagement = <String, dynamic>{};
   bool _loadingEngagement = false;
 
@@ -81,41 +90,54 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   Future<void> _load() async {
+    final loadGeneration = ++_dashboardLoadGeneration;
+
     if (mounted) {
       setState(() {
         _loading = true;
+
+        // If focus items are already visible, never replace them with a
+        // full-screen "loading" state during refresh.
         _loadingTodayFocus = _todayFocusItems.isEmpty;
         _todayFocusError = null;
       });
     }
 
     Map<String, dynamic> data = <String, dynamic>{};
+    var dashboardSucceeded = false;
 
     try {
-      // The main dashboard request is the only request that controls the
-      // initial loading state. Optional focus/finance refreshes happen after
-      // the page is already visible, so a slow secondary endpoint can never
-      // leave Home looking blank for 30–45 seconds.
       dynamic response;
+
       try {
-        response = await ApiClient.instance.get(
-          'dashboard',
-          cacheable: false,
-        ).timeout(const Duration(seconds: 7));
+        response = await ApiClient.instance
+            .get(
+              'dashboard',
+              cacheable: false,
+            )
+            .timeout(const Duration(seconds: 7));
+
+        dashboardSucceeded = true;
       } catch (_) {
-        // If the network is unavailable, fall back to any locally cached
-        // dashboard payload instead of leaving Home empty.
-        response = await ApiClient.instance.get(
-          'dashboard',
-          cacheable: true,
-        ).timeout(const Duration(seconds: 3));
+        // A cached dashboard is better than making the home screen empty when
+        // connectivity is temporarily unavailable.
+        response = await ApiClient.instance
+            .get(
+              'dashboard',
+              cacheable: true,
+            )
+            .timeout(const Duration(seconds: 3));
+
+        dashboardSucceeded = true;
       }
 
       if (response is Map) {
         final root = Map<String, dynamic>.from(response);
         final wrapped = root['data'];
+
         if (wrapped is Map &&
             (wrapped.containsKey('top_tasks') ||
+                wrapped.containsKey('today_focus') ||
                 wrapped.containsKey('personal_progress') ||
                 wrapped.containsKey('finance_summary') ||
                 wrapped.containsKey('today_insight'))) {
@@ -125,14 +147,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         }
       }
     } catch (_) {
-      // Still render Home shortcuts even when the dashboard request fails.
+      // Keep shortcuts and any previously displayed focus data available.
       data = <String, dynamic>{};
-      if (mounted && _todayFocusItems.isEmpty) {
-        _todayFocusError = 'Could not load today’s dashboard items.';
-      }
     }
 
-    if (!mounted) return;
+    // Ignore this refresh if a newer one has already started. Without this
+    // guard, login/resume can create competing requests and the slower request
+    // can overwrite newer state.
+    if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
 
     final rawMainFocus = data['top_tasks'] is List
         ? data['top_tasks']
@@ -142,45 +164,151 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ? _normaliseTodayFocus(rawMainFocus)
         : <Map<String, dynamic>>[];
 
-    // Today’s Focus should match the Daily Planner itself. Load that source
-    // before completing the Dashboard refresh instead of starting several
-    // competing asynchronous focus requests.
+    // Fetch the dedicated Today Focus endpoint independently. It is smaller
+    // than the dashboard payload and is the most reliable source for meetings,
+    // reminders, project tasks and Daily Planner tasks due today.
+    var endpointFocus = <Map<String, dynamic>>[];
+    var endpointSucceeded = false;
+
+    try {
+      final response = await ApiClient.instance
+          .get(
+            'dashboard/today-focus',
+            cacheable: false,
+          )
+          .timeout(const Duration(seconds: 7));
+
+      dynamic payload = response;
+
+      if (payload is Map && payload['data'] is List) {
+        payload = payload['data'];
+      } else if (payload is Map && payload['top_tasks'] is List) {
+        payload = payload['top_tasks'];
+      } else if (payload is Map && payload['today_focus'] is List) {
+        payload = payload['today_focus'];
+      }
+
+      if (payload is List) {
+        endpointFocus = _normaliseTodayFocus(payload);
+      }
+
+      endpointSucceeded = true;
+    } catch (_) {
+      // The main dashboard and Daily Planner are still valid fallbacks.
+    }
+
+    if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
+
+    // Load the Daily Planner directly as well. This protects Today's Focus
+    // when the server dashboard cache/API is behind immediately after login or
+    // after a planner item is added/edited.
     var plannerFocus = <Map<String, dynamic>>[];
+    var plannerSucceeded = false;
 
     try {
       plannerFocus = await _todayPlannerFocus();
-    } catch (_) {}
+      plannerSucceeded = true;
+    } catch (_) {
+      // Keep other focus sources instead of clearing the section.
+    }
 
-    if (!mounted) return;
+    if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
+
+    final mergedFocus = _mergeTodayFocusSources(
+      plannerFocus,
+      endpointFocus,
+      mainFocus,
+    );
 
     setState(() {
       _stats = data;
 
-      if (plannerFocus.isNotEmpty) {
-        _todayFocusItems = plannerFocus;
-        _todayFocusError = null;
-      } else if (mainFocus.isNotEmpty) {
-        // Fallback for meetings/reminders supplied by Dashboard when there are
-        // no pending Daily Planner items.
-        _todayFocusItems = mainFocus;
+      if (mergedFocus.isNotEmpty) {
+        _todayFocusItems = mergedFocus;
+        _hasLoadedFocusOnce = true;
         _todayFocusError = null;
       } else {
-        _todayFocusItems = const <Map<String, dynamic>>[];
-        _todayFocusError = null;
+        final everyAuthoritativeSourceCompleted =
+            dashboardSucceeded && endpointSucceeded && plannerSucceeded;
+
+        if (everyAuthoritativeSourceCompleted) {
+          // All sources positively reported no pending items. Show the proper
+          // empty-state card; never remove the Today's Focus section itself.
+          _todayFocusItems = const <Map<String, dynamic>>[];
+          _hasLoadedFocusOnce = true;
+          _todayFocusError = null;
+        } else if (_todayFocusItems.isNotEmpty || _hasLoadedFocusOnce) {
+          // A refresh failed or timed out after focus was previously loaded.
+          // Preserve the last good list rather than making it disappear.
+          _todayFocusError = null;
+        } else {
+          _todayFocusItems = const <Map<String, dynamic>>[];
+          _todayFocusError =
+              'Could not refresh today’s focus. Pull down to try again.';
+        }
       }
 
       _loadingTodayFocus = false;
       _loading = false;
     });
 
-    // Retention/engagement data is independent of Today's Focus.
+    // These sections refresh independently and never own/mutate Today's Focus.
     unawaited(_refreshEngagement());
     unawaited(_refreshGrowth());
-
-    // Finance and Insight may refresh independently because they never own
-    // or mutate Today's Focus.
     unawaited(_refreshFinanceSummary());
     unawaited(_refreshTodayInsight());
+  }
+
+  List<Map<String, dynamic>> _mergeTodayFocusSources(
+    List<Map<String, dynamic>> planner,
+    List<Map<String, dynamic>> dedicated,
+    List<Map<String, dynamic>> dashboard,
+  ) {
+    final merged = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    void addAll(List<Map<String, dynamic>> source) {
+      for (final item in source) {
+        final title = (item['title'] ?? '').toString().trim();
+        if (title.isEmpty) continue;
+
+        final origin = (item['source'] ??
+                item['module'] ??
+                item['type'] ??
+                '')
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        final time = (item['time'] ??
+                item['start_time'] ??
+                item['due_time'] ??
+                '')
+            .toString()
+            .trim()
+            .toLowerCase();
+
+        final id = item['id']?.toString().trim() ?? '';
+
+        // Prefer a stable ID where available. Server-provided focus entries do
+        // not always include IDs, so title/source/time form the fallback key.
+        final key = id.isNotEmpty
+            ? '$origin|id:$id'
+            : '$origin|${title.toLowerCase()}|$time';
+
+        if (seen.add(key)) {
+          merged.add(Map<String, dynamic>.from(item));
+        }
+      }
+    }
+
+    // Daily Planner goes first so the user's explicit daily priorities are
+    // always visible before meetings/reminders/project tasks.
+    addAll(planner);
+    addAll(dedicated);
+    addAll(dashboard);
+
+    return merged.take(6).toList(growable: false);
   }
 
 
@@ -930,18 +1058,45 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           children: [
             const Expanded(
               child: _SectionHeading(
-                title: "Today's focus",
+                title: "Today's Focus",
                 icon: Icons.wb_sunny_outlined,
               ),
             ),
+            IconButton(
+              onPressed: _loadingTodayFocus ? null : _load,
+              tooltip: 'Refresh Today’s Focus',
+              icon: _loadingTodayFocus
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 19),
+            ),
             TextButton.icon(
-              onPressed: () => _open(const DailyPlannerScreen()),
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DailyPlannerScreen(),
+                  ),
+                );
+
+                if (mounted) {
+                  unawaited(_load());
+                }
+              },
               icon: const Icon(Icons.today_outlined, size: 16),
               label: const Text('Planner'),
             ),
           ],
         ),
         const SizedBox(height: 8),
+
+        if (_loadingTodayFocus && items.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
 
         if (_loadingTodayFocus && items.isEmpty)
           Container(
