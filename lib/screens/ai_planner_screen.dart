@@ -68,9 +68,35 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
     }
   }
 
+  Future<void> _viewPlan(AiPlan plan) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _AiPlanViewerScreen(
+          plan: plan,
+          onDownloadPdf: () => _downloadPdf(plan),
+        ),
+      ),
+    );
+  }
+
   Future<void> _downloadPdf(AiPlan plan) async {
+    if (plan.pdfUrl.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF is not available for this plan.')),
+        );
+      }
+      return;
+    }
+
     final uri = Uri.parse(plan.pdfUrl);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the PDF.')),
+      );
+    }
   }
 
   @override
@@ -114,16 +140,51 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Expanded(child: Text(DateFormat('yMMMd, h:mm a').format(plan.createdAt), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                  IconButton(icon: const Icon(Icons.download_outlined), onPressed: () => _downloadPdf(plan)),
-                                  IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(plan)),
+                                  Expanded(
+                                    child: Text(
+                                      DateFormat('yMMMd, h:mm a').format(plan.createdAt),
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete plan',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => _delete(plan),
+                                  ),
                                 ],
                               ),
-                              Text(
-                                plan.content,
-                                maxLines: 6,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => _viewPlan(plan),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(
+                                    plan.content,
+                                    maxLines: 6,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13, height: 1.45),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _viewPlan(plan),
+                                      icon: const Icon(Icons.visibility_outlined, size: 18),
+                                      label: const Text('View Plan'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: FilledButton.tonalIcon(
+                                      onPressed: () => _downloadPdf(plan),
+                                      icon: const Icon(Icons.download_outlined, size: 18),
+                                      label: const Text('PDF'),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -162,3 +223,138 @@ class _AiPlannerScreenState extends State<AiPlannerScreen> {
   }
 
 }
+
+class _AiPlanViewerScreen extends StatelessWidget {
+  final AiPlan plan;
+  final Future<void> Function() onDownloadPdf;
+
+  const _AiPlanViewerScreen({
+    required this.plan,
+    required this.onDownloadPdf,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('View AI Plan'),
+        actions: [
+          IconButton(
+            tooltip: 'Download PDF',
+            onPressed: onDownloadPdf,
+            icon: const Icon(Icons.download_outlined),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: SelectionArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F3FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: Color(0xFF7C3AED),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'AI Plan',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                DateFormat('EEEE, d MMMM y • h:mm a')
+                                    .format(plan.createdAt),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if ((plan.provider ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          Chip(
+                            avatar: const Icon(Icons.smart_toy_outlined, size: 16),
+                            label: Text(plan.provider!),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          if (plan.usedSharedKey)
+                            const Chip(
+                              avatar: Icon(Icons.card_giftcard_outlined, size: 16),
+                              label: Text('Shared AI plan'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  plan.content.trim().isEmpty
+                      ? 'This AI plan has no content.'
+                      : plan.content.trim(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onDownloadPdf,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Download PDF'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
