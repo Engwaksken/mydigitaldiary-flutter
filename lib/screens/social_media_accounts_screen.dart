@@ -105,6 +105,16 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
       text: (account['external_account_id'] ?? '').toString(),
     );
     final accessToken = TextEditingController();
+    final automationProvider = TextEditingController(
+      text: (account['automation_provider'] ?? '').toString(),
+    );
+    final automationEndpoint = TextEditingController(
+      text: (account['automation_endpoint'] ?? '').toString(),
+    );
+    final automationSecret = TextEditingController();
+    final isWhatsAppAutomation =
+        account['platform'] == 'whatsapp_status' ||
+        account['platform'] == 'whatsapp_channel';
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -172,6 +182,52 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
                         'For X posting, use a user-context token with tweet.write permission.',
                   ),
                 ),
+                if (isWhatsAppAutomation) ...[
+                  const SizedBox(height: 14),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'WhatsApp automatic provider',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Manual posting always stays available. Automatic Status/Channel publishing requires a provider/webhook that explicitly supports it.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.4,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: automationProvider,
+                    decoration: const InputDecoration(
+                      labelText: 'Provider name',
+                      hintText: 'e.g. Custom provider',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: automationEndpoint,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Provider webhook / API endpoint',
+                      hintText: 'https://provider.example.com/publish',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: automationSecret,
+                    obscureText: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Webhook signing secret (optional)',
+                      hintText: 'Leave blank to keep current secret',
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () => Navigator.pop(context, true),
@@ -192,6 +248,14 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
         accessToken: accessToken.text.isEmpty
             ? null
             : accessToken.text,
+        automationProvider:
+            isWhatsAppAutomation ? automationProvider.text : null,
+        automationEndpoint:
+            isWhatsAppAutomation ? automationEndpoint.text : null,
+        automationSecret:
+            isWhatsAppAutomation && automationSecret.text.isNotEmpty
+                ? automationSecret.text
+                : null,
       );
 
       await _load();
@@ -199,6 +263,9 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
 
     externalAccountId.dispose();
     accessToken.dispose();
+    automationProvider.dispose();
+    automationEndpoint.dispose();
+    automationSecret.dispose();
   }
 
   Future<void> _addAccount() async {
@@ -234,6 +301,8 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
                     DropdownMenuItem(value: 'x', child: Text('X (Twitter)')),
                     DropdownMenuItem(value: 'tiktok', child: Text('TikTok')),
                     DropdownMenuItem(value: 'linkedin', child: Text('LinkedIn')),
+                    DropdownMenuItem(value: 'whatsapp_status', child: Text('WhatsApp Status')),
+                    DropdownMenuItem(value: 'whatsapp_channel', child: Text('WhatsApp Channel')),
                   ],
                   onChanged: (value) {
                     if (value != null) setLocal(() => platform = value);
@@ -372,7 +441,7 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
             const Text('Social Media Accounts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
             const Text(
-              'Save your Instagram, Facebook, X, TikTok and LinkedIn identities. Configure automatic publishing for supported authorised accounts.',
+              'Save your Instagram, Facebook, TikTok and LinkedIn identities. Official publishing authorisation remains separate.',
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 8),
@@ -386,18 +455,38 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
               )
             else
               ..._accounts.map((account) {
-                final connected = account['is_connected'] == true ||
-                    account['is_connected'] == 1 ||
-                    account['is_connected']?.toString() == '1';
-                final autoEnabled = account['auto_publish_enabled'] == true ||
+                final autoEnabled =
+                    account['auto_publish_enabled'] == true ||
                     account['auto_publish_enabled'] == 1 ||
                     account['auto_publish_enabled']?.toString() == '1';
-                final username = (account['username'] ?? '').toString().trim();
+                final connected =
+                    account['is_connected'] == true ||
+                    account['is_connected'] == 1 ||
+                    account['is_connected']?.toString() == '1';
+
+                final rawPlatform =
+                    (account['platform'] ?? '').toString();
+                final platformLabel = switch (rawPlatform) {
+                  'x' => 'X (Twitter)',
+                  'whatsapp_status' => 'WhatsApp Status',
+                  'whatsapp_channel' => 'WhatsApp Channel',
+                  _ => rawPlatform
+                      .replaceAll('_', ' ')
+                      .split(' ')
+                      .where((part) => part.isNotEmpty)
+                      .map(
+                        (part) =>
+                            '${part[0].toUpperCase()}${part.substring(1)}',
+                      )
+                      .join(' '),
+                };
+
+                final username =
+                    (account['username'] ?? '').toString().trim();
 
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
                   child: Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -410,33 +499,47 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    (account['platform'] ?? '').toString().toUpperCase(),
+                                    '$platformLabel · ${account['account_name'] ?? ''}',
                                     style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    (account['account_name'] ?? 'Unnamed account').toString(),
-                                    style: const TextStyle(
-                                      fontSize: 15,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: 3),
                                   Text(
-                                    username.isEmpty ? 'No username saved' : username,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                    username.isEmpty
+                                        ? 'No username saved'
+                                        : username,
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF64748B),
                                     ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      _AccountStatusChip(
+                                        icon: connected
+                                            ? Icons.link_rounded
+                                            : Icons.link_off_rounded,
+                                        label: connected
+                                            ? 'API connected'
+                                            : 'API not connected',
+                                      ),
+                                      _AccountStatusChip(
+                                        icon: autoEnabled
+                                            ? Icons.bolt_rounded
+                                            : Icons.schedule_rounded,
+                                        label: autoEnabled
+                                            ? 'Automatic posting ON'
+                                            : 'Automatic posting OFF',
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -445,42 +548,25 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
                         ),
                         const SizedBox(height: 12),
                         Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            Chip(
-                              avatar: Icon(
-                                connected ? Icons.link_rounded : Icons.link_off_rounded,
-                                size: 16,
-                              ),
-                              label: Text(connected ? 'Connected' : 'Not connected'),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            Chip(
-                              avatar: Icon(
-                                autoEnabled ? Icons.auto_awesome_rounded : Icons.schedule_outlined,
-                                size: 16,
-                              ),
-                              label: Text(autoEnabled ? 'Automatic on' : 'Automatic off'),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          alignment: WrapAlignment.end,
                           spacing: 8,
                           runSpacing: 8,
+                          alignment: WrapAlignment.end,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () => _configureAutomaticPublishing(account),
-                              icon: const Icon(Icons.settings_outlined, size: 18),
+                              onPressed: () =>
+                                  _configureAutomaticPublishing(account),
+                              icon: const Icon(
+                                Icons.settings_suggest_outlined,
+                                size: 18,
+                              ),
                               label: const Text('Automatic Posting'),
                             ),
-                            IconButton.filledTonal(
+                            IconButton(
                               tooltip: 'Remove account',
                               onPressed: () => _remove(account),
-                              icon: const Icon(Icons.delete_outline_rounded),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                              ),
                             ),
                           ],
                         ),
@@ -491,6 +577,49 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
               }),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AccountStatusChip extends StatelessWidget {
+  const _AccountStatusChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: const Color(0xFF475569),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF475569),
+            ),
+          ),
+        ],
       ),
     );
   }

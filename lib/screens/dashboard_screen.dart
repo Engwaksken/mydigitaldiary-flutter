@@ -55,6 +55,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   // in progress or when a secondary endpoint temporarily fails.
   bool _hasLoadedFocusOnce = false;
 
+  // Dashboard and Today's Focus refresh independently. Keeping separate
+  // guards prevents login/resume/pull-to-refresh from starting multiple
+  // competing network chains that rebuild the whole Home screen.
+  bool _dashboardRefreshInProgress = false;
+  bool _focusRefreshInProgress = false;
+  DateTime? _lastDashboardRefreshAt;
+  DateTime? _lastFocusRefreshAt;
+
   Map<String, dynamic> _engagement = <String, dynamic>{};
   bool _loadingEngagement = false;
 
@@ -66,7 +74,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _load();
+
+    // Do not make Today's Focus wait for the much larger dashboard payload.
+    // Both requests begin immediately after login.
+    unawaited(_loadTodayFocus(force: true));
+    unawaited(_loadDashboard(force: true));
   }
 
   @override
@@ -78,33 +90,43 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Refresh the authoritative dashboard payload on resume. Today's Focus
-      // is sourced only from /api/dashboard -> top_tasks.
-      unawaited(_load());
+    if (state != AppLifecycleState.resumed) return;
+
+    final now = DateTime.now();
+    final dashboardStale = _lastDashboardRefreshAt == null ||
+        now.difference(_lastDashboardRefreshAt!) >
+            const Duration(minutes: 2);
+    final focusStale = _lastFocusRefreshAt == null ||
+        now.difference(_lastFocusRefreshAt!) >
+            const Duration(seconds: 45);
+
+    if (focusStale) {
+      unawaited(_loadTodayFocus(force: true));
+    }
+    if (dashboardStale) {
+      unawaited(_loadDashboard(force: true));
     }
   }
 
   Future<void> _refreshHome() async {
-    await _load();
+    await Future.wait<void>([
+      _loadTodayFocus(force: true),
+      _loadDashboard(force: true),
+    ]);
   }
 
-  Future<void> _load() async {
+
+  Future<void> _loadDashboard({bool force = false}) async {
+    if (_dashboardRefreshInProgress && !force) return;
+
+    _dashboardRefreshInProgress = true;
     final loadGeneration = ++_dashboardLoadGeneration;
 
-    if (mounted) {
-      setState(() {
-        _loading = true;
-
-        // If focus items are already visible, never replace them with a
-        // full-screen "loading" state during refresh.
-        _loadingTodayFocus = _todayFocusItems.isEmpty;
-        _todayFocusError = null;
-      });
+    if (mounted && _stats == null) {
+      setState(() => _loading = true);
     }
 
-    Map<String, dynamic> data = <String, dynamic>{};
-    var dashboardSucceeded = false;
+    Map<String, dynamic>? data;
 
     try {
       dynamic response;
@@ -116,19 +138,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               cacheable: false,
             )
             .timeout(const Duration(seconds: 7));
-
-        dashboardSucceeded = true;
       } catch (_) {
-        // A cached dashboard is better than making the home screen empty when
-        // connectivity is temporarily unavailable.
         response = await ApiClient.instance
             .get(
               'dashboard',
               cacheable: true,
             )
             .timeout(const Duration(seconds: 3));
-
-        dashboardSucceeded = true;
       }
 
       if (response is Map) {
@@ -147,117 +163,219 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         }
       }
     } catch (_) {
-      // Keep shortcuts and any previously displayed focus data available.
-      data = <String, dynamic>{};
-    }
-
-    // Ignore this refresh if a newer one has already started. Without this
-    // guard, login/resume can create competing requests and the slower request
-    // can overwrite newer state.
-    if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
-
-    final rawMainFocus = data['top_tasks'] is List
-        ? data['top_tasks']
-        : (data['today_focus'] is List ? data['today_focus'] : null);
-
-    final mainFocus = rawMainFocus is List
-        ? _normaliseTodayFocus(rawMainFocus)
-        : <Map<String, dynamic>>[];
-
-    // Fetch the dedicated Today Focus endpoint independently. It is smaller
-    // than the dashboard payload and is the most reliable source for meetings,
-    // reminders, project tasks and Daily Planner tasks due today.
-    var endpointFocus = <Map<String, dynamic>>[];
-    var endpointSucceeded = false;
-
-    try {
-      final response = await ApiClient.instance
-          .get(
-            'dashboard/today-focus',
-            cacheable: false,
-          )
-          .timeout(const Duration(seconds: 7));
-
-      dynamic payload = response;
-
-      if (payload is Map && payload['data'] is List) {
-        payload = payload['data'];
-      } else if (payload is Map && payload['top_tasks'] is List) {
-        payload = payload['top_tasks'];
-      } else if (payload is Map && payload['today_focus'] is List) {
-        payload = payload['today_focus'];
-      }
-
-      if (payload is List) {
-        endpointFocus = _normaliseTodayFocus(payload);
-      }
-
-      endpointSucceeded = true;
-    } catch (_) {
-      // The main dashboard and Daily Planner are still valid fallbacks.
+      // Keep the last successful dashboard payload visible.
+    } finally {
+      _dashboardRefreshInProgress = false;
     }
 
     if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
 
-    // Load the Daily Planner directly as well. This protects Today's Focus
-    // when the server dashboard cache/API is behind immediately after login or
-    // after a planner item is added/edited.
-    var plannerFocus = <Map<String, dynamic>>[];
-    var plannerSucceeded = false;
+    if (data != null) {
+      // Merge dashboard-provided focus tasks into the dedicated focus state,
+      // but never make Today's Focus depend on this larger request.
+      final dashboardFocus = _extractTodayFocus(data);
 
-    try {
-      plannerFocus = await _todayPlannerFocus();
-      plannerSucceeded = true;
-    } catch (_) {
-      // Keep other focus sources instead of clearing the section.
-    }
-
-    if (!mounted || loadGeneration != _dashboardLoadGeneration) return;
-
-    final mergedFocus = _mergeTodayFocusSources(
-      plannerFocus,
-      endpointFocus,
-      mainFocus,
-    );
-
-    setState(() {
-      _stats = data;
-
-      if (mergedFocus.isNotEmpty) {
-        _todayFocusItems = mergedFocus;
-        _hasLoadedFocusOnce = true;
-        _todayFocusError = null;
-      } else {
-        final everyAuthoritativeSourceCompleted =
-            dashboardSucceeded && endpointSucceeded && plannerSucceeded;
-
-        if (everyAuthoritativeSourceCompleted) {
-          // All sources positively reported no pending items. Show the proper
-          // empty-state card; never remove the Today's Focus section itself.
-          _todayFocusItems = const <Map<String, dynamic>>[];
-          _hasLoadedFocusOnce = true;
-          _todayFocusError = null;
-        } else if (_todayFocusItems.isNotEmpty || _hasLoadedFocusOnce) {
-          // A refresh failed or timed out after focus was previously loaded.
-          // Preserve the last good list rather than making it disappear.
-          _todayFocusError = null;
-        } else {
-          _todayFocusItems = const <Map<String, dynamic>>[];
-          _todayFocusError =
-              'Could not refresh today’s focus. Pull down to try again.';
-        }
+      if (dashboardFocus.isNotEmpty) {
+        _mergeFocusIntoCurrent(dashboardFocus);
       }
 
-      _loadingTodayFocus = false;
-      _loading = false;
-    });
+      setState(() {
+        _stats = data;
+        _loading = false;
+        _lastDashboardRefreshAt = DateTime.now();
+      });
+    } else if (_stats == null) {
+      setState(() => _loading = false);
+    }
 
-    // These sections refresh independently and never own/mutate Today's Focus.
+    // Secondary cards refresh after Home is already usable. They do not block
+    // or own Today's Focus.
     unawaited(_refreshEngagement());
     unawaited(_refreshGrowth());
     unawaited(_refreshFinanceSummary());
     unawaited(_refreshTodayInsight());
   }
+
+  Future<void> _loadTodayFocus({bool force = false}) async {
+    if (_focusRefreshInProgress && !force) return;
+
+    _focusRefreshInProgress = true;
+
+    if (mounted) {
+      setState(() {
+        _loadingTodayFocus = _todayFocusItems.isEmpty;
+        _todayFocusError = null;
+      });
+    }
+
+    List<Map<String, dynamic>> apiItems = <Map<String, dynamic>>[];
+    List<Map<String, dynamic>> plannerItems = <Map<String, dynamic>>[];
+    var apiSucceeded = false;
+    var plannerSucceeded = false;
+
+    await Future.wait<void>([
+      () async {
+        try {
+          apiItems = await _fetchDedicatedTodayFocus();
+          apiSucceeded = true;
+        } catch (_) {
+          apiSucceeded = false;
+        }
+      }(),
+      () async {
+        try {
+          plannerItems = await _todayPlannerFocus();
+          plannerSucceeded = true;
+        } catch (_) {
+          plannerSucceeded = false;
+        }
+      }(),
+    ]);
+
+    if (!mounted) {
+      _focusRefreshInProgress = false;
+      return;
+    }
+
+    final dashboardItems = _extractTodayFocus(_stats);
+
+    final freshItems = _mergeTodayFocusSources(
+      plannerItems,
+      apiItems,
+      dashboardItems,
+    );
+
+    _focusRefreshInProgress = false;
+
+    setState(() {
+      if (freshItems.isNotEmpty) {
+        _todayFocusItems = freshItems;
+        _hasLoadedFocusOnce = true;
+        _todayFocusError = null;
+      } else if (_todayFocusItems.isNotEmpty) {
+        _todayFocusError = null;
+      } else {
+        _todayFocusItems = const <Map<String, dynamic>>[];
+        _hasLoadedFocusOnce = true;
+        _todayFocusError = (!apiSucceeded && !plannerSucceeded)
+            ? 'Could not load today’s tasks. Check your connection and retry.'
+            : null;
+      }
+
+      _loadingTodayFocus = false;
+      _lastFocusRefreshAt = DateTime.now();
+    });
+  }
+
+  List<Map<String, dynamic>> _extractTodayFocus(dynamic payload) {
+    final collected = <dynamic>[];
+
+    void collect(dynamic value, int depth) {
+      if (value == null || depth > 6) return;
+
+      if (value is List) {
+        collected.addAll(value);
+        return;
+      }
+
+      if (value is! Map) return;
+
+      final map = Map<String, dynamic>.from(value);
+
+      // First look for the keys used by the Laravel dashboard/API.
+      for (final key in const <String>[
+        'top_tasks',
+        'today_focus',
+        'todays_focus',
+        'today_tasks',
+        'focus_items',
+        'items',
+        'tasks',
+      ]) {
+        final child = map[key];
+
+        if (child is List) {
+          collected.addAll(child);
+        } else if (child is Map) {
+          // Some Laravel resources return keyed collections instead of arrays.
+          final childMap = Map<dynamic, dynamic>.from(child);
+          final values = childMap.values.toList(growable: false);
+
+          if (values.any((entry) => entry is Map)) {
+            collected.addAll(values);
+          } else {
+            collect(child, depth + 1);
+          }
+        }
+      }
+
+      // Walk the usual response envelopes as well.
+      for (final key in const <String>[
+        'data',
+        'result',
+        'dashboard',
+        'today',
+        'payload',
+      ]) {
+        final child = map[key];
+        if (child is Map || child is List) {
+          collect(child, depth + 1);
+        }
+      }
+    }
+
+    collect(payload, 0);
+
+    if (collected.isEmpty && payload is List) {
+      collected.addAll(payload);
+    }
+
+    return _normaliseTodayFocus(collected);
+  }
+
+
+  Future<List<Map<String, dynamic>>> _fetchDedicatedTodayFocus() async {
+    dynamic response;
+
+    try {
+      response = await ApiClient.instance
+          .get(
+            'dashboard/today-focus',
+            cacheable: false,
+          )
+          .timeout(const Duration(seconds: 7));
+    } catch (_) {
+      response = await ApiClient.instance
+          .get(
+            'dashboard/today-focus',
+            cacheable: true,
+          )
+          .timeout(const Duration(seconds: 3));
+    }
+
+    return _extractTodayFocus(response);
+  }
+
+
+  void _mergeFocusIntoCurrent(List<Map<String, dynamic>> incoming) {
+    if (incoming.isEmpty || !mounted) return;
+
+    final merged = _mergeTodayFocusSources(
+      _todayFocusItems,
+      incoming,
+      const <Map<String, dynamic>>[],
+    );
+
+    if (merged.isEmpty) return;
+
+    setState(() {
+      _todayFocusItems = merged;
+      _hasLoadedFocusOnce = true;
+      _loadingTodayFocus = false;
+      _todayFocusError = null;
+    });
+  }
+
 
   List<Map<String, dynamic>> _mergeTodayFocusSources(
     List<Map<String, dynamic>> planner,
@@ -322,7 +440,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     final plan = await DailyPlannerService()
         .getPlan(today)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 5));
 
     final pending = plan.items
         .where(
@@ -405,7 +523,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       final source = Map<String, dynamic>.from(value);
       final nested = source['item'] is Map
           ? Map<String, dynamic>.from(source['item'] as Map)
-          : <String, dynamic>{};
+          : source['task_item'] is Map
+              ? Map<String, dynamic>.from(source['task_item'] as Map)
+              : source['task'] is Map
+                  ? Map<String, dynamic>.from(source['task'] as Map)
+                  : <String, dynamic>{};
 
       final completed = source['is_completed'] ??
           source['completed'] ??
@@ -427,12 +549,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       final title = firstNonEmpty([
         source['title'],
         source['name'],
-        source['task'],
+        source['task_title'],
+        source['item_title'],
+        source['activity_title'],
+        source['task'] is String ? source['task'] : null,
         source['subject'],
         source['description'],
+        source['text'],
+        source['label'],
         nested['title'],
         nested['name'],
-        nested['task'],
+        nested['task_title'],
+        nested['item_title'],
+        nested['task'] is String ? nested['task'] : null,
+        nested['description'],
       ]);
 
       if (title.isEmpty) continue;
@@ -768,7 +898,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   List<Map<String, dynamic>> _todaysTopTasks() {
-    return List<Map<String, dynamic>>.unmodifiable(_todayFocusItems);
+    if (_todayFocusItems.isNotEmpty) {
+      return List<Map<String, dynamic>>.unmodifiable(_todayFocusItems);
+    }
+
+    // The Laravel dashboard already has Today's Focus. If the dedicated
+    // endpoint is slow or uses a different envelope, show the copy from the
+    // main dashboard immediately rather than leaving a large blank section.
+    final fromDashboard = _extractTodayFocus(_stats);
+
+    if (fromDashboard.isNotEmpty) {
+      return List<Map<String, dynamic>>.unmodifiable(fromDashboard);
+    }
+
+    return const <Map<String, dynamic>>[];
   }
 
   _DashboardInsight _fallbackInsight() {
@@ -1043,6 +1186,31 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
+  Future<void> _openPlanner() async {
+    if (!mounted) return;
+
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const DailyPlannerScreen(),
+        ),
+      );
+
+      if (!mounted) return;
+
+      unawaited(_loadTodayFocus(force: true));
+      unawaited(_loadDashboard(force: true));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open Daily Planner. Please try again.'),
+        ),
+      );
+    }
+  }
+
   void _openModule(String endpoint) {
     final config = moduleConfigByEndpoint(endpoint);
     _open(DynamicCrudScreen(config: config));
@@ -1056,107 +1224,137 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       children: [
         Row(
           children: [
+            const Icon(
+              Icons.wb_sunny_outlined,
+              color: Color(0xFF0F9D8A),
+              size: 22,
+            ),
+            const SizedBox(width: 8),
             const Expanded(
-              child: _SectionHeading(
-                title: "Today's Focus",
-                icon: Icons.wb_sunny_outlined,
+              child: Text(
+                "Today's Focus",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
               ),
             ),
             IconButton(
-              onPressed: _loadingTodayFocus ? null : _load,
+              visualDensity: VisualDensity.compact,
+              onPressed: _loadingTodayFocus
+                  ? null
+                  : () => _loadTodayFocus(force: true),
               tooltip: 'Refresh Today’s Focus',
               icon: _loadingTodayFocus
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 17,
+                      height: 17,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.refresh_rounded, size: 19),
+                  : const Icon(Icons.refresh_rounded, size: 20),
             ),
             TextButton.icon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyPlannerScreen(),
-                  ),
-                );
-
-                if (mounted) {
-                  unawaited(_load());
-                }
-              },
-              icon: const Icon(Icons.today_outlined, size: 16),
-              label: const Text('Planner'),
+              onPressed: _openPlanner,
+              icon: const Icon(Icons.today_outlined, size: 17),
+              label: const Text('Open Planner'),
             ),
           ],
         ),
         const SizedBox(height: 8),
 
-        if (_loadingTodayFocus && items.isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(minHeight: 2),
-          ),
-
         if (_loadingTodayFocus && items.isEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+              ),
             ),
             child: const Row(
               children: [
-                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                SizedBox(width: 12),
-                Expanded(child: Text('Loading today’s tasks…', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600))),
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Loading today’s tasks…',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
           )
         else if (items.isNotEmpty)
-          ...[for (var i = 0; i < items.length; i++) _TodayTask(index: i + 1, task: items[i])]
-        else if (_todayFocusError != null)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEB),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFDE68A)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Today’s Focus could not refresh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-                      const SizedBox(height: 3),
-                      Text(_todayFocusError!, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                    ],
-                  ),
+          Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                _TodayTask(
+                  index: i + 1,
+                  task: items[i],
+                  onTap: _openPlanner,
                 ),
-                IconButton(onPressed: _load, tooltip: 'Retry', icon: const Icon(Icons.refresh_rounded)),
+                if (i != items.length - 1)
+                  const SizedBox(height: 8),
               ],
-            ),
+            ],
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              leading: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF0F9D8A)),
-              title: const Text('No pending focus items for today.', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              subtitle: const Text('Pending Daily Planner tasks, meetings, reminders and project tasks due today will appear here.', style: TextStyle(fontSize: 11)),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: () => _open(const DailyPlannerScreen()),
+          InkWell(
+            onTap: _openPlanner,
+            borderRadius: BorderRadius.circular(15),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _todayFocusError == null
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.warning_amber_rounded,
+                    color: _todayFocusError == null
+                        ? const Color(0xFF0F9D8A)
+                        : const Color(0xFFD97706),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _todayFocusError ??
+                          'No pending focus items for today. Tap to open Planner.',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -1164,8 +1362,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
-            onPressed: () => _open(const RecentActivityScreen()),
-            icon: const Icon(Icons.history_rounded, size: 16),
+            onPressed: () => _open(
+              const RecentActivityScreen(),
+            ),
+            icon: const Icon(
+              Icons.history_rounded,
+              size: 16,
+            ),
             label: const Text('Recent activity'),
           ),
         ),
@@ -1443,6 +1646,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         onRefresh: _refreshHome,
         child: ListView(
           primary: true,
+          cacheExtent: 900,
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           physics: const AlwaysScrollableScrollPhysics(
             parent: ClampingScrollPhysics(),
@@ -1455,13 +1661,15 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             ],
             _WelcomeCard(name: _firstName(auth.user?.name)),
             const SizedBox(height: 12),
-            EngagementDashboardSection(
-              data: _engagement,
-              loading: _loadingEngagement,
-              onStartDay: _startMyDay,
-              onCloseDay: _closeMyDay,
-              onWeekReview: () => _showEngagementReview('week'),
-              onMonthReview: () => _showEngagementReview('month'),
+            RepaintBoundary(
+              child: EngagementDashboardSection(
+                data: _engagement,
+                loading: _loadingEngagement,
+                onStartDay: _startMyDay,
+                onCloseDay: _closeMyDay,
+                onWeekReview: () => _showEngagementReview('week'),
+                onMonthReview: () => _showEngagementReview('month'),
+              ),
             ),
             if (_growth.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -1506,7 +1714,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               crossAxisSpacing: 6,
               childAspectRatio: .9,
               children: [
-                _AppleIconTile(title: 'Planner', icon: Icons.today_outlined, background: const Color(0xFFECFDF5), foreground: const Color(0xFF047857), onTap: () => _open(const DailyPlannerScreen())),
+                _AppleIconTile(title: 'Planner', icon: Icons.today_outlined, background: const Color(0xFFECFDF5), foreground: const Color(0xFF047857), onTap: _openPlanner),
                 _AppleIconTile(title: 'Reminders', icon: Icons.notifications_outlined, background: const Color(0xFFFFFBEB), foreground: const Color(0xFFB45309), onTap: () => _open(const RemindersScreen())),
                 _AppleIconTile(title: 'Meetings', icon: Icons.video_camera_front_outlined, background: const Color(0xFFF5F3FF), foreground: const Color(0xFF6D28D9), onTap: () => _open(const MeetingsScreen())),
                 _AppleIconTile(title: 'Plans', icon: Icons.event_note_outlined, background: const Color(0xFFEFF6FF), foreground: const Color(0xFF1D4ED8), onTap: () => _open(const AnnualPlansScreen())),
@@ -1518,20 +1726,22 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             ),
             const SizedBox(height: 18),
             _buildTodayFocusSection(),
-            _buildNextBestActionsSection(),
-            _buildToolsSection(),
+            const SizedBox(height: 18),
+            RepaintBoundary(child: _buildNextBestActionsSection()),
+            RepaintBoundary(child: _buildToolsSection()),
             const SizedBox(height: 18),
             _DailyInsightCard(
               insight: dailyInsight,
               onTap: () => _openInsight(dailyInsight),
             ),
-            _buildFinanceSection(),
+            RepaintBoundary(child: _buildFinanceSection()),
           ],
         ),
       ),
     );
   }
 }
+
 
 
 class _GrowthStrategyCard extends StatelessWidget {
@@ -2275,7 +2485,13 @@ class _AppleIconTile extends StatelessWidget {
 class _TodayTask extends StatelessWidget {
   final int index;
   final Map<String, dynamic> task;
-  const _TodayTask({required this.index, required this.task});
+  final VoidCallback? onTap;
+
+  const _TodayTask({
+    required this.index,
+    required this.task,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2285,13 +2501,16 @@ class _TodayTask extends StatelessWidget {
       Color(0xFFD97706),
       Color(0xFF2563EB),
     ];
+
     final accent = accents[(index - 1) % accents.length];
     final title = (task['title'] ?? '').toString().trim();
     final source = (task['source'] ?? 'Today').toString().trim();
-    final time = (task['time'] ?? '').toString().trim();
+    final time = (task['time'] ?? task['start_time'] ?? '').toString().trim();
     final sourceLower = source.toLowerCase();
 
-    if (title.isEmpty) return const SizedBox.shrink();
+    if (title.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     final icon = sourceLower.contains('meeting')
         ? Icons.videocam_outlined
@@ -2301,100 +2520,137 @@ class _TodayTask extends StatelessWidget {
                 ? Icons.today_outlined
                 : Icons.task_alt_rounded;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.white,
-        elevation: 0,
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
+          width: double.infinity,
           constraints: const BoxConstraints(minHeight: 76),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+            ),
             boxShadow: const [
-              BoxShadow(color: Color(0x100F172A), blurRadius: 12, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Color(0x100F172A),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 5, color: accent),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(icon, color: accent, size: 21),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 5,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(16),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                source.isEmpty ? 'TODAY' : source.toUpperCase(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: accent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: .25,
-                                ),
+                        child: Icon(
+                          icon,
+                          color: accent,
+                          size: 21,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              source.isEmpty
+                                  ? 'TODAY'
+                                  : source.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: accent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .25,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.2,
-                                ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF111827),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
                               ),
-                              if (time.isNotEmpty) ...[
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF64748B)),
-                                    const SizedBox(width: 4),
-                                    Text(
+                            ),
+                            if (time.isNotEmpty) ...[
+                              const SizedBox(height: 5),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
                                       time,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         color: Color(0xFF64748B),
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+

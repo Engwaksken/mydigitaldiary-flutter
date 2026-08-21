@@ -47,7 +47,8 @@ class SocialMediaPlannerService {
       'posting_mode': postingMode,
       'link_url': linkUrl?.trim() ?? '',
       'remove_media': removeMedia ? '1' : '0',
-      if (scheduledAt != null) 'scheduled_at': scheduledAt.toIso8601String(),
+      if (scheduledAt != null)
+        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
     };
 
     for (var index = 0; index < platforms.length; index++) {
@@ -301,6 +302,9 @@ class SocialMediaPlannerService {
     required bool enabled,
     String? externalAccountId,
     String? accessToken,
+    String? automationProvider,
+    String? automationEndpoint,
+    String? automationSecret,
   }) async {
     final response = await ApiClient.instance.put(
       'profile/social-media/accounts/$accountId/automatic-publishing',
@@ -310,6 +314,12 @@ class SocialMediaPlannerService {
           'external_account_id': externalAccountId.trim(),
         if (accessToken != null && accessToken.trim().isNotEmpty)
           'access_token': accessToken.trim(),
+        if (automationProvider != null)
+          'automation_provider': automationProvider.trim(),
+        if (automationEndpoint != null)
+          'automation_endpoint': automationEndpoint.trim(),
+        if (automationSecret != null && automationSecret.trim().isNotEmpty)
+          'automation_secret': automationSecret.trim(),
       },
     );
     return _map(response);
