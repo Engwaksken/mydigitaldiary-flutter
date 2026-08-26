@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -25,6 +26,20 @@ class ApiException implements Exception {
 /// One shared client for every API call in the app. Reads the Sanctum
 /// token from secure storage and attaches it as a Bearer header
 /// automatically — screens/services never touch the token directly.
+class MultipartUploadFile {
+  final String fieldName;
+  final List<int> bytes;
+  final String fileName;
+  final String? contentType;
+
+  const MultipartUploadFile({
+    required this.fieldName,
+    required this.bytes,
+    required this.fileName,
+    this.contentType,
+  });
+}
+
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
@@ -52,22 +67,68 @@ class ApiClient {
   static const Duration requestTimeout = Duration(seconds: 15);
 
   Future<void> saveToken(String token, {bool remember = true}) async {
-    if (remember) {
-      await _storage.write(key: _tokenKey, value: token);
-    } else {
+    if (!remember) {
       _inMemoryToken = token;
-      // Explicitly cleared rather than left stale — otherwise a
-      // PREVIOUS "remembered" login's token could still be read back
-      // by getToken() below even after choosing not to remember this one.
-      await _storage.delete(key: _tokenKey);
+      await _safeDeleteStoredToken();
+      return;
+    }
+
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+      _inMemoryToken = null;
+    } on PlatformException catch (e) {
+      // Some Android phones can lose/decrypt the Keystore-backed key after
+      // OS restore/update. Do not let that prevent login or app startup.
+      // Keep the token for this app process and repair the broken storage.
+      _inMemoryToken = token;
+      await _recoverBrokenSecureStorage(e);
+    } catch (_) {
+      // Secure persistence is preferable, but the app must remain usable if
+      // the device's secure storage provider is temporarily unavailable.
+      _inMemoryToken = token;
     }
   }
 
-  Future<String?> getToken() async => _inMemoryToken ?? await _storage.read(key: _tokenKey);
+  Future<String?> getToken() async {
+    if (_inMemoryToken != null) return _inMemoryToken;
+
+    try {
+      return await _storage.read(key: _tokenKey);
+    } on PlatformException catch (e) {
+      await _recoverBrokenSecureStorage(e);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> clearToken() async {
     _inMemoryToken = null;
-    await _storage.delete(key: _tokenKey);
+    await _safeDeleteStoredToken();
+  }
+
+  Future<void> _safeDeleteStoredToken() async {
+    try {
+      await _storage.delete(key: _tokenKey);
+    } on PlatformException catch (e) {
+      await _recoverBrokenSecureStorage(e);
+    } catch (_) {}
+  }
+
+  Future<void> _recoverBrokenSecureStorage(PlatformException error) async {
+    final message = '${error.message ?? ''} ${error.details ?? ''}'.toLowerCase();
+    final looksLikeDecryptFailure =
+        message.contains('decrypt') ||
+        message.contains('encryptedsharedpreferences') ||
+        message.contains('keystore');
+
+    if (!looksLikeDecryptFailure) return;
+
+    try {
+      // Broken encrypted values cannot be recovered. Clearing them is safer
+      // than crashing every startup. The user is simply asked to sign in once.
+      await _storage.deleteAll();
+    } catch (_) {}
   }
 
   Future<Map<String, String>> _headers({bool auth = true}) async {
@@ -303,6 +364,7 @@ class ApiClient {
     String? fileName,
     String? contentType,
     Map<String, String> fields = const {},
+    List<MultipartUploadFile> files = const [],
   }) async {
     final idempotencyKey = const Uuid().v4();
     lastWriteWasRetried = false;
@@ -325,12 +387,32 @@ class ApiClient {
               fileFieldName,
               fileBytes,
               filename: fileName,
-              contentType: contentType != null ? MediaType.parse(contentType) : null,
+              contentType: contentType != null
+                  ? MediaType.parse(contentType)
+                  : null,
             ),
           );
         }
 
-        final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
+        for (final upload in files) {
+          if (upload.bytes.isEmpty) continue;
+
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              upload.fieldName,
+              upload.bytes,
+              filename: upload.fileName,
+              contentType: upload.contentType != null &&
+                      upload.contentType!.trim().isNotEmpty
+                  ? MediaType.parse(upload.contentType!)
+                  : null,
+            ),
+          );
+        }
+
+        final streamedResponse = await request
+            .send()
+            .timeout(const Duration(minutes: 5));
         final response = await http.Response.fromStream(streamedResponse);
         final decoded = _handle(response);
         lastSuccessfulSyncAt = DateTime.now();

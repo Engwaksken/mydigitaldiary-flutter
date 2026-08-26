@@ -50,7 +50,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created — check your email, then log in.')),
+        const SnackBar(content: Text('Account created on the Monthly plan — check your email, then log in.')),
       );
       Navigator.of(context).pop();
     } on ApiException catch (e) {
@@ -147,6 +147,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF99F6E4)),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.workspace_premium_outlined,
+                        color: Color(0xFF0F766E),
+                        size: 22,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Default package: Monthly',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF115E59),
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Your account starts on the Monthly package. You can choose a different available package from Subscription after signing in.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.4,
+                                color: Color(0xFF0F766E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 InkWell(
                   onTap: () => setState(() => _agreedToPolicy = !_agreedToPolicy),
                   borderRadius: BorderRadius.circular(10),

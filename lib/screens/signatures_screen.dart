@@ -11,6 +11,7 @@ import '../services/signature_service.dart';
 import '../services/api_client.dart';
 import '../widgets/confirm_action_dialog.dart';
 import 'sign_document_screen.dart';
+import 'draw_signature_screen.dart';
 
 /// Upload, preview, and remove saved signatures directly from mobile
 /// (long-press to delete) — the one thing that stays web-only is the
@@ -131,6 +132,55 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       setState(() => _loading = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+
+  Future<void> _drawSignature() async {
+    final saved = await Navigator.of(context).push<SavedSignature>(
+      MaterialPageRoute(builder: (_) => const DrawSignatureScreen()),
+    );
+    if (saved == null || !mounted) return;
+    setState(() {
+      _signatureImageFutures.remove(saved.id);
+      _signatures = [saved, ..._signatures];
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Signature saved.')),
+    );
+  }
+
+  Future<void> _chooseSignatureMethod() async {
+    final method = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Add e-signature', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.draw_outlined),
+                title: const Text('Sign with finger or pen'),
+                subtitle: const Text('Draw naturally on the screen using finger or stylus.'),
+                onTap: () => Navigator.pop(ctx, 'draw'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('Upload e-signature'),
+                subtitle: const Text('Choose an existing PNG, JPG or WEBP signature image.'),
+                onTap: () => Navigator.pop(ctx, 'upload'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (method == 'draw') await _drawSignature();
+    if (method == 'upload') await _uploadSignature();
   }
 
   Future<void> _uploadSignature() async {
@@ -316,11 +366,11 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                       children: [
                         Text('My Signatures', style: Theme.of(context).textTheme.titleMedium),
                         TextButton.icon(
-                          onPressed: _uploadingSignature ? null : _uploadSignature,
+                          onPressed: _uploadingSignature ? null : _chooseSignatureMethod,
                           icon: _uploadingSignature
                               ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.add, size: 18),
-                          label: const Text('Add'),
+                          label: const Text('Add signature'),
                         ),
                       ],
                     ),

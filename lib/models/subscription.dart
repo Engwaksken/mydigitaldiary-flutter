@@ -96,6 +96,10 @@ class PaymentGatewayInfo {
     this.merchantNumber,
   });
 
+  bool get isCard => type.toLowerCase() == 'card';
+  bool get isMobileMoney =>
+      type.toLowerCase() == 'mobile_money' || collectsAutomatically;
+
   factory PaymentGatewayInfo.fromJson(Map<String, dynamic> json) => PaymentGatewayInfo(
         id: json['id'],
         type: json['type'] ?? '',

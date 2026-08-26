@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/subscription.dart';
 import '../services/subscription_service.dart';
 import '../services/api_client.dart';
-
+import '../features/workspace/presentation/workspace_members_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -35,6 +35,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Future<void> _load({int? billingPage}) async {
     final targetPage = billingPage ?? _billingPage;
+
     if (billingPage == null) {
       setState(() => _loading = true);
     } else {
@@ -42,12 +43,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
 
     try {
-      final status = await _service.status();
-      final plans = await _service.plans();
-      final gateways = await _service.gateways();
-      final payments = await _service.payments(
-        page: targetPage,
-        perPage: _billingPerPage,
+      final results = await Future.wait<dynamic>([
+        _service.status(),
+        _service.plans(),
+        _service.gateways(),
+        _service.payments(
+          page: targetPage,
+          perPage: _billingPerPage,
+        ),
+      ]);
+
+      final status = results[0] as Map<String, dynamic>;
+      final plans = results[1] as List<SubscriptionPlanInfo>;
+      final serverGateways = results[2] as List<PaymentGatewayInfo>;
+      final payments = results[3];
+
+      IoTecGatewayOptions? ioTecOptions;
+      try {
+        ioTecOptions = await _service.ioTecOptions();
+      } catch (_) {
+        // Keep the standard gateway list usable even if the optional ioTec
+        // capabilities endpoint is temporarily unavailable.
+      }
+
+      final gateways = _mergeIoTecPaymentMethods(
+        serverGateways,
+        ioTecOptions,
       );
 
       if (!mounted) return;
@@ -71,7 +92,166 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _loading = false;
         _billingLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
+  }
+
+  List<PaymentGatewayInfo> _mergeIoTecPaymentMethods(
+    List<PaymentGatewayInfo> serverGateways,
+    IoTecGatewayOptions? options,
+  ) {
+    final gateways = List<PaymentGatewayInfo>.from(serverGateways);
+
+    if (options == null || !options.enabled) {
+      return gateways;
+    }
+
+    final hasMobileMoney = gateways.any(
+      (gateway) => gateway.type == 'mobile_money' || gateway.collectsAutomatically,
+    );
+
+    final hasCard = gateways.any(
+      (gateway) => gateway.type == 'card' ||
+          gateway.name.toLowerCase().contains('visa') ||
+          gateway.name.toLowerCase().contains('mastercard'),
+    );
+
+    if (options.supportsMobileMoney && !hasMobileMoney) {
+      gateways.insert(
+        0,
+        PaymentGatewayInfo(
+          id: -901,
+          type: 'mobile_money',
+          name: 'Mobile Money',
+          collectsAutomatically: true,
+          supportsMtn: true,
+          supportsAirtel: true,
+          providerName: 'ioTec',
+        ),
+      );
+    }
+
+    if (options.supportsCard && !hasCard) {
+      gateways.add(
+        PaymentGatewayInfo(
+          id: -902,
+          type: 'card',
+          name: 'Visa / MasterCard',
+          collectsAutomatically: false,
+          supportsMtn: false,
+          supportsAirtel: false,
+          providerName: 'ioTec',
+        ),
+      );
+    }
+
+    return gateways;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  SubscriptionPlanInfo? get _activePlan {
+    final status = _status;
+    if (status == null || _plans.isEmpty) return null;
+
+    final activeId = _asInt(
+      status['subscription_plan_id'] ??
+          status['plan_id'] ??
+          status['current_plan_id'],
+    );
+
+    if (activeId != null) {
+      for (final plan in _plans) {
+        if (plan.id == activeId) return plan;
+      }
+    }
+
+    final currentName = (status['subscription_plan'] ??
+            status['plan_name'] ??
+            status['current_plan'] ??
+            '')
+        .toString()
+        .trim()
+        .toLowerCase();
+
+    if (currentName.isEmpty) return null;
+
+    for (final plan in _plans) {
+      final planName = plan.name.trim().toLowerCase();
+      if (currentName == planName ||
+          currentName.startsWith('$planName —') ||
+          currentName.startsWith('$planName -') ||
+          currentName.contains(planName)) {
+        return plan;
+      }
+    }
+
+    return null;
+  }
+
+  bool get _hasMemberManagement {
+    final status = _status;
+    if (status == null) return false;
+
+    final subscriptionStatus = (status['subscription_status'] ??
+            status['status'] ??
+            '')
+        .toString()
+        .toLowerCase();
+
+    if (subscriptionStatus.isNotEmpty &&
+        !['active', 'trial', 'trialing'].contains(subscriptionStatus)) {
+      return false;
+    }
+
+    final activePlan = _activePlan;
+    if (activePlan != null) {
+      return !activePlan.isIndividual && activePlan.includedMembers > 1;
+    }
+
+    final currentName = (status['subscription_plan'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    return currentName.contains('family') ||
+        currentName.contains('team') ||
+        currentName.contains('organization') ||
+        currentName.contains('organisation') ||
+        currentName.contains('member');
+  }
+
+  int? get _activeSeatLimit {
+    final fromStatus = _asInt(
+      _status?['included_members'] ??
+          _status?['seat_limit'] ??
+          _status?['member_limit'],
+    );
+
+    if (fromStatus != null && fromStatus > 1) return fromStatus;
+
+    final plan = _activePlan;
+    if (plan != null && plan.includedMembers > 1) {
+      return plan.includedMembers;
+    }
+
+    return null;
+  }
+
+  Future<void> _openMemberManagement() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const WorkspaceMembersScreen(),
+      ),
+    );
+
+    if (mounted) {
+      await _load();
     }
   }
 
@@ -81,9 +261,148 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _openDownload(String? url) async {
-    if (url == null) return;
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final value = url?.trim();
+    if (value == null || value.isEmpty) return;
+
+    final uri = Uri.tryParse(value);
+    if (uri == null) return;
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Map<String, dynamic>? get _valueSummary {
+    final status = _status;
+    if (status == null) return null;
+
+    dynamic raw = status['value_summary'] ??
+        status['monthly_value'] ??
+        status['value_this_month'] ??
+        status['monthly_review'];
+
+    if (raw is Map && raw['value_summary'] is Map) {
+      raw = raw['value_summary'];
+    }
+
+    if (raw is! Map) return null;
+
+    final source = Map<String, dynamic>.from(raw);
+
+    dynamic first(List<String> keys, [dynamic fallback = 0]) {
+      for (final key in keys) {
+        final value = source[key];
+        if (value != null) return value;
+      }
+      return fallback;
+    }
+
+    return <String, dynamic>{
+      'tasks_completed': first([
+        'tasks_completed',
+        'completed_tasks',
+        'tasks',
+        'task_count',
+      ]),
+      'expenses_tracked': first([
+        'expenses_tracked',
+        'expenses',
+        'expense_total',
+        'total_expenses',
+      ]),
+      'saved': first([
+        'saved',
+        'savings',
+        'amount_saved',
+        'savings_total',
+      ]),
+      'ai_plans': first([
+        'ai_plans',
+        'ai_plan_count',
+        'plans_generated',
+      ]),
+      'meetings': first([
+        'meetings',
+        'meeting_count',
+        'meetings_count',
+      ]),
+    };
+  }
+
+  Widget _buildMemberManagementCard() {
+    final plan = _activePlan;
+    final limit = _activeSeatLimit;
+    final planName = plan?.name ??
+        (_status?['subscription_plan'] ?? 'Team plan').toString();
+
+    return Card(
+      margin: const EdgeInsets.only(top: 10, bottom: 4),
+      color: const Color(0xFFF0FDFA),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFF99F6E4)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCCFBF1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.groups_2_outlined,
+                    color: Color(0xFF0F766E),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Manage your members',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        limit != null
+                            ? '$planName includes up to $limit members. Invite people and assign their workspace roles.'
+                            : '$planName supports member management. Invite people and assign their workspace roles.',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _openMemberManagement,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text('Add & Assign Members'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Widget> _buildGroupedPlans() {
@@ -160,9 +479,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _openContactSales() async {
-    final base = ApiClient.baseUrl.replaceAll('/api', '');
-    final uri = Uri.parse('$base/enterprise/contact');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final base = ApiClient.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    final uri = Uri.tryParse('$base/enterprise/contact');
+    if (uri == null) return;
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   ({Color background, Color border, Color text}) _stickyColors(int months) {
@@ -269,6 +592,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (_) => _CheckoutSheet(
         plan: plan,
         gateways: _gateways,
@@ -294,6 +619,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (_) => _PendingPaymentSheet(
         payment: payment,
         gateways: available,
@@ -345,9 +672,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         ),
                       ),
                     ),
+                  if (_hasMemberManagement) ...[
+                    _buildMemberManagementCard(),
+                    const SizedBox(height: 6),
+                  ],
                   const SizedBox(height: 10),
-                  if (_status?['value_summary'] is Map)
-                    _SubscriptionValueCard(summary: Map<String, dynamic>.from(_status!['value_summary'] as Map)),
+                  if (_valueSummary != null)
+                    _SubscriptionValueCard(summary: _valueSummary!),
                   const SizedBox(height: 10),
                   Text('Choose your plan', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 2),
@@ -534,7 +865,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 class _SubscriptionValueCard extends StatelessWidget {
   final Map<String, dynamic> summary;
   const _SubscriptionValueCard({required this.summary});
-  String _money(dynamic value) => 'UGX ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
+  String _money(dynamic value) {
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return 'UGX ${amount.toStringAsFixed(0)}';
+  }
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -610,6 +946,27 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     super.dispose();
   }
 
+  Future<void> _showIoTecConfirmation({
+    required IoTecPaymentStart started,
+    required bool isCard,
+  }) async {
+    if (!mounted || started.transactionId == null) return;
+
+    Navigator.of(context).pop();
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _IoTecPaymentConfirmationDialog(
+        service: widget.service,
+        transactionId: started.transactionId!,
+        isCard: isCard,
+        initialMessage: started.message,
+        onConfirmed: widget.onDone,
+      ),
+    );
+  }
+
   Future<void> _pay() async {
     setState(() {
       _submitting = true;
@@ -618,52 +975,119 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 
     try {
       if (_selectedGateway.type == 'card') {
-        final url = await widget.service.payWithCard(widget.plan.id);
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final started = await widget.service.payWithIoTecCard(
+          widget.plan.id,
+        );
+
+        if (!started.success || started.transactionId == null) {
+          setState(() {
+            _error = started.message.isEmpty
+                ? 'Could not start the Visa / MasterCard payment.'
+                : started.message;
+            _submitting = false;
+          });
+          return;
         }
-        if (mounted) Navigator.of(context).pop();
-      } else if (_selectedGateway.collectsAutomatically) {
-        if (_phoneController.text.trim().isEmpty) {
+
+        final redirect = started.redirectUrl?.trim();
+        final uri = redirect == null || redirect.isEmpty
+            ? null
+            : Uri.tryParse(redirect);
+
+        if (uri == null || !await canLaunchUrl(uri)) {
+          setState(() {
+            _error =
+                'ioTec did not return a valid secure card checkout URL.';
+            _submitting = false;
+          });
+          return;
+        }
+
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (!launched) {
+          setState(() {
+            _error = 'Could not open the secure ioTec card checkout.';
+            _submitting = false;
+          });
+          return;
+        }
+
+        await _showIoTecConfirmation(
+          started: started,
+          isCard: true,
+        );
+        return;
+      }
+
+      if (_selectedGateway.collectsAutomatically) {
+        final phone = _phoneController.text.trim();
+
+        if (phone.isEmpty) {
           setState(() {
             _error = 'Enter your phone number.';
             _submitting = false;
           });
           return;
         }
-        final message = await widget.service.payWithMobileMoney(widget.plan.id, _phoneController.text.trim(), _network);
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-        }
-      } else {
-        // type is 'bank' or a mobile_money gateway with no aggregator
-        // API configured — the user has already sent money themselves
-        // using the account/merchant details shown below, and is now
-        // submitting their own reference for admin verification,
-        // matching the web app's manual flow exactly.
-        if (_referenceController.text.trim().isEmpty) {
+
+        final started = await widget.service.payWithIoTecMobileMoney(
+          widget.plan.id,
+          phone,
+        );
+
+        if (!started.success || started.transactionId == null) {
           setState(() {
-            _error = 'Enter the reference/transaction ID for your payment.';
+            _error = started.message.isEmpty
+                ? 'Could not start the Mobile Money payment.'
+                : started.message;
             _submitting = false;
           });
           return;
         }
-        final message = await widget.service.submitManualPayment(
-          widget.plan.id,
-          _selectedGateway.id,
-          _referenceController.text.trim(),
+
+        await _showIoTecConfirmation(
+          started: started,
+          isCard: false,
         );
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-        }
+        return;
       }
+
+      // Manual — bank transfer or non-aggregator Mobile Money.
+      if (_referenceController.text.trim().isEmpty) {
+        setState(() {
+          _error = 'Enter the reference/transaction ID for your payment.';
+          _submitting = false;
+        });
+        return;
+      }
+
+      final message = await widget.service.submitManualPayment(
+        widget.plan.id,
+        _selectedGateway.id,
+        _referenceController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
       widget.onDone();
     } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.message;
+        _submitting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not start the payment. Please try again.';
         _submitting = false;
       });
     }
@@ -683,30 +1107,20 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             Text('Total: ${widget.plan.formattedPrice()}', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.bold)),
-            // NOTE: RadioGroup is a very recent Flutter API (replacing the
-            // older per-item groupValue/onChanged on RadioListTile) — recent
-            // enough that I can't fully verify this exact constructor shape
-            // against a real SDK from the sandbox this was written in. The
-            // OLD approach below (commented out) still compiles and works
-            // fine on your Flutter version if this doesn't — it's only a
-            // deprecation warning, not a build error, so there's no rush.
+            // Flutter 3.32+ manages radio state from the RadioGroup ancestor.
             RadioGroup<PaymentGatewayInfo>(
               groupValue: _selectedGateway,
-              onChanged: (value) => setState(() => _selectedGateway = value!),
+              onChanged: (value) {
+                if (_submitting || value == null) return;
+                setState(() => _selectedGateway = value);
+              },
               child: Column(
                 children: widget.gateways.map((g) => RadioListTile<PaymentGatewayInfo>(
                       value: g,
-                      title: Text(g.name),
+                      title: Text(g.type == 'card' ? 'Visa / MasterCard' : g.name),
                     )).toList(),
               ),
             ),
-            // ---- Old approach, kept as a fallback reference ----
-            // ...widget.gateways.map((g) => RadioListTile<PaymentGatewayInfo>(
-            //       value: g,
-            //       groupValue: _selectedGateway,
-            //       title: Text(g.name),
-            //       onChanged: (value) => setState(() => _selectedGateway = value!),
-            //     )),
             if (_selectedGateway.collectsAutomatically) ...[
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -783,6 +1197,278 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               onPressed: _submitting ? null : _pay,
               child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Pay'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _IoTecPaymentConfirmationDialog extends StatefulWidget {
+  final SubscriptionService service;
+  final int transactionId;
+  final bool isCard;
+  final String initialMessage;
+  final VoidCallback onConfirmed;
+
+  const _IoTecPaymentConfirmationDialog({
+    required this.service,
+    required this.transactionId,
+    required this.isCard,
+    required this.initialMessage,
+    required this.onConfirmed,
+  });
+
+  @override
+  State<_IoTecPaymentConfirmationDialog> createState() =>
+      _IoTecPaymentConfirmationDialogState();
+}
+
+class _IoTecPaymentConfirmationDialogState
+    extends State<_IoTecPaymentConfirmationDialog> {
+  IoTecPaymentStatus? _status;
+  String? _error;
+  bool _checking = true;
+  bool _closed = false;
+  int _attempts = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _poll();
+  }
+
+  @override
+  void dispose() {
+    _closed = true;
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    while (!_closed && mounted && _attempts < 75) {
+      _attempts++;
+
+      try {
+        final status = await widget.service.ioTecPaymentStatus(
+          widget.transactionId,
+        );
+
+        if (!mounted || _closed) return;
+
+        setState(() {
+          _status = status;
+          _error = null;
+          _checking = status.isPending;
+        });
+
+        if (status.isSuccessful) {
+          widget.onConfirmed();
+          return;
+        }
+
+        if (status.isFinalFailure) {
+          return;
+        }
+      } on ApiException catch (e) {
+        if (!mounted || _closed) return;
+        setState(() {
+          _error = e.message;
+          _checking = true;
+        });
+      } catch (_) {
+        if (!mounted || _closed) return;
+        setState(() {
+          _error = 'We are still waiting for payment confirmation.';
+          _checking = true;
+        });
+      }
+
+      await Future<void>.delayed(const Duration(seconds: 4));
+    }
+
+    if (mounted && !_closed && (_status?.isPending ?? true)) {
+      setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final successful = _status?.isSuccessful == true;
+    final failed = _status?.isFinalFailure == true;
+    final pending = !successful && !failed;
+
+    final icon = successful
+        ? Icons.check_circle_rounded
+        : failed
+            ? Icons.error_rounded
+            : widget.isCard
+                ? Icons.credit_card_rounded
+                : Icons.phone_android_rounded;
+
+    final iconColor = successful
+        ? Colors.green
+        : failed
+            ? Colors.red
+            : const Color(0xFF00897B);
+
+    final title = successful
+        ? 'Payment successful'
+        : failed
+            ? 'Payment not completed'
+            : widget.isCard
+                ? 'Complete card payment'
+                : 'Payment request sent';
+
+    final message = successful
+        ? 'Your payment has been confirmed and your subscription is now active.'
+        : failed
+            ? (_status?.statusMessage ??
+                'The payment could not be completed. Please try again.')
+            : widget.isCard
+                ? 'Complete the Visa / MasterCard payment in the secure ioTec browser page, then return here. We will confirm it automatically.'
+                : (widget.initialMessage.trim().isNotEmpty
+                    ? widget.initialMessage
+                    : 'Approve the Mobile Money prompt on your phone. We will confirm it automatically.');
+
+    return PopScope(
+      canPop: !successful && !failed,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 36, color: iconColor),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.black54,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Transaction',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '#${widget.transactionId}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (pending)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_checking)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    const Icon(Icons.schedule_rounded, size: 19),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _checking
+                          ? 'Waiting for confirmation'
+                          : 'Still pending — you can check again later',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            if (_error != null && pending) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                if (pending)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                if (pending) const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: successful
+                        ? () => Navigator.of(context).pop()
+                        : failed
+                            ? () => Navigator.of(context).pop()
+                            : _checking
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _checking = true;
+                                      _attempts = 0;
+                                    });
+                                    _poll();
+                                  },
+                    child: Text(
+                      successful
+                          ? 'Continue'
+                          : failed
+                              ? 'Close'
+                              : 'Check again',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (!widget.isCard && pending) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Never enter your Mobile Money PIN in My Digital Diary. Approve only from your phone prompt.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Colors.black45),
+              ),
+            ],
           ],
         ),
       ),

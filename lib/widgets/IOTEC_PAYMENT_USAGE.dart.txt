@@ -1,0 +1,41 @@
+/*
+Example integration in the existing Mobile Subscription screen.
+
+This uses url_launcher only for the external hosted Visa/MasterCard page.
+
+If url_launcher is already in pubspec.yaml:
+import 'package:url_launcher/url_launcher.dart';
+
+Then:
+
+final service = IoTecSubscriptionService(
+  AppIoTecApiTransport(ApiClient.instance),
+);
+
+final activated = await showModalBottomSheet<bool>(
+  context: context,
+  isScrollControlled: true,
+  useSafeArea: true,
+  builder: (_) => IoTecSubscriptionPaymentSheet(
+    service: service,
+    planId: selectedPlan.id,
+    openExternalUrl: (uri) => launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    ),
+    onActivated: () async {
+      // Refresh your EXISTING subscription state endpoint:
+      // GET /api/subscription/status
+      await _loadSubscription();
+    },
+  ),
+);
+
+if (activated == true) {
+  await _loadSubscription();
+}
+
+IMPORTANT:
+Do not send ioTec client_secret, wallet_guid, token_url or other gateway
+credentials to Flutter. The Mobile app only calls authenticated Laravel APIs.
+*/

@@ -286,6 +286,8 @@ class SocialMediaPlannerService {
     required String platform,
     required String accountName,
     String? username,
+    String? externalAccountId,
+    String? providerAccountRef,
   }) async {
     await ApiClient.instance.post(
       'profile/social-media/accounts',
@@ -293,6 +295,8 @@ class SocialMediaPlannerService {
         'platform': platform,
         'account_name': accountName.trim(),
         'username': username?.trim() ?? '',
+        'external_account_id': externalAccountId?.trim() ?? '',
+        'provider_account_ref': providerAccountRef?.trim() ?? '',
       },
     );
   }
@@ -301,27 +305,17 @@ class SocialMediaPlannerService {
     required int accountId,
     required bool enabled,
     String? externalAccountId,
-    String? accessToken,
-    String? automationProvider,
-    String? automationEndpoint,
-    String? automationSecret,
+    String? providerAccountRef,
   }) async {
     final response = await ApiClient.instance.put(
       'profile/social-media/accounts/$accountId/automatic-publishing',
       <String, dynamic>{
         'enabled': enabled,
-        if (externalAccountId != null)
-          'external_account_id': externalAccountId.trim(),
-        if (accessToken != null && accessToken.trim().isNotEmpty)
-          'access_token': accessToken.trim(),
-        if (automationProvider != null)
-          'automation_provider': automationProvider.trim(),
-        if (automationEndpoint != null)
-          'automation_endpoint': automationEndpoint.trim(),
-        if (automationSecret != null && automationSecret.trim().isNotEmpty)
-          'automation_secret': automationSecret.trim(),
+        'external_account_id': externalAccountId?.trim() ?? '',
+        'provider_account_ref': providerAccountRef?.trim() ?? '',
       },
     );
+
     return _map(response);
   }
 

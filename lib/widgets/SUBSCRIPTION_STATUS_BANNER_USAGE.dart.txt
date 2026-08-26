@@ -1,0 +1,37 @@
+// Example dashboard integration.
+//
+// Import:
+import '../widgets/subscription_status_banner.dart';
+
+// Then place near the top of the Dashboard ListView/Column:
+SubscriptionStatusBanner(
+  subscriptionStatus:
+      (currentUser['subscription_status'] ?? '').toString(),
+  isSuspended:
+      currentUser['is_suspended'] == true ||
+      currentUser['is_suspended'] == 1,
+  isAdmin:
+      currentUser['is_admin'] == true ||
+      currentUser['is_admin'] == 1,
+  onTrial:
+      currentUser['on_trial'] == true ||
+      currentUser['on_trial'] == 1,
+  trialDaysLeft:
+      int.tryParse(
+        (currentUser['trial_days_left'] ?? '0').toString(),
+      ) ?? 0,
+  subscriptionExpiry:
+      resolveSubscriptionExpiry(currentUser),
+  onOpenSubscription: () {
+    // Replace with your existing subscription screen:
+    // Navigator.of(context).push(
+    //   MaterialPageRoute(
+    //     builder: (_) => const SubscriptionScreen(),
+    //   ),
+    // );
+  },
+),
+
+IMPORTANT:
+If your dashboard currently contains an older "free trial" banner,
+remove that old trial banner so only this widget controls subscription messaging.

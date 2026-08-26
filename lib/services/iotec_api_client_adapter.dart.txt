@@ -1,0 +1,36 @@
+/*
+Connect IoTecSubscriptionService to your existing ApiClient.
+
+Because the exact ApiClient implementation was not uploaded in this turn,
+use this as an ADAPTER TEMPLATE instead of replacing ApiClient blindly.
+
+Example only:
+
+import 'api_client.dart';
+import 'iotec_subscription_service.dart';
+
+class AppIoTecApiTransport implements IoTecApiTransport {
+  final ApiClient client;
+
+  AppIoTecApiTransport(this.client);
+
+  @override
+  Future<Map<String, dynamic>> getJson(String path) async {
+    final response = await client.get(path);
+    return Map<String, dynamic>.from(response);
+  }
+
+  @override
+  Future<Map<String, dynamic>> postJson(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await client.post(path, body ?? const {});
+    return Map<String, dynamic>.from(response);
+  }
+}
+
+IMPORTANT:
+Match client.get/client.post to the actual signatures in your project.
+Do not duplicate authentication; continue using the existing Sanctum token.
+*/

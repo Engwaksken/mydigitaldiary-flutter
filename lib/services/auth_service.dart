@@ -110,14 +110,24 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String password,
     required String passwordConfirmation,
+    int? subscriptionPlanId,
   }) async {
-    await _api.post('register', {
+    final payload = <String, dynamic>{
       'name': name,
       'email': email,
       'password': password,
       'password_confirmation': passwordConfirmation,
       'data_consent': true,
-    }, auth: false);
+    };
+
+    // Do not send a plan when the user did not explicitly choose one.
+    // Laravel then applies the global Monthly default. If registration is
+    // later extended with plan selection, the selected plan ID is preserved.
+    if (subscriptionPlanId != null) {
+      payload['subscription_plan_id'] = subscriptionPlanId;
+    }
+
+    await _api.post('register', payload, auth: false);
     // Matches the web app: registering does not log you in on mobile
     // either — the caller's UI should direct the user to log in next.
   }

@@ -6,17 +6,28 @@ class SocialMediaAccountsScreen extends StatefulWidget {
   const SocialMediaAccountsScreen({super.key});
 
   @override
-  State<SocialMediaAccountsScreen> createState() => _SocialMediaAccountsScreenState();
+  State<SocialMediaAccountsScreen> createState() =>
+      _SocialMediaAccountsScreenState();
 }
 
-class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
+class _SocialMediaAccountsScreenState
+    extends State<SocialMediaAccountsScreen> {
   final _service = const SocialMediaPlannerService();
-  final _whatsApp = TextEditingController();
-  final _channelName = TextEditingController();
-  final _channelUrl = TextEditingController();
-  List<Map<String, dynamic>> _accounts = [];
+
+  List<Map<String, dynamic>> _accounts = <Map<String, dynamic>>[];
   bool _loading = true;
-  bool _savingWhatsApp = false;
+  bool _saving = false;
+  String? _loadError;
+
+  static const Map<String, String> _platformLabels = {
+    'instagram': 'Instagram',
+    'facebook': 'Facebook',
+    'x': 'X (Twitter)',
+    'tiktok': 'TikTok',
+    'linkedin': 'LinkedIn',
+    'whatsapp_status': 'WhatsApp Status',
+    'whatsapp_channel': 'WhatsApp Channel',
+  };
 
   @override
   void initState() {
@@ -24,557 +35,788 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _whatsApp.dispose();
-    _channelName.dispose();
-    _channelUrl.dispose();
-    super.dispose();
+  bool _truthy(dynamic value) {
+    return value == true ||
+        value == 1 ||
+        value?.toString().toLowerCase() == 'true' ||
+        value?.toString() == '1';
+  }
+
+  String _platformLabel(String platform) {
+    return _platformLabels[platform] ??
+        platform
+            .replaceAll('_', ' ')
+            .split(' ')
+            .where((part) => part.isNotEmpty)
+            .map(
+              (part) =>
+                  '${part.substring(0, 1).toUpperCase()}${part.substring(1)}',
+            )
+            .join(' ');
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+
     try {
+      // IMPORTANT:
+      // This is intentionally ONE API call.
+      //
+      // The existing My Digital Diary API already uses:
+      // GET /api/profile/social-media
+      //
+      // Laravel now includes safe provider availability in the same
+      // response. Mobile never requests provider API keys, secrets,
+      // base URLs or webhook credentials.
       final data = await _service.profileAccounts();
-      final whatsapp = data['whatsapp'] is Map
-          ? Map<String, dynamic>.from(data['whatsapp'] as Map)
-          : <String, dynamic>{};
-      final raw = data['accounts'];
-      final accounts = raw is List
-          ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+
+      final rawAccounts = data['accounts'];
+      final accounts = rawAccounts is List
+          ? rawAccounts
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList(growable: false)
           : <Map<String, dynamic>>[];
 
       if (!mounted) return;
+
       setState(() {
-        _whatsApp.text = (whatsapp['number'] ?? '').toString();
-        _channelName.text = (whatsapp['channel_name'] ?? '').toString();
-        _channelUrl.text = (whatsapp['channel_url'] ?? '').toString();
         _accounts = accounts;
         _loading = false;
+        _loadError = null;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load social media settings: $e')),
-      );
+
+      setState(() {
+        _loading = false;
+        _loadError = error.toString();
+      });
     }
   }
 
-  Future<void> _saveWhatsApp() async {
-    if (_savingWhatsApp) return;
-    setState(() => _savingWhatsApp = true);
-    try {
-      await _service.saveWhatsApp(
-        number: _whatsApp.text,
-        channelName: _channelName.text,
-        channelUrl: _channelUrl.text,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('WhatsApp settings saved.')),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save WhatsApp settings: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _savingWhatsApp = false);
-    }
-  }
+  Future<void> _showAddAccountSheet() async {
+    var platform = 'instagram';
 
-
-  Future<void> _configureAutomaticPublishing(
-    Map<String, dynamic> account,
-  ) async {
-    final idRaw = account['id'];
-    final id = idRaw is int
-        ? idRaw
-        : int.tryParse(idRaw?.toString() ?? '');
-
-    if (id == null) return;
-
-    bool enabled =
-        account['auto_publish_enabled'] == true ||
-        account['auto_publish_enabled'] == 1 ||
-        account['auto_publish_enabled']?.toString() == '1';
-
-    final externalAccountId = TextEditingController(
-      text: (account['external_account_id'] ?? '').toString(),
-    );
-    final accessToken = TextEditingController();
-    final automationProvider = TextEditingController(
-      text: (account['automation_provider'] ?? '').toString(),
-    );
-    final automationEndpoint = TextEditingController(
-      text: (account['automation_endpoint'] ?? '').toString(),
-    );
-    final automationSecret = TextEditingController();
-    final isWhatsAppAutomation =
-        account['platform'] == 'whatsapp_status' ||
-        account['platform'] == 'whatsapp_channel';
+    final accountName = TextEditingController();
+    final username = TextEditingController();
+    final externalAccountId = TextEditingController();
+    final providerAccountRef = TextEditingController();
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setLocal) => SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              4,
-              18,
-              MediaQuery.viewInsetsOf(context).bottom + 20,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Automatic Posting · ${(account['platform'] ?? '').toString().toUpperCase()}',
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Automatic posting requires an authorised provider account. Access tokens are sent to Laravel and stored encrypted; the app never displays a saved token again.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.4,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: enabled,
-                  title: const Text('Enable automatic posting'),
-                  subtitle: const Text(
-                    'Scheduled posts can publish automatically without opening the phone app when this platform has authorised publishing access.',
-                  ),
-                  onChanged: (value) {
-                    setLocal(() => enabled = value);
-                  },
-                ),
-                TextField(
-                  controller: externalAccountId,
-                  decoration: const InputDecoration(
-                    labelText: 'Provider account ID (optional)',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: accessToken,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    labelText: account['is_connected'] == 1 ||
-                            account['is_connected'] == true
-                        ? 'Replace OAuth access token (optional)'
-                        : 'OAuth access token',
-                    helperText:
-                        'For X posting, use a user-context token with tweet.write permission.',
-                  ),
-                ),
-                if (isWhatsAppAutomation) ...[
-                  const SizedBox(height: 14),
-                  const Divider(),
-                  const SizedBox(height: 8),
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final isWhatsApp =
+                platform == 'whatsapp_status' ||
+                platform == 'whatsapp_channel';
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                4,
+                18,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Text(
-                    'WhatsApp automatic provider',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Manual posting always stays available. Automatic Status/Channel publishing requires a provider/webhook that explicitly supports it.',
+                    'Add Social Media Account',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    'My Digital Diary administrators manage provider APIs and credentials. You only add your account details.',
+                    style: TextStyle(
+                      fontSize: 12,
                       height: 1.4,
                       color: Color(0xFF64748B),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: automationProvider,
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: platform,
                     decoration: const InputDecoration(
-                      labelText: 'Provider name',
-                      hintText: 'e.g. Custom provider',
+                      labelText: 'Platform',
+                    ),
+                    items: _platformLabels.entries
+                        .map(
+                          (entry) => DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setLocal(() => platform = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: accountName,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Account name',
+                      hintText: 'e.g. My Business',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   TextField(
-                    controller: automationEndpoint,
-                    keyboardType: TextInputType.url,
+                    controller: username,
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Provider webhook / API endpoint',
-                      hintText: 'https://provider.example.com/publish',
+                      labelText: 'Username / handle',
+                      hintText: '@username',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   TextField(
-                    controller: automationSecret,
-                    obscureText: true,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: const InputDecoration(
-                      labelText: 'Webhook signing secret (optional)',
-                      hintText: 'Leave blank to keep current secret',
+                    controller: externalAccountId,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: platform == 'whatsapp_channel'
+                          ? 'WhatsApp Channel ID'
+                          : 'Platform account ID',
+                      hintText: isWhatsApp
+                          ? 'Only if your provider requires it'
+                          : 'Page/Profile/Author ID if required',
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: providerAccountRef,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText:
+                          'Provider session / account reference',
+                      hintText: isWhatsApp
+                          ? 'e.g. your WhatsScale / WAHA session'
+                          : 'Only when required by the configured provider',
+                      helperText: isWhatsApp
+                          ? 'For automatic WhatsApp posting, use the session connected to your WhatsApp account.'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: () {
+                      if (accountName.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Enter the account name before saving.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      Navigator.pop(sheetContext, true);
+                    },
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add Account'),
                   ),
                 ],
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Save Automatic Posting'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
 
     if (saved == true) {
-      await _service.updateAutomaticPublishing(
-        accountId: id,
-        enabled: enabled,
-        externalAccountId: externalAccountId.text,
-        accessToken: accessToken.text.isEmpty
-            ? null
-            : accessToken.text,
-        automationProvider:
-            isWhatsAppAutomation ? automationProvider.text : null,
-        automationEndpoint:
-            isWhatsAppAutomation ? automationEndpoint.text : null,
-        automationSecret:
-            isWhatsAppAutomation && automationSecret.text.isNotEmpty
-                ? automationSecret.text
-                : null,
-      );
+      setState(() => _saving = true);
 
-      await _load();
+      try {
+        await _service.addAccount(
+          platform: platform,
+          accountName: accountName.text,
+          username: username.text,
+          externalAccountId: externalAccountId.text,
+          providerAccountRef: providerAccountRef.text,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Social media account added.'),
+            ),
+          );
+        }
+
+        await _load();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Could not add account: $error',
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
     }
 
+    accountName.dispose();
+    username.dispose();
     externalAccountId.dispose();
-    accessToken.dispose();
-    automationProvider.dispose();
-    automationEndpoint.dispose();
-    automationSecret.dispose();
+    providerAccountRef.dispose();
   }
 
-  Future<void> _addAccount() async {
-    String platform = 'instagram';
-    final name = TextEditingController();
-    final username = TextEditingController();
+  Future<void> _configureAutomaticPublishing(
+    Map<String, dynamic> account,
+  ) async {
+    final id = account['id'] is int
+        ? account['id'] as int
+        : int.tryParse((account['id'] ?? '').toString());
+
+    if (id == null) return;
+
+    final platform = (account['platform'] ?? '').toString();
+    final providerAvailable =
+        _truthy(account['automatic_api_available']);
+
+    if (!providerAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Automatic posting for ${_platformLabel(platform)} is not enabled by the administrator.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    var enabled = _truthy(account['auto_publish_enabled']);
+
+    final externalAccountId = TextEditingController(
+      text: (account['external_account_id'] ?? '').toString(),
+    );
+    final providerAccountRef = TextEditingController(
+      text: (account['provider_account_ref'] ?? '').toString(),
+    );
+
+    final providerName =
+        (account['automatic_provider_name'] ?? 'Configured provider')
+            .toString();
+    final requiresOAuth =
+        (account['automatic_connection_mode'] ?? '').toString() ==
+            'user_oauth';
+    final isWhatsApp =
+        platform == 'whatsapp_status' ||
+        platform == 'whatsapp_channel';
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setLocal) => SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              4,
-              18,
-              MediaQuery.viewInsetsOf(context).bottom + 20,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Add Social Media Account', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: platform,
-                  decoration: const InputDecoration(labelText: 'Platform'),
-                  items: const [
-                    DropdownMenuItem(value: 'instagram', child: Text('Instagram')),
-                    DropdownMenuItem(value: 'facebook', child: Text('Facebook')),
-                    DropdownMenuItem(value: 'x', child: Text('X (Twitter)')),
-                    DropdownMenuItem(value: 'tiktok', child: Text('TikTok')),
-                    DropdownMenuItem(value: 'linkedin', child: Text('LinkedIn')),
-                    DropdownMenuItem(value: 'whatsapp_status', child: Text('WhatsApp Status')),
-                    DropdownMenuItem(value: 'whatsapp_channel', child: Text('WhatsApp Channel')),
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                4,
+                18,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_platformLabel(platform)} Automatic Posting',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.verified_outlined,
+                          color: Color(0xFF047857),
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            '$providerName is enabled by the administrator.',
+                            style: const TextStyle(
+                              color: Color(0xFF047857),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (requiresOAuth) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Text(
+                        'The administrator manages the application/API credentials, but this platform still requires you to authorise your own social account.',
+                        style: TextStyle(
+                          color: Color(0xFF1E40AF),
+                          fontSize: 11.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) setLocal(() => platform = value);
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(controller: name, decoration: const InputDecoration(labelText: 'Account name')),
-                const SizedBox(height: 10),
-                TextField(controller: username, decoration: const InputDecoration(labelText: 'Username / handle')),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    if (name.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Enter the account name.')),
-                      );
-                      return;
-                    }
-                    Navigator.pop(context, true);
-                  },
-                  child: const Text('Add Account'),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: externalAccountId,
+                    decoration: InputDecoration(
+                      labelText: platform == 'whatsapp_channel'
+                          ? 'WhatsApp Channel ID'
+                          : 'Platform account ID',
+                      hintText: isWhatsApp
+                          ? 'Channel/account ID if required'
+                          : 'Page/Profile/Author ID if required',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: providerAccountRef,
+                    decoration: InputDecoration(
+                      labelText:
+                          'Provider session / account reference',
+                      hintText: isWhatsApp
+                          ? 'Your WhatsScale / WAHA session'
+                          : 'Only if the provider requires it',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: enabled,
+                    title: const Text(
+                      'Enable automatic posting',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Scheduled posts can publish automatically when this account is ready.',
+                    ),
+                    onChanged: (value) {
+                      setLocal(() => enabled = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        Navigator.pop(sheetContext, true),
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Save Automatic Posting'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (saved == true) {
+      setState(() => _saving = true);
+
+      try {
+        await _service.updateAutomaticPublishing(
+          accountId: id,
+          enabled: enabled,
+          externalAccountId: externalAccountId.text,
+          providerAccountRef: providerAccountRef.text,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Automatic posting settings updated.',
+              ),
             ),
+          );
+        }
+
+        await _load();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Could not update automatic posting: $error',
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+    }
+
+    externalAccountId.dispose();
+    providerAccountRef.dispose();
+  }
+
+  Future<void> _removeAccount(
+    Map<String, dynamic> account,
+  ) async {
+    final id = account['id'] is int
+        ? account['id'] as int
+        : int.tryParse((account['id'] ?? '').toString());
+
+    if (id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Remove social account?'),
+          content: Text(
+            'Remove ${(account['account_name'] ?? 'this account').toString()} from My Digital Diary?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _service.removeAccount(id);
+      await _load();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not remove account: $error',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  IconData _platformIcon(String platform) {
+    return switch (platform) {
+      'facebook' => Icons.facebook_rounded,
+      'instagram' => Icons.camera_alt_outlined,
+      'x' => Icons.alternate_email_rounded,
+      'tiktok' => Icons.music_note_rounded,
+      'linkedin' => Icons.work_outline_rounded,
+      'whatsapp_status' => Icons.chat_bubble_outline_rounded,
+      'whatsapp_channel' => Icons.campaign_outlined,
+      _ => Icons.public_rounded,
+    };
+  }
+
+  Widget _accountCard(Map<String, dynamic> account) {
+    final platform = (account['platform'] ?? '').toString();
+    final providerAvailable =
+        _truthy(account['automatic_api_available']);
+    final autoEnabled =
+        _truthy(account['auto_publish_enabled']);
+    final providerName =
+        (account['automatic_provider_name'] ?? '').toString().trim();
+    final username =
+        (account['username'] ?? '').toString().trim();
+    final session =
+        (account['provider_account_ref'] ?? '').toString().trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    child: Icon(_platformIcon(platform)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_platformLabel(platform)} · ${account['account_name'] ?? ''}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          username.isEmpty
+                              ? 'No username saved'
+                              : username,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (session.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Session: $session',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Remove account',
+                    onPressed: () => _removeAccount(account),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  _StatusChip(
+                    icon: providerAvailable
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_off_outlined,
+                    text: providerAvailable
+                        ? '${providerName.isEmpty ? 'API' : providerName} available'
+                        : 'Automatic API unavailable',
+                    positive: providerAvailable,
+                  ),
+                  _StatusChip(
+                    icon: autoEnabled
+                        ? Icons.bolt_rounded
+                        : Icons.schedule_rounded,
+                    text: autoEnabled
+                        ? 'Automatic posting ON'
+                        : 'Automatic posting OFF',
+                    positive: autoEnabled,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: providerAvailable && !_saving
+                    ? () => _configureAutomaticPublishing(
+                          account,
+                        )
+                    : null,
+                icon: const Icon(
+                  Icons.settings_suggest_outlined,
+                ),
+                label: Text(
+                  providerAvailable
+                      ? 'Automatic Posting'
+                      : 'Admin API Not Enabled',
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
-
-    if (saved == true) {
-      try {
-        await _service.addAccount(
-          platform: platform,
-          accountName: name.text,
-          username: username.text,
-        );
-        await _load();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not add account: $e')),
-          );
-        }
-      }
-    }
-
-    name.dispose();
-    username.dispose();
-  }
-
-  Future<void> _remove(Map<String, dynamic> account) async {
-    final id = account['id'] is int
-        ? account['id'] as int
-        : int.tryParse(account['id']?.toString() ?? '');
-    if (id == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove social media account?'),
-        content: Text('${account['account_name'] ?? 'This account'} will be removed from your profile.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await _service.removeAccount(id);
-    await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Social Media Settings')),
-      floatingActionButton: MediaQuery.viewInsetsOf(context).bottom > 0
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _addAccount,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Account'),
-            ),
+      appBar: AppBar(
+        title: const Text('Social Media Accounts'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      floatingActionButton:
+          MediaQuery.viewInsetsOf(context).bottom > 0
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed:
+                      _saving ? null : _showAddAccountSheet,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add Account'),
+                ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+          padding:
+              const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.chat_outlined),
-                        SizedBox(width: 8),
-                        Text('WhatsApp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      ],
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF2563EB),
+                  ),
+                  SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'My Digital Diary administrators securely manage social-media API providers and credentials. You only provide your account, Page/Profile/Channel ID, or provider session when required.',
+                      style: TextStyle(
+                        color: Color(0xFF1E40AF),
+                        fontSize: 11.5,
+                        height: 1.45,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Set the number used for Status sharing and your WhatsApp Channel details.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _whatsApp,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'WhatsApp number', hintText: '+2567XXXXXXXX'),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(controller: _channelName, decoration: const InputDecoration(labelText: 'WhatsApp Channel name')),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _channelUrl,
-                      keyboardType: TextInputType.url,
-                      decoration: const InputDecoration(labelText: 'WhatsApp Channel link', hintText: 'https://whatsapp.com/channel/...'),
-                    ),
-                    const SizedBox(height: 14),
-                    FilledButton.icon(
-                      onPressed: _savingWhatsApp ? null : _saveWhatsApp,
-                      icon: _savingWhatsApp
-                          ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.save_outlined),
-                      label: const Text('Save WhatsApp Settings'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 18),
-            const Text('Social Media Accounts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            const Text(
-              'Save your Instagram, Facebook, TikTok and LinkedIn identities. Official publishing authorisation remains separate.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 8),
-            if (!_loading && _accounts.isEmpty)
+            const SizedBox(height: 14),
+            if (_loading)
+              const Padding(
+                padding:
+                    EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_loadError != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.cloud_off_outlined,
+                        size: 38,
+                        color: Color(0xFFD97706),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Could not load social media accounts.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _loadError!,
+                        textAlign: TextAlign.center,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                        ),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_accounts.isEmpty)
               const Card(
-                child: ListTile(
-                  leading: Icon(Icons.alternate_email_rounded),
-                  title: Text('No social media accounts saved'),
-                  subtitle: Text('Tap Add Account to add your first account.'),
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.share_outlined,
+                        size: 38,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'No social media accounts yet.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Tap Add Account to add your first social profile or WhatsApp session.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else
-              ..._accounts.map((account) {
-                final autoEnabled =
-                    account['auto_publish_enabled'] == true ||
-                    account['auto_publish_enabled'] == 1 ||
-                    account['auto_publish_enabled']?.toString() == '1';
-                final connected =
-                    account['is_connected'] == true ||
-                    account['is_connected'] == 1 ||
-                    account['is_connected']?.toString() == '1';
-
-                final rawPlatform =
-                    (account['platform'] ?? '').toString();
-                final platformLabel = switch (rawPlatform) {
-                  'x' => 'X (Twitter)',
-                  'whatsapp_status' => 'WhatsApp Status',
-                  'whatsapp_channel' => 'WhatsApp Channel',
-                  _ => rawPlatform
-                      .replaceAll('_', ' ')
-                      .split(' ')
-                      .where((part) => part.isNotEmpty)
-                      .map(
-                        (part) =>
-                            '${part[0].toUpperCase()}${part.substring(1)}',
-                      )
-                      .join(' '),
-                };
-
-                final username =
-                    (account['username'] ?? '').toString().trim();
-
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const CircleAvatar(
-                              child: Icon(Icons.alternate_email_rounded),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '$platformLabel · ${account['account_name'] ?? ''}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    username.isEmpty
-                                        ? 'No username saved'
-                                        : username,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: [
-                                      _AccountStatusChip(
-                                        icon: connected
-                                            ? Icons.link_rounded
-                                            : Icons.link_off_rounded,
-                                        label: connected
-                                            ? 'API connected'
-                                            : 'API not connected',
-                                      ),
-                                      _AccountStatusChip(
-                                        icon: autoEnabled
-                                            ? Icons.bolt_rounded
-                                            : Icons.schedule_rounded,
-                                        label: autoEnabled
-                                            ? 'Automatic posting ON'
-                                            : 'Automatic posting OFF',
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  _configureAutomaticPublishing(account),
-                              icon: const Icon(
-                                Icons.settings_suggest_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('Automatic Posting'),
-                            ),
-                            IconButton(
-                              tooltip: 'Remove account',
-                              onPressed: () => _remove(account),
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+              ..._accounts.map(_accountCard),
           ],
         ),
       ),
@@ -582,24 +824,35 @@ class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
   }
 }
 
-class _AccountStatusChip extends StatelessWidget {
-  const _AccountStatusChip({
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
     required this.icon,
-    required this.label,
+    required this.text,
+    required this.positive,
   });
 
   final IconData icon;
-  final String label;
+  final String text;
+  final bool positive;
 
   @override
   Widget build(BuildContext context) {
+    final background =
+        positive
+            ? const Color(0xFFECFDF5)
+            : const Color(0xFFF1F5F9);
+    final foreground =
+        positive
+            ? const Color(0xFF047857)
+            : const Color(0xFF475569);
+
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
+        horizontal: 9,
+        vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -608,15 +861,15 @@ class _AccountStatusChip extends StatelessWidget {
           Icon(
             icon,
             size: 13,
-            color: const Color(0xFF475569),
+            color: foreground,
           ),
           const SizedBox(width: 4),
           Text(
-            label,
-            style: const TextStyle(
+            text,
+            style: TextStyle(
+              color: foreground,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF475569),
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../config/module_configs.dart';
@@ -50,10 +51,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   // happen immediately after login/resume and previously allowed a later,
   // empty response to wipe a valid Today's Focus list.
   int _dashboardLoadGeneration = 0;
-
-  // Once valid focus data has been shown, keep it on screen while a refresh is
-  // in progress or when a secondary endpoint temporarily fails.
-  bool _hasLoadedFocusOnce = false;
 
   // Dashboard and Today's Focus refresh independently. Keeping separate
   // guards prevents login/resume/pull-to-refresh from starting multiple
@@ -250,13 +247,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     setState(() {
       if (freshItems.isNotEmpty) {
         _todayFocusItems = freshItems;
-        _hasLoadedFocusOnce = true;
         _todayFocusError = null;
       } else if (_todayFocusItems.isNotEmpty) {
         _todayFocusError = null;
       } else {
         _todayFocusItems = const <Map<String, dynamic>>[];
-        _hasLoadedFocusOnce = true;
         _todayFocusError = (!apiSucceeded && !plannerSucceeded)
             ? 'Could not load today’s tasks. Check your connection and retry.'
             : null;
@@ -370,7 +365,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     setState(() {
       _todayFocusItems = merged;
-      _hasLoadedFocusOnce = true;
       _loadingTodayFocus = false;
       _todayFocusError = null;
     });
@@ -1645,8 +1639,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       body: RefreshIndicator(
         onRefresh: _refreshHome,
         child: ListView(
+          scrollCacheExtent: const ScrollCacheExtent.pixels(900.0),
           primary: true,
-          cacheExtent: 900,
           addAutomaticKeepAlives: false,
           addRepaintBoundaries: true,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

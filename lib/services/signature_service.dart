@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../models/signed_document.dart';
 import 'api_client.dart';
 
@@ -26,6 +27,15 @@ class SignatureService {
       fileName: fileName,
       fields: {if (label != null && label.isNotEmpty) 'label': label},
     );
+    return SavedSignature.fromJson(response['data']);
+  }
+
+
+  Future<SavedSignature> saveDrawnSignature({required List<int> pngBytes, String? label}) async {
+    final response = await _api.post('signatures', {
+      'drawn_signature': 'data:image/png;base64,${base64Encode(pngBytes)}',
+      if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+    });
     return SavedSignature.fromJson(response['data']);
   }
 
