@@ -20,6 +20,8 @@ import '../screens/organization_screen.dart';
 import '../screens/ai_planner_screen.dart';
 import '../screens/financial_planner_screen.dart';
 import '../screens/finance_report_screen.dart';
+import '../screens/budgets_screen.dart';
+import '../screens/spiritual_growth_screen.dart';
 import '../screens/daily_planner_screen.dart';
 import '../screens/annual_plans_screen.dart';
 import '../screens/help_screen.dart';
@@ -84,7 +86,11 @@ class AppDrawer extends StatelessWidget {
                 builder: (_) => const FinancialPlannerScreen(),
               ),
               _DrawerTileToScreen(icon: Icons.trending_up, title: 'Income', builder: (_) => const FinanceReportScreen(endpoint: 'incomes', title: 'Income')),
-              _DrawerTileToScreen(icon: Icons.account_balance_wallet_outlined, title: 'Budgets', builder: (_) => const FinanceReportScreen(endpoint: 'budgets', title: 'Budgets')),
+              _DrawerTileToScreen(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Budgets',
+                builder: (_) => const BudgetsScreen(),
+              ),
               _DrawerTileToScreen(icon: Icons.receipt_long_outlined, title: 'Expenses', builder: (_) => const FinanceReportScreen(endpoint: 'expenses', title: 'Expenses')),
               _DrawerTileToScreen(icon: Icons.handshake_outlined, title: 'Debts', builder: (_) => const FinanceReportScreen(endpoint: 'debts', title: 'Debts')),
               _DrawerTileToScreen(icon: Icons.add_card_outlined, title: 'Contributions', builder: (_) => const FinanceReportScreen(endpoint: 'savings-contributions', title: 'Savings Contributions')),
@@ -117,7 +123,11 @@ class AppDrawer extends StatelessWidget {
               _drawerTile(context, moduleConfigByEndpoint('education-plans')),
               _drawerTile(context, moduleConfigByEndpoint('network-contacts')),
               _drawerTile(context, moduleConfigByEndpoint('relationships')),
-              _drawerTile(context, moduleConfigByEndpoint('spiritual-practices')),
+              _DrawerTileToScreen(
+                icon: Icons.self_improvement_outlined,
+                title: 'Spiritual Growth',
+                builder: (_) => const SpiritualGrowthScreen(),
+              ),
             ],
           ),
           _DrawerGroup(
@@ -263,14 +273,37 @@ Widget _drawerTile(BuildContext context, ModuleConfig config) {
     leading: Icon(config.icon, color: config.color),
     title: Text(config.title),
     onTap: () {
-      Navigator.of(context).pop(); // close the drawer first
-      // Deferred to the next frame — pushing a new route in the exact
-      // same synchronous tick as closing the drawer can interfere with
-      // the drawer's own close animation/transition, occasionally
-      // causing the push to be silently dropped. Letting the pop
-      // actually finish first avoids that.
+      Navigator.of(context).pop();
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => DynamicCrudScreen(config: config)));
+        if (!context.mounted) return;
+
+        // These modules have dedicated screens and must not fall back to
+        // DynamicCrudScreen. In particular, Budgets needs its import/scan
+        // workflow and Spiritual Growth needs its inclusive bespoke form.
+        if (config.endpoint == 'budgets') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const BudgetsScreen(),
+            ),
+          );
+          return;
+        }
+
+        if (config.endpoint == 'spiritual-practices') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SpiritualGrowthScreen(),
+            ),
+          );
+          return;
+        }
+
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DynamicCrudScreen(config: config),
+          ),
+        );
       });
     },
   );

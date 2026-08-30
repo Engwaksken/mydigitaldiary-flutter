@@ -1,0 +1,51 @@
+If you still expose spiritual-practices through DynamicCrudScreen, replace its fields with:
+
+faith_path
+custom_faith_path
+practice_type
+practice_title
+inspirational_text
+source_tradition
+reflection
+gratitude
+intention
+community_place
+duration_minutes
+practice_date
+mood_before
+mood_after
+notes
+
+Recommended label/options:
+
+Faith / spiritual path:
+Christianity
+Islam
+Judaism
+Hinduism
+Buddhism
+Sikhism
+Baháʼí Faith
+African Traditional / Indigenous Spirituality
+Other religion
+Spiritual but not religious
+Secular reflection
+Prefer not to specify
+Custom
+
+Practice type:
+Prayer
+Meditation
+Worship
+Sacred text reading
+Reflection
+Gratitude
+Fasting
+Mindfulness
+Community gathering
+Service / charity
+Chanting
+Pilgrimage
+Study
+Personal ritual
+Other
