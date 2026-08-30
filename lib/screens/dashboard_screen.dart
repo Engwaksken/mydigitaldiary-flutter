@@ -54,8 +54,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Timer? _insightTimer;
 
+<<<<<<< HEAD
   final ScrollController _dashboardScrollController = ScrollController();
 
+=======
+>>>>>>> 3ff4e8f (Budgets updates)
   String _currencyCode = 'UGX';
   String _currencySymbol = 'UGX';
   double _currencyRate = 1.0;
@@ -1094,6 +1097,17 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     if (!mounted) return;
     await _refreshTodayFocusFromPlanner();
+  }
+
+  Future<void> _openPersonalisation() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PersonalisationScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+    await _load();
   }
 
   Future<void> _openPersonalisation() async {
