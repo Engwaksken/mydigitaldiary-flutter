@@ -36,7 +36,9 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -52,22 +54,32 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
+              TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: role,
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: const [
                   DropdownMenuItem(value: 'staff', child: Text('Staff')),
-                  DropdownMenuItem(value: 'admin', child: Text('Admin (can also manage members)')),
+                  DropdownMenuItem(
+                      value: 'admin',
+                      child: Text('Admin (can also manage members)')),
                 ],
-                onChanged: (value) => setDialogState(() => role = value ?? 'staff'),
+                onChanged: (value) =>
+                    setDialogState(() => role = value ?? 'staff'),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Send Invite')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Send Invite')),
           ],
         ),
       ),
@@ -77,10 +89,14 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
 
     try {
       final message = await _service.invite(emailController.text.trim(), role);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -89,7 +105,9 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       await _service.activate(member.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -98,7 +116,9 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       await _service.deactivate(member.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -107,10 +127,15 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove this person?'),
-        content: Text('This frees their member slot. ${member.email} will move to a Free/Individual plan.'),
+        content: Text(
+            'This frees their member slot. ${member.email} will move to a Free/Individual plan.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Remove')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Remove')),
         ],
       ),
     );
@@ -118,10 +143,14 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
 
     try {
       await _service.removeMember(member.id);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed — their member slot is now free.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Removed — their member slot is now free.')));
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -137,9 +166,15 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Removes ${member.email} and immediately invites someone new to take their place.', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              Text(
+                  'Removes ${member.email} and immediately invites someone new to take their place.',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey)),
               const SizedBox(height: 12),
-              TextField(controller: emailController, decoration: const InputDecoration(labelText: "New person's email"), keyboardType: TextInputType.emailAddress),
+              TextField(
+                  controller: emailController,
+                  decoration:
+                      const InputDecoration(labelText: "New person's email"),
+                  keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: role,
@@ -148,13 +183,18 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
                   DropdownMenuItem(value: 'staff', child: Text('Staff')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
                 ],
-                onChanged: (value) => setDialogState(() => role = value ?? 'staff'),
+                onChanged: (value) =>
+                    setDialogState(() => role = value ?? 'staff'),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Replace')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Replace')),
           ],
         ),
       ),
@@ -163,17 +203,23 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
     if (result != true || emailController.text.trim().isEmpty) return;
 
     try {
-      final message = await _service.replace(member.id, emailController.text.trim(), role);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      final message =
+          await _service.replace(member.id, emailController.text.trim(), role);
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = _organization?.isFamilyTeam == true ? 'Family & Team' : 'Organization';
+    final title =
+        _organization?.isFamilyTeam == true ? 'Family & Team' : 'Organization';
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
@@ -192,12 +238,19 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_organization!.name, style: Theme.of(context).textTheme.titleMedium),
-                              Text(_organization!.planName ?? '—', style: const TextStyle(color: Colors.grey)),
+                              Text(_organization!.name,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium),
+                              Text(_organization!.planName ?? '—',
+                                  style: const TextStyle(color: Colors.grey)),
                               const SizedBox(height: 8),
-                              Text('${_organization!.seatsUsed} / ${_organization!.seatLimit} members used'),
+                              Text(
+                                  '${_organization!.seatsUsed} / ${_organization!.seatLimit} members used'),
                               LinearProgressIndicator(
-                                value: _organization!.seatLimit > 0 ? _organization!.seatsUsed / _organization!.seatLimit : 0,
+                                value: _organization!.seatLimit > 0
+                                    ? _organization!.seatsUsed /
+                                        _organization!.seatLimit
+                                    : 0,
                               ),
                             ],
                           ),
@@ -205,19 +258,27 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: _organization!.remainingSeats > 0 ? _showInviteDialog : null,
+                        onPressed: _organization!.remainingSeats > 0
+                            ? _showInviteDialog
+                            : null,
                         icon: const Icon(Icons.person_add_alt),
                         label: const Text('Invite Someone'),
                       ),
                       if (_organization!.remainingSeats == 0)
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
-                          child: Text('No member slots available — remove someone or upgrade your plan.', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                          child: Text(
+                              'No member slots available — remove someone or upgrade your plan.',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.orange)),
                         ),
                       const SizedBox(height: 16),
-                      Text('Members', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Members',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
-                      if (_organization!.members.isEmpty) const Text('No team members yet — invite your first one above.'),
+                      if (_organization!.members.isEmpty)
+                        const Text(
+                            'No team members yet — invite your first one above.'),
                       ..._organization!.members.map(_buildMemberTile),
                     ],
                   ),
@@ -240,7 +301,8 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const SubscriptionScreen())),
               child: const Text('View Plans'),
             ),
           ],
@@ -264,7 +326,11 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
           children: [
             Text(member.role, style: const TextStyle(fontSize: 12)),
             const SizedBox(width: 8),
-            Text(member.status, style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.bold)),
+            Text(member.status,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: statusColor,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -285,8 +351,11 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
             }
           },
           itemBuilder: (context) => [
-            if (member.status == 'inactive') const PopupMenuItem(value: 'activate', child: Text('Reactivate')),
-            if (member.status == 'active') const PopupMenuItem(value: 'deactivate', child: Text('Deactivate')),
+            if (member.status == 'inactive')
+              const PopupMenuItem(value: 'activate', child: Text('Reactivate')),
+            if (member.status == 'active')
+              const PopupMenuItem(
+                  value: 'deactivate', child: Text('Deactivate')),
             const PopupMenuItem(value: 'replace', child: Text('Replace')),
             const PopupMenuItem(value: 'remove', child: Text('Remove')),
           ],

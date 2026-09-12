@@ -1,0 +1,2 @@
+<!-- Add directly under the opening <manifest ...> tag: -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC" />

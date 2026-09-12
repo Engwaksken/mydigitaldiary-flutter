@@ -38,7 +38,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(value));
+    _debounce =
+        Timer(const Duration(milliseconds: 400), () => _runSearch(value));
   }
 
   Future<void> _runSearch(String query) async {
@@ -67,7 +68,8 @@ class _SearchScreenState extends State<SearchScreen> {
         title: Container(
           height: 42,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(10)),
           child: TextField(
             controller: _controller,
             autofocus: true,
@@ -77,7 +79,8 @@ class _SearchScreenState extends State<SearchScreen> {
             // colored app bar, since a light user-chosen primary color
             // (e.g. the sticky-notes Yellow) would make white text on
             // that background hard to read.
-            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 15),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.primary, fontSize: 15),
             cursorColor: Theme.of(context).colorScheme.primary,
             decoration: const InputDecoration(
               hintText: 'Search expenses, projects, meetings...',
@@ -93,7 +96,9 @@ class _SearchScreenState extends State<SearchScreen> {
           : _results.isEmpty
               ? Center(
                   child: Text(
-                    _controller.text.trim().length < 2 ? 'Type at least 2 characters to search.' : 'No matches found.',
+                    _controller.text.trim().length < 2
+                        ? 'Type at least 2 characters to search.'
+                        : 'No matches found.',
                     style: const TextStyle(color: Colors.grey),
                   ),
                 )
@@ -108,27 +113,41 @@ class _SearchScreenState extends State<SearchScreen> {
                     // would throw for either one.
                     if (result.module == 'expenses') {
                       return ListTile(
-                        leading: const Icon(Icons.receipt_long, color: Color(0xFFE11D48)),
+                        leading: const Icon(Icons.receipt_long,
+                            color: Color(0xFFE11D48)),
                         title: Text(result.title),
-                        subtitle: result.subtitle != null ? Text(result.subtitle!) : const Text('Expenses'),
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExpensesScreen())),
+                        subtitle: result.subtitle != null
+                            ? Text(result.subtitle!)
+                            : const Text('Expenses'),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const ExpensesScreen())),
                       );
                     }
                     if (result.module == 'reminders') {
                       return ListTile(
-                        leading: const Icon(Icons.notifications_active, color: Color(0xFF00897B)),
+                        leading: const Icon(Icons.notifications_active,
+                            color: Color(0xFF00897B)),
                         title: Text(result.title),
-                        subtitle: result.subtitle != null ? Text(result.subtitle!) : const Text('Reminders'),
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RemindersScreen())),
+                        subtitle: result.subtitle != null
+                            ? Text(result.subtitle!)
+                            : const Text('Reminders'),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const RemindersScreen())),
                       );
                     }
                     // Legacy plan search records now belong to Annual Plans.
-                    if (result.module == 'plans' || result.module == 'annual_plans') {
+                    if (result.module == 'plans' ||
+                        result.module == 'annual_plans') {
                       return ListTile(
-                        leading: const Icon(Icons.today_outlined, color: Color(0xFF00897B)),
+                        leading: const Icon(Icons.today_outlined,
+                            color: Color(0xFF00897B)),
                         title: Text(result.title),
                         subtitle: const Text('Annual Plans'),
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AnnualPlansScreen())),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const AnnualPlansScreen())),
                       );
                     }
 
@@ -136,9 +155,12 @@ class _SearchScreenState extends State<SearchScreen> {
                     return ListTile(
                       leading: Icon(config.icon, color: config.color),
                       title: Text(result.title),
-                      subtitle: result.subtitle != null ? Text(result.subtitle!) : Text(config.title),
+                      subtitle: result.subtitle != null
+                          ? Text(result.subtitle!)
+                          : Text(config.title),
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => DynamicCrudScreen(config: config)),
+                        MaterialPageRoute(
+                            builder: (_) => DynamicCrudScreen(config: config)),
                       ),
                     );
                   },

@@ -50,15 +50,21 @@ class HelpScreen extends StatelessWidget {
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(section.key, style: Theme.of(context).textTheme.titleMedium),
+                        child: Text(section.key,
+                            style: Theme.of(context).textTheme.titleMedium),
                       ),
                       ...section.value.entries.map((qa) => ExpansionTile(
-                            title: Text(qa.key, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            title: Text(qa.key,
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600)),
+                            childrenPadding:
+                                const EdgeInsets.fromLTRB(16, 0, 16, 12),
                             children: [
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: Text(qa.value, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                                child: Text(qa.value,
+                                    style: const TextStyle(
+                                        fontSize: 13, color: Colors.black54)),
                               ),
                             ],
                           )),
@@ -74,7 +80,9 @@ class HelpScreen extends StatelessWidget {
               subtitle: const Text('Send us feedback'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => DynamicCrudScreen(config: moduleConfigByEndpoint('feedback'))),
+                MaterialPageRoute(
+                    builder: (_) => DynamicCrudScreen(
+                        config: moduleConfigByEndpoint('feedback'))),
               ),
             ),
           ),

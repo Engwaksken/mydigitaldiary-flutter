@@ -1,0 +1,24 @@
+// Add these imports to login_screen.dart:
+import '../widgets/biometric_login_button.dart';
+
+// Place this BELOW your normal Sign In button:
+BiometricLoginButton(
+  onAuthenticated: (user) async {
+    if (!mounted) {
+      return;
+    }
+
+    // The Sanctum auth_token is already in ApiClient secure storage.
+    // Navigate exactly as you do after a successful normal login.
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/dashboard',
+      (route) => false,
+    );
+  },
+),
+
+// IMPORTANT:
+// Fingerprint login is intentionally unavailable until:
+// 1. the user has logged in normally,
+// 2. Remember Me saved the Sanctum token,
+// 3. the user explicitly enabled Fingerprint Login in settings.

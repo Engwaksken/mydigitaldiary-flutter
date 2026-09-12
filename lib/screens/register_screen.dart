@@ -50,7 +50,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created — check your email, then log in.')),
+        const SnackBar(
+            content: Text('Account created — check your email, then log in.')),
       );
       Navigator.of(context).pop();
     } on ApiException catch (e) {
@@ -79,22 +80,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (_error != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
-                    child: Text(_error!, style: const TextStyle(color: Color(0xFFB91C1C))),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text(_error!,
+                        style: const TextStyle(color: Color(0xFFB91C1C))),
                   ),
                   const SizedBox(height: 16),
                 ],
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline)),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Full name is required' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.person_outline)),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Full name is required' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Email is required' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Email is required' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -104,12 +113,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      tooltip:
+                          _obscurePassword ? 'Show password' : 'Hide password',
                     ),
                   ),
-                  validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? 'At least 8 characters'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -119,12 +134,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Confirm Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                      tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
+                      icon: Icon(_obscureConfirmPassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() =>
+                          _obscureConfirmPassword = !_obscureConfirmPassword),
+                      tooltip: _obscureConfirmPassword
+                          ? 'Show password'
+                          : 'Hide password',
                     ),
                   ),
-                  validator: (v) => (v != _passwordController.text) ? 'Passwords do not match' : null,
+                  validator: (v) => (v != _passwordController.text)
+                      ? 'Passwords do not match'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -137,18 +159,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: const Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.privacy_tip_outlined, size: 19, color: Color(0xFF0F766E)),
+                      Icon(Icons.privacy_tip_outlined,
+                          size: 19, color: Color(0xFF0F766E)),
                       SizedBox(width: 8),
-                      Expanded(child: Text(
+                      Expanded(
+                          child: Text(
                         'Your diary entries are private to your account by default. We do not sell private diary data for advertising, and AI access can be controlled by life area.',
-                        style: TextStyle(fontSize: 11.5, height: 1.4, color: Color(0xFF475569)),
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.4,
+                            color: Color(0xFF475569)),
                       )),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
                 InkWell(
-                  onTap: () => setState(() => _agreedToPolicy = !_agreedToPolicy),
+                  onTap: () =>
+                      setState(() => _agreedToPolicy = !_agreedToPolicy),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -157,26 +185,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         Checkbox(
                           value: _agreedToPolicy,
-                          onChanged: (value) => setState(() => _agreedToPolicy = value ?? false),
+                          onChanged: (value) =>
+                              setState(() => _agreedToPolicy = value ?? false),
                         ),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: RichText(
                               text: TextSpan(
-                                style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                    height: 1.4),
                                 children: [
                                   const TextSpan(text: 'I agree to the '),
                                   TextSpan(
                                     text: 'Privacy Policy',
-                                    style: const TextStyle(color: Color(0xFF73BEB6), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+                                    style: const TextStyle(
+                                        color: Color(0xFF73BEB6),
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline),
                                     recognizer: TapGestureRecognizer()
                                       ..onTap = () {
-                                        final base = ApiClient.baseUrl.replaceAll('/api', '');
-                                        launchUrl(Uri.parse('$base/privacy-policy'), mode: LaunchMode.externalApplication);
+                                        final base = ApiClient.baseUrl
+                                            .replaceAll('/api', '');
+                                        launchUrl(
+                                            Uri.parse('$base/privacy-policy'),
+                                            mode:
+                                                LaunchMode.externalApplication);
                                       },
                                   ),
-                                  const TextSpan(text: ' and consent to this app storing and processing my personal data as described there.'),
+                                  const TextSpan(
+                                      text:
+                                          ' and consent to this app storing and processing my personal data as described there.'),
                                 ],
                               ),
                             ),
@@ -189,13 +230,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (_showPolicyError)
                   const Padding(
                     padding: EdgeInsets.only(left: 12, top: 2),
-                    child: Text('Please agree to the Privacy Policy to continue.', style: TextStyle(fontSize: 12, color: Color(0xFFE11D48))),
+                    child: Text(
+                        'Please agree to the Privacy Policy to continue.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFFE11D48))),
                   ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _loading ? null : _submit,
                   child: _loading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Create Account'),
                 ),
               ],

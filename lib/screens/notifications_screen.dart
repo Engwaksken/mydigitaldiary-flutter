@@ -32,7 +32,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -41,7 +43,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _service.markAllRead();
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -52,7 +56,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           _notifications = _notifications.map((n) {
             return n.id == notification.id
-                ? AppNotification(id: n.id, type: n.type, data: n.data, read: true, createdAt: n.createdAt)
+                ? AppNotification(
+                    id: n.id,
+                    type: n.type,
+                    data: n.data,
+                    read: true,
+                    createdAt: n.createdAt)
                 : n;
           }).toList();
         });
@@ -71,7 +80,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         builder: (ctx) => AlertDialog(
           title: Text(notification.data['title'] ?? 'Announcement'),
           content: Text(notification.data['body'] ?? ''),
-          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close'))
+          ],
         ),
       );
     }
@@ -88,7 +101,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (hasUnread)
             TextButton(
               onPressed: _markAllRead,
-              child: const Text('Mark all read', style: TextStyle(color: Colors.white)),
+              child: const Text('Mark all read',
+                  style: TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -101,7 +115,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       children: const [
                         Padding(
                           padding: EdgeInsets.all(32),
-                          child: Text('No notifications yet.', textAlign: TextAlign.center),
+                          child: Text('No notifications yet.',
+                              textAlign: TextAlign.center),
                         ),
                       ],
                     )
@@ -110,24 +125,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       itemBuilder: (context, index) {
                         final notification = _notifications[index];
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 3),
                           elevation: notification.read ? 0 : 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          color: notification.read ? null : const Color(0xFFF1F5F9),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          color: notification.read
+                              ? null
+                              : const Color(0xFFF1F5F9),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
                             leading: CircleAvatar(
-                              backgroundColor: notification.read ? Colors.grey.withValues(alpha: 0.15) : const Color(0x1A00897B),
+                              backgroundColor: notification.read
+                                  ? Colors.grey.withValues(alpha: 0.15)
+                                  : const Color(0x1A00897B),
                               child: Icon(
-                                notification.read ? Icons.notifications_none : Icons.notifications_active,
-                                color: notification.read ? Colors.grey : const Color(0xFF00897B),
+                                notification.read
+                                    ? Icons.notifications_none
+                                    : Icons.notifications_active,
+                                color: notification.read
+                                    ? Colors.grey
+                                    : const Color(0xFF00897B),
                               ),
                             ),
                             title: Text(
                               notification.displayMessage(),
-                              style: TextStyle(fontWeight: notification.read ? FontWeight.normal : FontWeight.w600),
+                              style: TextStyle(
+                                  fontWeight: notification.read
+                                      ? FontWeight.normal
+                                      : FontWeight.w600),
                             ),
-                            subtitle: Text(DateFormat('yMMMd, h:mm a').format(notification.createdAt)),
+                            subtitle: Text(DateFormat('yMMMd, h:mm a')
+                                .format(notification.createdAt)),
                             onTap: () => _tapNotification(notification),
                           ),
                         );

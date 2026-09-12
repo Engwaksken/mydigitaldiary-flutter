@@ -4,7 +4,6 @@ import '../models/subscription.dart';
 import '../services/subscription_service.dart';
 import '../services/api_client.dart';
 
-
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
 
@@ -71,7 +70,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _loading = false;
         _billingLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -83,7 +83,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _openDownload(String? url) async {
     if (url == null) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri))
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   List<Widget> _buildGroupedPlans() {
@@ -91,14 +92,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final widgets = <Widget>[];
 
     for (final category in categories) {
-      final plansInCategory = _plans.where((p) => p.category == category).toList();
+      final plansInCategory =
+          _plans.where((p) => p.category == category).toList();
       if (plansInCategory.isEmpty) continue;
 
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 12, bottom: 6),
         child: Text(
           plansInCategory.first.categoryLabel().toUpperCase(),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              letterSpacing: 0.5),
         ),
       ));
 
@@ -110,15 +116,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       if (category == 'organization') {
         widgets.add(_buildContactSalesCard());
       } else if (category == 'individual') {
-        final primary = plansInCategory.where((p) => p.durationMonths == 1 || p.durationMonths == 12).toList();
-        final shown = primary.isNotEmpty ? primary : plansInCategory.take(2).toList();
+        final primary = plansInCategory
+            .where((p) => p.durationMonths == 1 || p.durationMonths == 12)
+            .toList();
+        final shown =
+            primary.isNotEmpty ? primary : plansInCategory.take(2).toList();
         widgets.addAll(shown.map(_buildPlanCard));
         final shownIds = shown.map((p) => p.id).toSet();
-        final more = plansInCategory.where((p) => !shownIds.contains(p.id)).toList();
+        final more =
+            plansInCategory.where((p) => !shownIds.contains(p.id)).toList();
         if (more.isNotEmpty) {
           widgets.add(ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: const Text('More billing options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            title: const Text('More billing options',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             children: more.map(_buildPlanCard).toList(),
           ));
         }
@@ -134,13 +145,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       color: const Color(0xFFF5F3FF),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFDDD6FE))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFDDD6FE))),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Built for larger teams', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF4C1D95))),
+            const Text('Built for larger teams',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, color: Color(0xFF4C1D95))),
             const SizedBox(height: 4),
             const Text(
               "Custom seats, pricing, and onboarding for bigger organizations — talk to us and we'll put together something that fits.",
@@ -149,7 +164,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: _openContactSales,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6D28D9), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6D28D9),
+                  foregroundColor: Colors.white),
               icon: const Icon(Icons.handshake_outlined, size: 18),
               label: const Text('Contact Sales'),
             ),
@@ -162,23 +179,44 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _openContactSales() async {
     final base = ApiClient.baseUrl.replaceAll('/api', '');
     final uri = Uri.parse('$base/enterprise/contact');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri))
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   ({Color background, Color border, Color text}) _stickyColors(int months) {
     if (months <= 1) {
-      return (background: const Color(0xFFFFF8C5), border: const Color(0xFFE7CF62), text: const Color(0xFF5F5112));
+      return (
+        background: const Color(0xFFFFF8C5),
+        border: const Color(0xFFE7CF62),
+        text: const Color(0xFF5F5112)
+      );
     }
     if (months <= 3) {
-      return (background: const Color(0xFFDFF4FF), border: const Color(0xFF8BC9E8), text: const Color(0xFF155B7A));
+      return (
+        background: const Color(0xFFDFF4FF),
+        border: const Color(0xFF8BC9E8),
+        text: const Color(0xFF155B7A)
+      );
     }
     if (months <= 6) {
-      return (background: const Color(0xFFF3E5FF), border: const Color(0xFFC9A5ED), text: const Color(0xFF63398A));
+      return (
+        background: const Color(0xFFF3E5FF),
+        border: const Color(0xFFC9A5ED),
+        text: const Color(0xFF63398A)
+      );
     }
     if (months <= 12) {
-      return (background: const Color(0xFFDFF6E8), border: const Color(0xFF8BCDA5), text: const Color(0xFF16613A));
+      return (
+        background: const Color(0xFFDFF6E8),
+        border: const Color(0xFF8BCDA5),
+        text: const Color(0xFF16613A)
+      );
     }
-    return (background: const Color(0xFFFFE8E2), border: const Color(0xFFEAB0A0), text: const Color(0xFF7D3E30));
+    return (
+      background: const Color(0xFFFFE8E2),
+      border: const Color(0xFFEAB0A0),
+      text: const Color(0xFF7D3E30)
+    );
   }
 
   Widget _buildPlanCard(SubscriptionPlanInfo plan) {
@@ -189,7 +227,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 10),
       shadowColor: Colors.black.withValues(alpha: 0.12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: sticky.border, width: 1.7)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: sticky.border, width: 1.7)),
       color: sticky.background,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -201,28 +241,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(plan.name, style: TextStyle(fontWeight: FontWeight.bold, color: color))),
+                  Expanded(
+                      child: Text(plan.name,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, color: color))),
                   if (plan.isRecommended || plan.isBestValue)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(10)),
                       child: Text(
                         plan.isRecommended ? 'RECOMMENDED' : 'BEST VALUE',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold),
                       ),
                     )
                   else if (plan.badge != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
-                      child: Text(plan.badge!, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Text(plan.badge!,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold)),
                     ),
                 ],
               ),
               const SizedBox(height: 3),
-              Text(plan.formattedPrice(), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+              Text(plan.formattedPrice(),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold, color: color)),
               Text(
-                plan.isLifetime ? 'One-time payment' : 'every ${plan.durationMonths} month(s)',
+                plan.isLifetime
+                    ? 'One-time payment'
+                    : 'every ${plan.durationMonths} month(s)',
                 style: const TextStyle(fontSize: 11, color: Colors.black54),
               ),
               if (!plan.isIndividual) ...[
@@ -245,7 +305,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     backgroundColor: color,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(72, 34),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,
                   ),
@@ -262,7 +323,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   void _openCheckout(SubscriptionPlanInfo plan) {
     if (_gateways.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No payment methods are configured yet.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No payment methods are configured yet.')));
       return;
     }
 
@@ -286,7 +348,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No Mobile Money or bank transfer payment method is configured.')),
+        const SnackBar(
+            content: Text(
+                'No Mobile Money or bank transfer payment method is configured.')),
       );
       return;
     }
@@ -298,7 +362,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         payment: payment,
         gateways: available,
         service: _service,
-        accountPhone: payment.contactPhone ?? _status?['account_phone']?.toString(),
+        accountPhone:
+            payment.contactPhone ?? _status?['account_phone']?.toString(),
         onDone: () => _load(billingPage: _billingPage),
       ),
     );
@@ -322,24 +387,36 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Current Plan', style: Theme.of(context).textTheme.labelMedium),
-                            Text(_status!['subscription_plan'] ?? 'None', style: Theme.of(context).textTheme.titleMedium),
+                            Text('Current Plan',
+                                style: Theme.of(context).textTheme.labelMedium),
+                            Text(_status!['subscription_plan'] ?? 'None',
+                                style: Theme.of(context).textTheme.titleMedium),
                             const SizedBox(height: 4),
                             Text(
-                              _status!['has_active_access'] == true ? 'Active' : 'Inactive',
-                              style: TextStyle(color: _status!['has_active_access'] == true ? Colors.green : Colors.red),
+                              _status!['has_active_access'] == true
+                                  ? 'Active'
+                                  : 'Inactive',
+                              style: TextStyle(
+                                  color: _status!['has_active_access'] == true
+                                      ? Colors.green
+                                      : Colors.red),
                             ),
                             if (_status!['days_remaining'] != null)
                               Text(
                                 '${_status!['days_remaining']} day(s) remaining',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
                               ),
-                            if ((_status!['expiry_date'] ?? _status!['subscription_expires_at']) != null)
-                              Text('Expires: ${(_status!['expiry_date'] ?? _status!['subscription_expires_at']).toString().substring(0, 10)}'),
+                            if ((_status!['expiry_date'] ??
+                                    _status!['subscription_expires_at']) !=
+                                null)
+                              Text(
+                                  'Expires: ${(_status!['expiry_date'] ?? _status!['subscription_expires_at']).toString().substring(0, 10)}'),
                             const SizedBox(height: 6),
                             Text(
                               'Payment phone: ${(_status!['account_phone'] ?? 'Not set yet')}',
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54),
                             ),
                           ],
                         ),
@@ -347,11 +424,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   const SizedBox(height: 10),
                   if (_status?['value_summary'] is Map)
-                    _SubscriptionValueCard(summary: Map<String, dynamic>.from(_status!['value_summary'] as Map)),
+                    _SubscriptionValueCard(
+                        summary: Map<String, dynamic>.from(
+                            _status!['value_summary'] as Map)),
                   const SizedBox(height: 10),
-                  Text('Choose your plan', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Choose your plan',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 2),
-                  const Text('Monthly and Annual are shown first. Open More billing options for other durations.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  const Text(
+                      'Monthly and Annual are shown first. Open More billing options for other durations.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54)),
                   const SizedBox(height: 4),
                   ..._buildGroupedPlans(),
                   const SizedBox(height: 24),
@@ -391,7 +473,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Account payment phone: ${_status!['account_phone']}',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -419,11 +502,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           payment.plan ?? 'Subscription',
-                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
@@ -442,8 +527,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   ),
                                   if (payment.isPending)
                                     FilledButton.icon(
-                                      onPressed: () => _openPendingPayment(payment),
-                                      icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                                      onPressed: () =>
+                                          _openPendingPayment(payment),
+                                      icon: const Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          size: 16),
                                       label: const Text('Pay now'),
                                     ),
                                 ],
@@ -455,15 +543,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 children: [
                                   Text(
                                     'Method: ${payment.gatewayName ?? payment.method.replaceAll('_', ' ')}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
                                   ),
                                   Text(
                                     'Phone: ${payment.contactPhone ?? _status?['account_phone'] ?? '—'}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
                                   ),
                                   Text(
                                     'Date: ${payment.createdAt.length >= 10 ? payment.createdAt.substring(0, 10) : payment.createdAt}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
                                   ),
                                 ],
                               ),
@@ -472,14 +563,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 children: [
                                   if (payment.invoiceDownloadUrl != null)
                                     TextButton.icon(
-                                      onPressed: () => _openDownload(payment.invoiceDownloadUrl),
-                                      icon: const Icon(Icons.receipt_long, size: 18),
+                                      onPressed: () => _openDownload(
+                                          payment.invoiceDownloadUrl),
+                                      icon: const Icon(Icons.receipt_long,
+                                          size: 18),
                                       label: const Text('Invoice'),
                                     ),
                                   if (payment.receiptDownloadUrl != null)
                                     TextButton.icon(
-                                      onPressed: () => _openDownload(payment.receiptDownloadUrl),
-                                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                                      onPressed: () => _openDownload(
+                                          payment.receiptDownloadUrl),
+                                      icon: const Icon(Icons.picture_as_pdf,
+                                          size: 18),
                                       label: const Text('Receipt'),
                                     ),
                                 ],
@@ -496,7 +591,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           children: [
                             Text(
                               'Showing ${_billingFrom ?? 0}–${_billingTo ?? 0} of $_billingTotal',
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54),
                             ),
                             const SizedBox(height: 6),
                             Row(
@@ -530,11 +626,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 }
 
-
 class _SubscriptionValueCard extends StatelessWidget {
   final Map<String, dynamic> summary;
   const _SubscriptionValueCard({required this.summary});
-  String _money(dynamic value) => 'UGX ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
+  String _money(dynamic value) =>
+      'UGX ${((value as num?)?.toDouble() ?? 0).toStringAsFixed(0)}';
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -542,16 +638,23 @@ class _SubscriptionValueCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Your value this month', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Your value this month',
+              style: TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 3),
-          const Text('A quick look at what My Digital Diary is already helping you manage.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+          const Text(
+              'A quick look at what My Digital Diary is already helping you manage.',
+              style: TextStyle(fontSize: 12, color: Colors.black54)),
           const SizedBox(height: 10),
           Wrap(spacing: 18, runSpacing: 10, children: [
-            _ValueMetric(label: 'Tasks', value: '${summary['tasks_completed'] ?? 0}'),
-            _ValueMetric(label: 'Expenses', value: _money(summary['expenses_tracked'])),
+            _ValueMetric(
+                label: 'Tasks', value: '${summary['tasks_completed'] ?? 0}'),
+            _ValueMetric(
+                label: 'Expenses', value: _money(summary['expenses_tracked'])),
             _ValueMetric(label: 'Saved', value: _money(summary['saved'])),
-            _ValueMetric(label: 'AI plans', value: '${summary['ai_plans'] ?? 0}'),
-            _ValueMetric(label: 'Meetings', value: '${summary['meetings'] ?? 0}'),
+            _ValueMetric(
+                label: 'AI plans', value: '${summary['ai_plans'] ?? 0}'),
+            _ValueMetric(
+                label: 'Meetings', value: '${summary['meetings'] ?? 0}'),
           ]),
         ]),
       ),
@@ -564,10 +667,16 @@ class _ValueMetric extends StatelessWidget {
   final String value;
   const _ValueMetric({required this.label, required this.value});
   @override
-  Widget build(BuildContext context) => SizedBox(width: 92, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-    Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-  ]));
+  Widget build(BuildContext context) => SizedBox(
+      width: 92,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(fontSize: 10, color: Colors.black54)),
+        Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      ]));
 }
 
 class _CheckoutSheet extends StatefulWidget {
@@ -632,10 +741,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
           });
           return;
         }
-        final message = await widget.service.payWithMobileMoney(widget.plan.id, _phoneController.text.trim(), _network);
+        final message = await widget.service.payWithMobileMoney(
+            widget.plan.id, _phoneController.text.trim(), _network);
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
         }
       } else {
         // type is 'bank' or a mobile_money gateway with no aggregator
@@ -657,7 +768,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         );
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
         }
       }
       widget.onDone();
@@ -672,17 +784,24 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Checkout — ${widget.plan.name}', style: Theme.of(context).textTheme.titleLarge),
+            Text('Checkout — ${widget.plan.name}',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
-            Text('Total: ${widget.plan.formattedPrice()}', style: Theme.of(context).textTheme.titleMedium),
+            Text('Total: ${widget.plan.formattedPrice()}',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
-            const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Payment Method',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             // NOTE: RadioGroup is a very recent Flutter API (replacing the
             // older per-item groupValue/onChanged on RadioListTile) — recent
             // enough that I can't fully verify this exact constructor shape
@@ -694,10 +813,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               groupValue: _selectedGateway,
               onChanged: (value) => setState(() => _selectedGateway = value!),
               child: Column(
-                children: widget.gateways.map((g) => RadioListTile<PaymentGatewayInfo>(
-                      value: g,
-                      title: Text(g.name),
-                    )).toList(),
+                children: widget.gateways
+                    .map((g) => RadioListTile<PaymentGatewayInfo>(
+                          value: g,
+                          title: Text(g.name),
+                        ))
+                    .toList(),
               ),
             ),
             // ---- Old approach, kept as a fallback reference ----
@@ -713,8 +834,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 initialValue: _network,
                 decoration: const InputDecoration(labelText: 'Network'),
                 items: [
-                  if (_selectedGateway.supportsMtn) const DropdownMenuItem(value: 'mtn', child: Text('MTN Mobile Money')),
-                  if (_selectedGateway.supportsAirtel) const DropdownMenuItem(value: 'airtel', child: Text('Airtel Money')),
+                  if (_selectedGateway.supportsMtn)
+                    const DropdownMenuItem(
+                        value: 'mtn', child: Text('MTN Mobile Money')),
+                  if (_selectedGateway.supportsAirtel)
+                    const DropdownMenuItem(
+                        value: 'airtel', child: Text('Airtel Money')),
                 ],
                 onChanged: (value) => setState(() => _network = value ?? 'mtn'),
               ),
@@ -722,7 +847,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone Number', hintText: 'e.g. 0700000000'),
+                decoration: const InputDecoration(
+                    labelText: 'Phone Number', hintText: 'e.g. 0700000000'),
               ),
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -739,27 +865,48 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.blueGrey.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                    color: Colors.blueGrey.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _selectedGateway.type == 'bank' ? 'Bank Transfer Details' : 'Mobile Money Details',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      _selectedGateway.type == 'bank'
+                          ? 'Bank Transfer Details'
+                          : 'Mobile Money Details',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     const SizedBox(height: 6),
                     if (_selectedGateway.type == 'bank') ...[
-                      if (_selectedGateway.bankName != null) Text('Bank: ${_selectedGateway.bankName}', style: const TextStyle(fontSize: 13)),
-                      if (_selectedGateway.accountName != null) Text('Account Name: ${_selectedGateway.accountName}', style: const TextStyle(fontSize: 13)),
-                      if (_selectedGateway.accountNumber != null) Text('Account Number: ${_selectedGateway.accountNumber}', style: const TextStyle(fontSize: 13)),
-                      if (_selectedGateway.routingOrSwift != null) Text('Routing/SWIFT: ${_selectedGateway.routingOrSwift}', style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.bankName != null)
+                        Text('Bank: ${_selectedGateway.bankName}',
+                            style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.accountName != null)
+                        Text('Account Name: ${_selectedGateway.accountName}',
+                            style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.accountNumber != null)
+                        Text(
+                            'Account Number: ${_selectedGateway.accountNumber}',
+                            style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.routingOrSwift != null)
+                        Text(
+                            'Routing/SWIFT: ${_selectedGateway.routingOrSwift}',
+                            style: const TextStyle(fontSize: 13)),
                     ] else ...[
-                      if (_selectedGateway.providerName != null) Text('Provider: ${_selectedGateway.providerName}', style: const TextStyle(fontSize: 13)),
-                      if (_selectedGateway.merchantNumber != null) Text('Send to: ${_selectedGateway.merchantNumber}', style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.providerName != null)
+                        Text('Provider: ${_selectedGateway.providerName}',
+                            style: const TextStyle(fontSize: 13)),
+                      if (_selectedGateway.merchantNumber != null)
+                        Text('Send to: ${_selectedGateway.merchantNumber}',
+                            style: const TextStyle(fontSize: 13)),
                     ],
                     if (_selectedGateway.instructions != null) ...[
                       const SizedBox(height: 6),
-                      Text(_selectedGateway.instructions!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(_selectedGateway.instructions!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.grey)),
                     ],
                   ],
                 ),
@@ -767,7 +914,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               const SizedBox(height: 8),
               TextField(
                 controller: _referenceController,
-                decoration: const InputDecoration(labelText: 'Payment Reference / Transaction ID', hintText: 'e.g. the SMS confirmation code'),
+                decoration: const InputDecoration(
+                    labelText: 'Payment Reference / Transaction ID',
+                    hintText: 'e.g. the SMS confirmation code'),
               ),
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -777,11 +926,20 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 ),
               ),
             ],
-            if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Colors.red))),
+            if (_error != null)
+              Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child:
+                      Text(_error!, style: const TextStyle(color: Colors.red))),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _submitting ? null : _pay,
-              child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Pay'),
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Pay'),
             ),
           ],
         ),
@@ -848,7 +1006,8 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
         final phone = _phoneController.text.trim();
         if (phone.isEmpty) {
           setState(() {
-            _error = 'Enter the phone number that should receive the Mobile Money prompt.';
+            _error =
+                'Enter the phone number that should receive the Mobile Money prompt.';
             _submitting = false;
           });
           return;
@@ -863,7 +1022,8 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
         final reference = _referenceController.text.trim();
         if (reference.isEmpty) {
           setState(() {
-            _error = 'Enter the bank transaction/reference number after making the transfer.';
+            _error =
+                'Enter the bank transaction/reference number after making the transfer.';
             _submitting = false;
           });
           return;
@@ -884,7 +1044,8 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
       widget.onDone();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -912,7 +1073,8 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Complete pending payment', style: Theme.of(context).textTheme.titleLarge),
+            Text('Complete pending payment',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
               '${widget.payment.plan ?? 'Subscription'} · ${widget.payment.currency} ${widget.payment.amount.toStringAsFixed(0)}',
@@ -926,7 +1088,9 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
                   .map(
                     (g) => DropdownMenuItem(
                       value: g,
-                      child: Text(g.collectsAutomatically ? '${g.name} prompt' : g.name),
+                      child: Text(g.collectsAutomatically
+                          ? '${g.name} prompt'
+                          : g.name),
                     ),
                   )
                   .toList(),
@@ -941,9 +1105,11 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
                 decoration: const InputDecoration(labelText: 'Network'),
                 items: [
                   if (gateway.supportsMtn)
-                    const DropdownMenuItem(value: 'mtn', child: Text('MTN Mobile Money')),
+                    const DropdownMenuItem(
+                        value: 'mtn', child: Text('MTN Mobile Money')),
                   if (gateway.supportsAirtel)
-                    const DropdownMenuItem(value: 'airtel', child: Text('Airtel Money')),
+                    const DropdownMenuItem(
+                        value: 'airtel', child: Text('Airtel Money')),
                 ],
                 onChanged: (value) => setState(() => _network = value ?? 'mtn'),
               ),
@@ -967,15 +1133,22 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Bank Transfer Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Bank Transfer Details',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    if (gateway.bankName != null) Text('Bank: ${gateway.bankName}'),
-                    if (gateway.accountName != null) Text('Account Name: ${gateway.accountName}'),
-                    if (gateway.accountNumber != null) Text('Account Number: ${gateway.accountNumber}'),
-                    if (gateway.routingOrSwift != null) Text('Routing/SWIFT: ${gateway.routingOrSwift}'),
+                    if (gateway.bankName != null)
+                      Text('Bank: ${gateway.bankName}'),
+                    if (gateway.accountName != null)
+                      Text('Account Name: ${gateway.accountName}'),
+                    if (gateway.accountNumber != null)
+                      Text('Account Number: ${gateway.accountNumber}'),
+                    if (gateway.routingOrSwift != null)
+                      Text('Routing/SWIFT: ${gateway.routingOrSwift}'),
                     if (gateway.instructions != null) ...[
                       const SizedBox(height: 6),
-                      Text(gateway.instructions!, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(gateway.instructions!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black54)),
                     ],
                   ],
                 ),
@@ -986,7 +1159,8 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Bank transaction reference',
                   hintText: 'Enter the transaction/reference number',
-                  helperText: 'Transfer the invoice amount first, then submit the reference.',
+                  helperText:
+                      'Transfer the invoice amount first, then submit the reference.',
                 ),
               ),
             ],
@@ -1003,8 +1177,12 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(isMobileMoney ? Icons.mobile_friendly : Icons.account_balance),
-              label: Text(isMobileMoney ? 'Send payment prompt' : 'Submit bank payment'),
+                  : Icon(isMobileMoney
+                      ? Icons.mobile_friendly
+                      : Icons.account_balance),
+              label: Text(isMobileMoney
+                  ? 'Send payment prompt'
+                  : 'Submit bank payment'),
             ),
           ],
         ),
@@ -1012,4 +1190,3 @@ class _PendingPaymentSheetState extends State<_PendingPaymentSheet> {
     );
   }
 }
-

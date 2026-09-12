@@ -20,14 +20,16 @@ import '../screens/organization_screen.dart';
 import '../screens/ai_planner_screen.dart';
 import '../screens/financial_planner_screen.dart';
 import '../screens/finance_report_screen.dart';
-import '../screens/budgets_screen.dart';
-import '../screens/spiritual_growth_screen.dart';
 import '../screens/daily_planner_screen.dart';
 import '../screens/annual_plans_screen.dart';
 import '../screens/help_screen.dart';
 import '../screens/api_keys_screen.dart';
 import '../screens/account_data_screen.dart';
 import '../screens/privacy_data_screen.dart';
+import '../screens/debts_screen.dart';
+import '../screens/savings_screen.dart';
+import '../screens/people_connections_screen.dart';
+import '../screens/daily_routine_screen.dart';
 
 /// Every module the app has, grouped the same way as the web app's
 /// sidebar — the mobile equivalent of that persistent left navigation.
@@ -41,8 +43,7 @@ class AppDrawer extends StatelessWidget {
   String _safeFirstName(String? value) {
     final name = (value ?? '').trim();
     if (name.isEmpty) return '';
-    final parts =
-        name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final parts = name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
     return parts.isEmpty ? '' : parts.first;
   }
 
@@ -60,24 +61,21 @@ class AppDrawer extends StatelessWidget {
               decoration: const BoxDecoration(color: Color(0xFF00897B)),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _DrawerAvatar(
-                    name: auth.user?.name,
-                    avatarVersion: auth.avatarRevision,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Hi, ${_safeFirstName(auth.user?.name)}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _DrawerAvatar(
+                  name: auth.user?.name,
+                  avatarVersion: auth.avatarRevision,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Hi, ${_safeFirstName(auth.user?.name)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
             ),
           ),
           _DrawerGroup(
@@ -89,32 +87,12 @@ class AppDrawer extends StatelessWidget {
                 title: 'Financial Planner',
                 builder: (_) => const FinancialPlannerScreen(),
               ),
-              _DrawerTileToScreen(
-                  icon: Icons.trending_up,
-                  title: 'Income',
-                  builder: (_) => const FinanceReportScreen(
-                      endpoint: 'incomes', title: 'Income')),
-              _DrawerTileToScreen(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Budgets',
-                builder: (_) => const BudgetsScreen(),
-              ),
-              _DrawerTileToScreen(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Expenses',
-                  builder: (_) => const FinanceReportScreen(
-                      endpoint: 'expenses', title: 'Expenses')),
-              _DrawerTileToScreen(
-                  icon: Icons.handshake_outlined,
-                  title: 'Debts',
-                  builder: (_) => const FinanceReportScreen(
-                      endpoint: 'debts', title: 'Debts')),
-              _DrawerTileToScreen(
-                  icon: Icons.add_card_outlined,
-                  title: 'Contributions',
-                  builder: (_) => const FinanceReportScreen(
-                      endpoint: 'savings-contributions',
-                      title: 'Savings Contributions')),
+              _DrawerTileToScreen(icon: Icons.trending_up, title: 'Income', builder: (_) => const FinanceReportScreen(endpoint: 'incomes', title: 'Income')),
+              _DrawerTileToScreen(icon: Icons.account_balance_wallet_outlined, title: 'Budgets', builder: (_) => const FinanceReportScreen(endpoint: 'budgets', title: 'Budgets')),
+              _DrawerTileToScreen(icon: Icons.receipt_long_outlined, title: 'Expenses', builder: (_) => const FinanceReportScreen(endpoint: 'expenses', title: 'Expenses')),
+              _DrawerTileToScreen(icon: Icons.handshake_outlined, title: 'Debts', builder: (_) => const DebtsScreen()),
+              _DrawerTileToScreen(icon: Icons.savings_outlined, title: 'Savings', builder: (_) => const SavingsScreen()),
+              _DrawerTileToScreen(icon: Icons.add_card_outlined, title: 'Contributions', builder: (_) => const FinanceReportScreen(endpoint: 'savings-contributions', title: 'Savings Contributions')),
             ],
           ),
           _DrawerGroup(
@@ -134,10 +112,7 @@ class AppDrawer extends StatelessWidget {
             children: [
               _drawerTile(context, moduleConfigByEndpoint('projects')),
               _drawerTile(context, moduleConfigByEndpoint('project-tasks')),
-              _DrawerTileToScreen(
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Meetings',
-                  builder: (_) => const MeetingsScreen()),
+              _DrawerTileToScreen(icon: Icons.calendar_month_outlined, title: 'Meetings', builder: (_) => const MeetingsScreen()),
             ],
           ),
           _DrawerGroup(
@@ -145,13 +120,9 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.groups_2_outlined,
             children: [
               _drawerTile(context, moduleConfigByEndpoint('education-plans')),
-              _drawerTile(context, moduleConfigByEndpoint('network-contacts')),
-              _drawerTile(context, moduleConfigByEndpoint('relationships')),
-              _DrawerTileToScreen(
-                icon: Icons.self_improvement_outlined,
-                title: 'Spiritual Growth',
-                builder: (_) => const SpiritualGrowthScreen(),
-              ),
+              _DrawerTileToScreen(icon: Icons.hub_outlined, title: 'Networks', builder: (_) => const PeopleConnectionsScreen.networks()),
+              _DrawerTileToScreen(icon: Icons.favorite_border_rounded, title: 'Relationships', builder: (_) => const PeopleConnectionsScreen.relationships()),
+              _drawerTile(context, moduleConfigByEndpoint('spiritual-practices')),
             ],
           ),
           _DrawerGroup(
@@ -163,28 +134,18 @@ class AppDrawer extends StatelessWidget {
                 title: 'Daily Planner',
                 builder: (_) => const DailyPlannerScreen(),
               ),
+              _DrawerTileToScreen(icon: Icons.wb_sunny_outlined, title: 'Start Day', builder: (_) => const DailyRoutineScreen.start()),
+              _DrawerTileToScreen(icon: Icons.nights_stay_outlined, title: 'End Day', builder: (_) => const DailyRoutineScreen.end()),
               _DrawerTileToScreen(
                 icon: Icons.event_note_outlined,
                 title: 'Annual Plans',
                 builder: (_) => const AnnualPlansScreen(),
               ),
-              _DrawerTileToScreen(
-                  icon: Icons.calendar_view_month_outlined,
-                  title: 'Month in Review',
-                  builder: (_) => const MonthlyReviewScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.explore_outlined,
-                  title: 'Goals & Next Actions',
-                  builder: (_) => const GoalIntelligenceScreen()),
+              _DrawerTileToScreen(icon: Icons.calendar_view_month_outlined, title: 'Month in Review', builder: (_) => const MonthlyReviewScreen()),
+              _DrawerTileToScreen(icon: Icons.explore_outlined, title: 'Goals & Next Actions', builder: (_) => const GoalIntelligenceScreen()),
               _drawerTile(context, moduleConfigByEndpoint('personal-goals')),
-              _DrawerTileToScreen(
-                  icon: Icons.notifications_outlined,
-                  title: 'Reminders',
-                  builder: (_) => const RemindersScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.auto_awesome,
-                  title: 'AI Planner',
-                  builder: (_) => const AiPlannerScreen()),
+              _DrawerTileToScreen(icon: Icons.notifications_outlined, title: 'Reminders', builder: (_) => const RemindersScreen()),
+              _DrawerTileToScreen(icon: Icons.auto_awesome, title: 'AI Planner', builder: (_) => const AiPlannerScreen()),
               _drawerTile(context, moduleConfigByEndpoint('notes')),
             ],
           ),
@@ -192,50 +153,22 @@ class AppDrawer extends StatelessWidget {
             title: 'Tools & Account',
             icon: Icons.build_outlined,
             children: [
-              _DrawerTileToScreen(
-                  icon: Icons.draw_outlined,
-                  title: 'Signatures',
-                  builder: (_) => const SignaturesScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.badge_outlined,
-                  title: 'Business Card',
-                  builder: (_) => const BusinessCardScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.vpn_key_outlined,
-                  title: 'API Keys',
-                  builder: (_) => const ApiKeysScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.tune_outlined,
-                  title: 'Personalisation & AI Privacy',
-                  builder: (_) => const PersonalisationScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.cloud_sync_outlined,
-                  title: 'Backup, Trash & Usage',
-                  builder: (_) => const AccountDataScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy & Data',
-                  builder: (_) => const PrivacyDataScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.workspace_premium_outlined,
-                  title: 'Subscription',
-                  builder: (_) => const SubscriptionScreen()),
-              _DrawerTileToScreen(
-                  icon: Icons.groups_outlined,
-                  title: 'Family, Team & Organization',
-                  builder: (_) => const OrganizationScreen()),
+              _DrawerTileToScreen(icon: Icons.draw_outlined, title: 'Signatures', builder: (_) => const SignaturesScreen()),
+              _DrawerTileToScreen(icon: Icons.badge_outlined, title: 'Business Card', builder: (_) => const BusinessCardScreen()),
+              _DrawerTileToScreen(icon: Icons.vpn_key_outlined, title: 'API Keys', builder: (_) => const ApiKeysScreen()),
+              _DrawerTileToScreen(icon: Icons.tune_outlined, title: 'Personalisation & AI Privacy', builder: (_) => const PersonalisationScreen()),
+              _DrawerTileToScreen(icon: Icons.cloud_sync_outlined, title: 'Backup, Trash & Usage', builder: (_) => const AccountDataScreen()),
+              _DrawerTileToScreen(icon: Icons.privacy_tip_outlined, title: 'Privacy & Data', builder: (_) => const PrivacyDataScreen()),
+              _DrawerTileToScreen(icon: Icons.workspace_premium_outlined, title: 'Subscription', builder: (_) => const SubscriptionScreen()),
+              _DrawerTileToScreen(icon: Icons.groups_outlined, title: 'Family, Team & Organization', builder: (_) => const OrganizationScreen()),
               _drawerTile(context, moduleConfigByEndpoint('feedback')),
-              _DrawerTileToScreen(
-                  icon: Icons.help_outline,
-                  title: 'Help & FAQ',
-                  builder: (_) => const HelpScreen()),
+              _DrawerTileToScreen(icon: Icons.help_outline, title: 'Help & FAQ', builder: (_) => const HelpScreen()),
             ],
           ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFFE11D48)),
-            title: const Text('Log Out',
-                style: TextStyle(color: Color(0xFFE11D48))),
+            title: const Text('Log Out', style: TextStyle(color: Color(0xFFE11D48))),
             onTap: () => context.read<AuthService>().logout(),
           ),
         ],
@@ -300,9 +233,10 @@ class _DrawerAvatarState extends State<_DrawerAvatar> {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        (widget.name?.trim().isNotEmpty == true ? widget.name!.trim()[0] : '?')
-            .toUpperCase();
+    final initial = (widget.name?.trim().isNotEmpty == true
+            ? widget.name!.trim()[0]
+            : '?')
+        .toUpperCase();
 
     return CircleAvatar(
       radius: 42,
@@ -336,37 +270,14 @@ Widget _drawerTile(BuildContext context, ModuleConfig config) {
     leading: Icon(config.icon, color: config.color),
     title: Text(config.title),
     onTap: () {
-      Navigator.of(context).pop();
-
+      Navigator.of(context).pop(); // close the drawer first
+      // Deferred to the next frame — pushing a new route in the exact
+      // same synchronous tick as closing the drawer can interfere with
+      // the drawer's own close animation/transition, occasionally
+      // causing the push to be silently dropped. Letting the pop
+      // actually finish first avoids that.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-
-        // These modules have dedicated screens and must not fall back to
-        // DynamicCrudScreen. In particular, Budgets needs its import/scan
-        // workflow and Spiritual Growth needs its inclusive bespoke form.
-        if (config.endpoint == 'budgets') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const BudgetsScreen(),
-            ),
-          );
-          return;
-        }
-
-        if (config.endpoint == 'spiritual-practices') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const SpiritualGrowthScreen(),
-            ),
-          );
-          return;
-        }
-
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => DynamicCrudScreen(config: config),
-          ),
-        );
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => DynamicCrudScreen(config: config)));
       });
     },
   );
@@ -377,8 +288,7 @@ class _DrawerTileToScreen extends StatelessWidget {
   final String title;
   final WidgetBuilder builder;
 
-  const _DrawerTileToScreen(
-      {required this.icon, required this.title, required this.builder});
+  const _DrawerTileToScreen({required this.icon, required this.title, required this.builder});
 
   @override
   Widget build(BuildContext context) {
@@ -400,8 +310,7 @@ class _DrawerGroup extends StatelessWidget {
   final IconData icon;
   final List<Widget> children;
 
-  const _DrawerGroup(
-      {required this.title, required this.icon, required this.children});
+  const _DrawerGroup({required this.title, required this.icon, required this.children});
 
   @override
   Widget build(BuildContext context) {

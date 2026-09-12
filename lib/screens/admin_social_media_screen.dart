@@ -36,7 +36,10 @@ class _AdminSocialMediaScreenState extends State<AdminSocialMediaScreen> {
             ? Map<String, dynamic>.from(data['summary'] as Map)
             : <String, dynamic>{};
         _users = rawUsers is List
-            ? rawUsers.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+            ? rawUsers
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList()
             : <Map<String, dynamic>>[];
         _loading = false;
       });
@@ -67,14 +70,18 @@ class _AdminSocialMediaScreenState extends State<AdminSocialMediaScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Admin Social Media API is not available', style: TextStyle(fontWeight: FontWeight.w800)),
+                      const Text('Admin Social Media API is not available',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 5),
                       const Text(
                         'The Mobile admin screen is ready, but Laravel must expose the admin/social-media API endpoints before user-wide account management can load.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 8),
-                      Text(_error!, style: const TextStyle(fontSize: 10, color: Colors.black45)),
+                      Text(_error!,
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.black45)),
                     ],
                   ),
                 ),
@@ -86,46 +93,58 @@ class _AdminSocialMediaScreenState extends State<AdminSocialMediaScreen> {
                 runSpacing: 10,
                 children: [
                   _Metric(label: 'Users', value: '${_summary['users'] ?? 0}'),
-                  _Metric(label: 'Accounts', value: '${_summary['accounts'] ?? 0}'),
-                  _Metric(label: 'WhatsApp', value: '${_summary['whatsapp_configured'] ?? 0}'),
-                  _Metric(label: 'Scheduled Posts', value: '${_summary['scheduled_posts'] ?? 0}'),
+                  _Metric(
+                      label: 'Accounts', value: '${_summary['accounts'] ?? 0}'),
+                  _Metric(
+                      label: 'WhatsApp',
+                      value: '${_summary['whatsapp_configured'] ?? 0}'),
+                  _Metric(
+                      label: 'Scheduled Posts',
+                      value: '${_summary['scheduled_posts'] ?? 0}'),
                 ],
               ),
               const SizedBox(height: 18),
             ],
-            const Text('User Social Media Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const Text('User Social Media Settings',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             if (!_loading && _users.isEmpty && _error == null)
-              const Card(child: ListTile(title: Text('No user social media settings found.')))
+              const Card(
+                  child: ListTile(
+                      title: Text('No user social media settings found.')))
             else
               ..._users.map((user) => Card(
-                child: ExpansionTile(
-                  leading: const Icon(Icons.person_outline_rounded),
-                  title: Text((user['name'] ?? 'User').toString()),
-                  subtitle: Text((user['email'] ?? '').toString()),
-                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.chat_outlined),
-                      title: const Text('WhatsApp'),
-                      subtitle: Text((user['whatsapp_number'] ?? 'Not configured').toString()),
+                    child: ExpansionTile(
+                      leading: const Icon(Icons.person_outline_rounded),
+                      title: Text((user['name'] ?? 'User').toString()),
+                      subtitle: Text((user['email'] ?? '').toString()),
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.chat_outlined),
+                          title: const Text('WhatsApp'),
+                          subtitle: Text(
+                              (user['whatsapp_number'] ?? 'Not configured')
+                                  .toString()),
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.campaign_outlined),
+                          title: const Text('Saved accounts'),
+                          subtitle:
+                              Text('${user['accounts_count'] ?? 0} account(s)'),
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.schedule_outlined),
+                          title: const Text('Scheduled posts'),
+                          subtitle:
+                              Text('${user['scheduled_posts_count'] ?? 0}'),
+                        ),
+                      ],
                     ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.campaign_outlined),
-                      title: const Text('Saved accounts'),
-                      subtitle: Text('${user['accounts_count'] ?? 0} account(s)'),
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.schedule_outlined),
-                      title: const Text('Scheduled posts'),
-                      subtitle: Text('${user['scheduled_posts_count'] ?? 0}'),
-                    ),
-                  ],
-                ),
-              )),
+                  )),
           ],
         ),
       ),
@@ -148,9 +167,13 @@ class _Metric extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
-              Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              Text(label,
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
             ],
           ),
         ),

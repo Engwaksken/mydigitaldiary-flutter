@@ -143,6 +143,43 @@ class _HealthWellbeingScreenState extends State<HealthWellbeingScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
                     children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const CircleAvatar(
+                                child: Icon(Icons.sync_alt_rounded),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      'Daily Planner is connected',
+                                      style: TextStyle(fontWeight: FontWeight.w900),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'When an Exercise, Diet or Sleep planner task is linked to the matching goal and completed, '
+                                      'the Laravel server can feed it into the related log and refresh Daily Wellbeing automatically. '
+                                      'Pull down here to refresh after completing a task.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       const Text('Your daily picture', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 4),
                       const Text('Diet, exercise, sleep, health records and your daily wellbeing check-in are connected here.', style: TextStyle(color: Color(0xFF64748B))),

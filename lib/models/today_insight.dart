@@ -7,9 +7,8 @@ class TodayInsight {
   final String destination;
   final String tone;
   final String generatedBy;
-  final String? provider;
-  final String? providerName;
-  final String? model;
+  final String? currencyCode;
+  final String? currencySymbol;
   final DateTime? generatedAt;
   final DateTime? refreshAfter;
 
@@ -22,34 +21,54 @@ class TodayInsight {
     required this.destination,
     required this.tone,
     required this.generatedBy,
-    this.provider,
-    this.providerName,
-    this.model,
+    this.currencyCode,
+    this.currencySymbol,
     this.generatedAt,
     this.refreshAfter,
   });
 
-  bool get isAiGenerated => generatedBy == 'admin_ai';
+  factory TodayInsight.fromJson(Map<String, dynamic> j) => TodayInsight(
+    category: j['category']?.toString() ?? 'Today',
+    type: j['type']?.toString() ?? 'general',
+    title: j['title']?.toString() ?? '',
+    message: j['message']?.toString() ?? '',
+    action: j['action']?.toString() ?? 'Open planner',
+    destination: j['destination']?.toString() ?? 'daily-planner',
+    tone: j['tone']?.toString() ?? 'teal',
+    generatedBy: j['generated_by']?.toString() ?? 'server',
+    currencyCode: _currencyCode(j),
+    currencySymbol: _currencySymbol(j),
+    generatedAt: DateTime.tryParse(j['generated_at']?.toString() ?? ''),
+    refreshAfter: DateTime.tryParse(j['refresh_after']?.toString() ?? ''),
+  );
 
-  factory TodayInsight.fromJson(Map<String, dynamic> json) {
-    return TodayInsight(
-      category: json['category']?.toString() ?? 'Today',
-      type: json['type']?.toString() ?? 'general',
-      title: json['title']?.toString() ?? '',
-      message: json['message']?.toString() ?? '',
-      action: json['action']?.toString() ?? 'Open planner',
-      destination: json['destination']?.toString() ?? 'daily-planner',
-      tone: json['tone']?.toString() ?? 'teal',
-      generatedBy: json['generated_by']?.toString() ?? 'server',
-      provider: json['provider']?.toString(),
-      providerName: json['provider_name']?.toString(),
-      model: json['model']?.toString(),
-      generatedAt: DateTime.tryParse(
-        json['generated_at']?.toString() ?? '',
-      )?.toLocal(),
-      refreshAfter: DateTime.tryParse(
-        json['refresh_after']?.toString() ?? '',
-      )?.toLocal(),
-    );
+
+  static String? _currencyCode(Map<String, dynamic> json) {
+    final raw = json['preferred_currency'] ??
+        json['currency'] ??
+        json['currency_code'];
+
+    if (raw is Map) {
+      final code = raw['code'] ??
+          raw['currency_code'] ??
+          raw['iso_code'];
+
+      final value = code?.toString().trim().toUpperCase();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    final value = raw?.toString().trim().toUpperCase();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  static String? _currencySymbol(Map<String, dynamic> json) {
+    final raw = json['preferred_currency'];
+
+    if (raw is Map) {
+      final value = raw['symbol']?.toString().trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    return null;
   }
 }

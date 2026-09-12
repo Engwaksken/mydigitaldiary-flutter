@@ -12,7 +12,11 @@ class FinanceReportScreen extends StatefulWidget {
   final String title;
   final Map<String, dynamic>? initialSummary;
 
-  const FinanceReportScreen({super.key, required this.endpoint, required this.title, this.initialSummary});
+  const FinanceReportScreen(
+      {super.key,
+      required this.endpoint,
+      required this.title,
+      this.initialSummary});
 
   @override
   State<FinanceReportScreen> createState() => _FinanceReportScreenState();
@@ -52,7 +56,8 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
         final finance = dash['finance_summary'];
         if (finance is Map) {
           for (final value in finance.values) {
-            if (value is Map && value['endpoint']?.toString() == widget.endpoint) {
+            if (value is Map &&
+                value['endpoint']?.toString() == widget.endpoint) {
               _summary = Map<String, dynamic>.from(value);
               break;
             }
@@ -62,12 +67,17 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
       final query = <String>[
         'page=$page',
         'period=$_period',
-        if (_search.text.trim().isNotEmpty) 'q=${Uri.encodeQueryComponent(_search.text.trim())}',
+        if (_search.text.trim().isNotEmpty)
+          'q=${Uri.encodeQueryComponent(_search.text.trim())}',
         if (_period == 'custom' && _from != null) 'from=${_date(_from!)}',
         if (_period == 'custom' && _to != null) 'to=${_date(_to!)}',
       ].join('&');
-      final response = await ApiClient.instance.get('${widget.endpoint}?$query');
-      final rows = ((response['data'] as List?) ?? const []).whereType<Map>().map((e) => DynamicItem.fromJson(Map<String, dynamic>.from(e))).toList();
+      final response =
+          await ApiClient.instance.get('${widget.endpoint}?$query');
+      final rows = ((response['data'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => DynamicItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
       if (!mounted) return;
       setState(() {
         _items = rows;
@@ -78,7 +88,8 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -88,7 +99,9 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
       context: context,
       firstDate: DateTime(now.year - 10),
       lastDate: DateTime(now.year + 2),
-      initialDateRange: _from != null && _to != null ? DateTimeRange(start: _from!, end: _to!) : null,
+      initialDateRange: _from != null && _to != null
+          ? DateTimeRange(start: _from!, end: _to!)
+          : null,
     );
     if (range == null) return;
     setState(() {
@@ -101,19 +114,32 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
 
   void _openManage() {
     if (widget.endpoint == 'expenses') {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
       return;
     }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => DynamicCrudScreen(config: moduleConfigByEndpoint(widget.endpoint))));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => DynamicCrudScreen(
+                config: moduleConfigByEndpoint(widget.endpoint))));
   }
 
   String _money(dynamic value) {
-    final number = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+    final number =
+        value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
     return 'UGX ${NumberFormat('#,##0.##').format(number)}';
   }
 
   String _titleFor(DynamicItem item) {
-    for (final key in ['source', 'category', 'person_name', 'name', 'title', 'type']) {
+    for (final key in [
+      'source',
+      'category',
+      'person_name',
+      'name',
+      'title',
+      'type'
+    ]) {
       final value = item[key]?.toString().trim();
       if (value != null && value.isNotEmpty) return value;
     }
@@ -121,7 +147,15 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
   }
 
   String _subtitleFor(DynamicItem item) {
-    for (final key in ['received_at', 'spent_at', 'contributed_at', 'date', 'target_date', 'due_date', 'created_at']) {
+    for (final key in [
+      'received_at',
+      'spent_at',
+      'contributed_at',
+      'date',
+      'target_date',
+      'due_date',
+      'created_at'
+    ]) {
       final raw = item[key]?.toString();
       if (raw == null || raw.isEmpty) continue;
       final parsed = DateTime.tryParse(raw);
@@ -150,12 +184,20 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
           children: [
             if (summary != null) ...[
               Row(children: [
-                Expanded(child: _SummaryCard(label: 'This month', value: _money(summary['monthly_total']))),
+                Expanded(
+                    child: _SummaryCard(
+                        label: 'This month',
+                        value: _money(summary['monthly_total']))),
                 const SizedBox(width: 10),
-                Expanded(child: _SummaryCard(label: summary['overall_label']?.toString() ?? 'Overall total', value: _money(summary['overall_total']))),
+                Expanded(
+                    child: _SummaryCard(
+                        label: summary['overall_label']?.toString() ??
+                            'Overall total',
+                        value: _money(summary['overall_total']))),
               ]),
               const SizedBox(height: 10),
-              Text('${summary['count'] ?? 0} records', style: Theme.of(context).textTheme.bodySmall),
+              Text('${summary['count'] ?? 0} records',
+                  style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 16),
             ],
             TextField(
@@ -165,7 +207,14 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Search ${widget.title.toLowerCase()}',
-                suffixIcon: _search.text.isEmpty ? null : IconButton(icon: const Icon(Icons.clear), onPressed: () { _search.clear(); _load(); }),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _search.clear();
+                          _load();
+                        }),
               ),
             ),
             const SizedBox(height: 10),
@@ -173,17 +222,56 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final entry in const {'today':'Today','week':'This week','month':'This month','last_month':'Last month','year':'This year'}.entries)
-                  ChoiceChip(label: Text(entry.value), selected: _period == entry.key, onSelected: (_) { setState(() { _period = entry.key; _from = null; _to = null; }); _load(); }),
-                ActionChip(avatar: const Icon(Icons.date_range, size: 16), label: Text(_period == 'custom' && _from != null && _to != null ? '${DateFormat('d MMM').format(_from!)} – ${DateFormat('d MMM').format(_to!)}' : 'Custom'), onPressed: _pickRange),
-                ActionChip(avatar: const Icon(Icons.restart_alt, size: 16), label: const Text('Reset'), onPressed: () { _search.clear(); setState(() { _period = 'month'; _from = null; _to = null; }); _load(); }),
+                for (final entry in const {
+                  'today': 'Today',
+                  'week': 'This week',
+                  'month': 'This month',
+                  'last_month': 'Last month',
+                  'year': 'This year'
+                }.entries)
+                  ChoiceChip(
+                      label: Text(entry.value),
+                      selected: _period == entry.key,
+                      onSelected: (_) {
+                        setState(() {
+                          _period = entry.key;
+                          _from = null;
+                          _to = null;
+                        });
+                        _load();
+                      }),
+                ActionChip(
+                    avatar: const Icon(Icons.date_range, size: 16),
+                    label: Text(_period == 'custom' &&
+                            _from != null &&
+                            _to != null
+                        ? '${DateFormat('d MMM').format(_from!)} – ${DateFormat('d MMM').format(_to!)}'
+                        : 'Custom'),
+                    onPressed: _pickRange),
+                ActionChip(
+                    avatar: const Icon(Icons.restart_alt, size: 16),
+                    label: const Text('Reset'),
+                    onPressed: () {
+                      _search.clear();
+                      setState(() {
+                        _period = 'month';
+                        _from = null;
+                        _to = null;
+                      });
+                      _load();
+                    }),
               ],
             ),
             const SizedBox(height: 16),
             if (_loading)
-              const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator()))
+              const Padding(
+                  padding: EdgeInsets.all(30),
+                  child: Center(child: CircularProgressIndicator()))
             else if (_items.isEmpty)
-              const Padding(padding: EdgeInsets.all(30), child: Center(child: Text('No records found for this period.')))
+              const Padding(
+                  padding: EdgeInsets.all(30),
+                  child:
+                      Center(child: Text('No records found for this period.')))
             else
               ..._items.asMap().entries.expand((entry) sync* {
                 final item = entry.value;
@@ -199,20 +287,27 @@ class _FinanceReportScreenState extends State<FinanceReportScreen> {
             if (!_loading && _lastPage > 1) ...[
               const SizedBox(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                IconButton(onPressed: _page > 1 ? () => _load(page: _page - 1) : null, icon: const Icon(Icons.chevron_left)),
+                IconButton(
+                    onPressed: _page > 1 ? () => _load(page: _page - 1) : null,
+                    icon: const Icon(Icons.chevron_left)),
                 Text('Page $_page of $_lastPage'),
-                IconButton(onPressed: _page < _lastPage ? () => _load(page: _page + 1) : null, icon: const Icon(Icons.chevron_right)),
+                IconButton(
+                    onPressed:
+                        _page < _lastPage ? () => _load(page: _page + 1) : null,
+                    icon: const Icon(Icons.chevron_right)),
               ]),
             ],
             const SizedBox(height: 12),
-            FilledButton.icon(onPressed: _openManage, icon: const Icon(Icons.edit_note), label: Text('Manage ${widget.title}')),
+            FilledButton.icon(
+                onPressed: _openManage,
+                icon: const Icon(Icons.edit_note),
+                label: Text('Manage ${widget.title}')),
           ],
         ),
       ),
     );
   }
 }
-
 
 class _FinanceReportRow extends StatelessWidget {
   final String title;
@@ -307,12 +402,24 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .35), borderRadius: BorderRadius.circular(16)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: Theme.of(context).textTheme.labelMedium),
-      const SizedBox(height: 5),
-      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
-    ]),
-  );
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .primaryContainer
+                .withValues(alpha: .35),
+            borderRadius: BorderRadius.circular(16)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 5),
+          FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800))),
+        ]),
+      );
 }

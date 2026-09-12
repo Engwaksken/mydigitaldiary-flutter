@@ -39,7 +39,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final message = await context.read<AuthService>().forgotPassword(_emailController.text.trim());
+      final message = await context
+          .read<AuthService>()
+          .forgotPassword(_emailController.text.trim());
       if (mounted) setState(() => _resultMessage = message);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -61,49 +63,61 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const Center(
                   child: AppLogo(size: 78),
-            ),
-            const SizedBox(height: 24),
-            _resultMessage != null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.mark_email_read_outlined, size: 56, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(_resultMessage!, textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back to Login')),
-                ],
-              )
-            : Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      "Enter your account email and we'll send you a link to reset your password.",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                      validator: (value) => (value == null || !value.contains('@')) ? 'Enter a valid email' : null,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                    ],
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Send Reset Link'),
-                    ),
-                  ],
                 ),
-              ),
+                const SizedBox(height: 24),
+                _resultMessage != null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.mark_email_read_outlined,
+                              size: 56, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          Text(_resultMessage!, textAlign: TextAlign.center),
+                          const SizedBox(height: 24),
+                          TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Back to Login')),
+                        ],
+                      )
+                    : Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              "Enter your account email and we'll send you a link to reset your password.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 20),
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration:
+                                  const InputDecoration(labelText: 'Email'),
+                              validator: (value) =>
+                                  (value == null || !value.contains('@'))
+                                      ? 'Enter a valid email'
+                                      : null,
+                            ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(_error!,
+                                  style: const TextStyle(color: Colors.red)),
+                            ],
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: _submitting ? null : _submit,
+                              child: _submitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2))
+                                  : const Text('Send Reset Link'),
+                            ),
+                          ],
+                        ),
+                      ),
               ],
             ),
           ),

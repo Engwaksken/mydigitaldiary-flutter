@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/reminder.dart';
-import '../services/reminder_service.dart';
-import '../services/api_client.dart';
-import '../services/notification_service.dart';
-import '../widgets/confirm_action_dialog.dart';
 
-/// Full CRUD example — the pattern to copy for every other module
-/// (Meetings, Expenses, Income, Plans, ...): a list with pull-to-refresh,
-/// a form bottom sheet shared between create/edit, and swipe-to-delete.
+import '../services/api_client.dart';
+
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
 
@@ -17,9 +11,17 @@ class RemindersScreen extends StatefulWidget {
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
-  final _service = ReminderService();
-  List<Reminder> _reminders = [];
   bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _items = <Map<String, dynamic>>[];
+  String _selectedScope = 'total';
+
+  Map<String, int> _stats = const <String, int>{
+    'active': 0,
+    'daily': 0,
+    'weekly': 0,
+    'total': 0,
+  };
 
   @override
   void initState() {
@@ -28,431 +30,495 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final reminders = await _service.list();
-      await NotificationService.instance.syncReminderSchedules(reminders);
+    if (mounted) {
       setState(() {
-        _reminders = reminders;
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      dynamic response;
+      try {
+        response = await ApiClient.instance.get(
+          'reminders/overview?scope=$_selectedScope',
+          cacheable: false,
+        );
+      } on ApiException {
+        // Older API installations may not have the overview route yet.
+        // Fall back to the standard reminders endpoint instead of showing
+        // "Server Error" for the whole screen.
+        response = await ApiClient.instance.get(
+          'reminders?scope=$_selectedScope',
+          cacheable: false,
+        );
+      }
+
+      dynamic rawItems = response;
+      dynamic rawStats;
+
+      if (response is Map) {
+        rawItems = response['data'] ?? response['reminders'] ?? const [];
+        rawStats = response['stats'];
+      }
+
+      final items = <Map<String, dynamic>>[];
+      if (rawItems is List) {
+        for (final raw in rawItems) {
+          if (raw is Map) {
+            items.add(Map<String, dynamic>.from(raw));
+          }
+        }
+      }
+
+      int countStat(String key, int fallback) {
+        if (rawStats is Map) {
+          return int.tryParse('${rawStats[key] ?? fallback}') ?? fallback;
+        }
+        return fallback;
+      }
+
+      final active = items.where(_isActive).length;
+      final daily = items.where((item) => _frequency(item) == 'daily').length;
+      final weekly = items.where((item) => _frequency(item) == 'weekly').length;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = items;
+        _stats = <String, int>{
+          'active': countStat('active', active),
+          'daily': countStat('daily', daily),
+          'weekly': countStat('weekly', weekly),
+          'total': countStat('total', items.length),
+        };
         _loading = false;
       });
-    } on ApiException catch (e) {
-      setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
       }
+      setState(() {
+        _loading = false;
+        _error = error.message;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = 'Could not load reminders.';
+      });
     }
   }
 
-  Future<void> _delete(Reminder reminder) async {
-    try {
-      await _service.delete(reminder.id);
-      await NotificationService.instance.cancelReminder(reminder.id);
-      if (!mounted) return;
-      setState(() => _reminders.removeWhere((r) => r.id == reminder.id));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder deleted.')));
-    } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    }
+  bool _isActive(Map<String, dynamic> item) {
+    final value = item['is_active'];
+    return value == true || value == 1 || value == '1';
   }
 
-  Future<bool> _confirmDelete(Reminder reminder) => showAppConfirmDialog(
-        context,
-        title: 'Delete reminder?',
-        message: 'Delete “${reminder.title}”? This action cannot be undone.',
-        confirmText: 'Delete reminder',
-      );
+  String _frequency(Map<String, dynamic> item) {
+    return (item['frequency'] ?? 'once').toString().trim().toLowerCase();
+  }
 
-  void _openForm({Reminder? existing}) {
-    showModalBottomSheet(
+  String _sourceLabel(Map<String, dynamic> item) {
+    final source = (item['source_type'] ?? '').toString().trim().toLowerCase();
+    final module = (item['module'] ?? '').toString().trim().toLowerCase();
+
+    if (source == 'daily_plan_item' ||
+        module == 'daily-planner' ||
+        module == 'daily_planner') {
+      return 'Daily Planner';
+    }
+    if (source == 'project_task' ||
+        module == 'project-tasks' ||
+        module == 'project') {
+      return 'Project Task';
+    }
+    if (source == 'debt' || module == 'debts' || module == 'debt') {
+      return 'Debt';
+    }
+    if (module.isNotEmpty && module != 'custom') {
+      return module
+          .replaceAll('_', ' ')
+          .replaceAll('-', ' ')
+          .split(' ')
+          .where((part) => part.isNotEmpty)
+          .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+          .join(' ');
+    }
+    return 'Reminder';
+  }
+
+  String _dateLabel(dynamic value) {
+    final date = DateTime.tryParse('${value ?? ''}')?.toLocal();
+    if (date == null) {
+      return 'No next time';
+    }
+    return DateFormat('dd MMM yyyy, h:mm a').format(date);
+  }
+
+  String _repeatLabel(String frequency) {
+    return switch (frequency) {
+      'every_n_minutes' => 'Every few minutes',
+      'hourly' => 'Hourly',
+      'daily' => 'Daily',
+      'weekly' => 'Weekly',
+      'monthly' => 'Monthly',
+      'annually' => 'Annually',
+      _ => 'Once',
+    };
+  }
+
+  Future<void> _selectScope(String scope) async {
+    if (_selectedScope == scope && !_loading) {
+      return;
+    }
+
+    setState(() => _selectedScope = scope);
+    await _load();
+  }
+
+  Future<void> _delete(Map<String, dynamic> item) async {
+    final id = item['id'];
+    if (id == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      builder: (_) => _ReminderForm(
-        existing: existing,
-        onSaved: () {
-          Navigator.of(context).pop();
-          _load();
-        },
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete reminder?'),
+        content: Text(
+          'Delete “${item['title'] ?? 'this reminder'}”?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await ApiClient.instance.delete('reminders/$id');
+      await _load();
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reminders')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
-        icon: const Icon(Icons.add_alert_outlined),
-        label: const Text('New Reminder'),
-      ),
-      body: Column(
-        children: [
-          if (_reminders.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: const Color(0xFF00897B).withValues(alpha: 0.06),
-              child: Row(
-                children: [
-                  const Icon(Icons.notifications_active, size: 16, color: Color(0xFF00897B)),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_reminders.length} ${_reminders.length == 1 ? 'reminder' : 'reminders'}',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF00897B), fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _reminders.isEmpty
-                ? ListView(
-                    children: const [
-                      Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text('No reminders yet. Tap + to add one.', textAlign: TextAlign.center),
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    itemCount: _reminders.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final reminder = _reminders[index];
-                      return Dismissible(
-                        key: ValueKey(reminder.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        confirmDismiss: (_) async {
-                          if (await _confirmDelete(reminder)) {
-                            await _delete(reminder);
-                          }
-                          return false;
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            leading: CircleAvatar(
-                              backgroundColor: (reminder.isActive ? const Color(0xFF00897B) : Colors.grey).withValues(alpha: 0.12),
-                              child: Icon(
-                                reminder.isActive ? Icons.notifications_active : Icons.notifications_off,
-                                color: reminder.isActive ? const Color(0xFF00897B) : Colors.grey,
-                              ),
-                            ),
-                            title: Text(reminder.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: Text(
-                              '${DateFormat('yMMMd – jm').format(reminder.nextRunAt)} · ${reminder.frequency}',
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              tooltip: 'Delete reminder',
-                              onPressed: () async {
-                                if (await _confirmDelete(reminder)) await _delete(reminder);
-                              },
-                            ),
-                            onTap: () => _openForm(existing: reminder),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-            ),
+      appBar: AppBar(
+        title: const Text('Reminders'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ReminderForm extends StatefulWidget {
-  final Reminder? existing;
-  final VoidCallback onSaved;
-
-  const _ReminderForm({this.existing, required this.onSaved});
-
-  @override
-  State<_ReminderForm> createState() => _ReminderFormState();
-}
-
-class _ReminderFormState extends State<_ReminderForm> {
-  final _service = ReminderService();
-  late final TextEditingController _titleController;
-  late final TextEditingController _messageController;
-  late DateTime _nextRunAt;
-  late String _frequency;
-  late String _channel;
-  String? _module;
-  List<Map<String, dynamic>> _moduleItems = [];
-  final Set<int> _selectedItemIds = {};
-  bool _loadingItems = false;
-  bool _saving = false;
-  String? _error;
-
-  static const _frequencies = ['once', 'every_n_minutes', 'hourly', 'daily', 'weekly', 'monthly', 'annually'];
-
-  // Matches the "Related Module" options on the web app's own reminder
-  // form exactly (see ReminderController::$fields on the Laravel side).
-  static const _modules = {
-    'daily_planner': 'Daily Planner',
-    'income': 'Income',
-    'budget': 'Budget',
-    'expense': 'Expense',
-    'diet': 'Diet',
-    'sleep': 'Sleep',
-    'health': 'Health Checkup',
-    'project': 'Project',
-    'meeting': 'Meeting',
-
-    // Personal Life modules. Selecting any of these loads the user's
-    // matching records below as checkboxes.
-    'education': 'Personal Life — Education',
-    'network': 'Personal Life — Network',
-    'relationship': 'Personal Life — Relationships',
-    'spiritual': 'Personal Life — Spiritual Growth',
-
-    'custom': 'Custom',
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.existing?.title ?? '');
-    _messageController = TextEditingController(text: widget.existing?.message ?? '');
-    _nextRunAt = widget.existing?.nextRunAt ?? DateTime.now().add(const Duration(hours: 1));
-    _frequency = widget.existing?.frequency ?? 'once';
-    _channel = widget.existing?.channel ?? 'mail';
-    _module = widget.existing?.module;
-    // If editing a reminder that already has a module, load its items
-    // immediately — same as the web app's "load without waiting for a
-    // change event that may never fire" behavior for the edit case.
-    if (_module != null && _module!.isNotEmpty && _module != 'custom' && _module != 'budget' && _module != 'daily_planner') {
-      _loadItemsForModule(_module!);
-    }
-  }
-
-  Future<void> _loadItemsForModule(String module) async {
-    setState(() {
-      _loadingItems = true;
-      _moduleItems = [];
-    });
-    try {
-      final items = await _service.itemsForModule(module);
-      if (mounted) {
-        setState(() {
-          _moduleItems = items;
-          _loadingItems = false;
-        });
-      }
-    } on ApiException catch (_) {
-      if (mounted) setState(() => _loadingItems = false);
-    }
-  }
-
-  Future<void> _pickDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _nextRunAt,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-    );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_nextRunAt));
-    if (time == null) return;
-
-    setState(() {
-      _nextRunAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
-  }
-
-  Future<void> _save() async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-
-    final reminder = Reminder(
-      id: widget.existing?.id ?? 0,
-      title: _titleController.text.trim(),
-      module: _module,
-      message: _messageController.text.trim().isEmpty ? null : _messageController.text.trim(),
-      frequency: _frequency,
-      intervalMinutes: widget.existing?.intervalMinutes,
-      nextRunAt: _nextRunAt,
-      channel: _channel,
-      isActive: widget.existing?.isActive ?? true,
-      alarmEnabled: widget.existing?.alarmEnabled ?? true,
-    );
-
-    try {
-      final saved = widget.existing != null
-          ? await _service.update(widget.existing!.id, reminder, itemIds: _selectedItemIds.toList())
-          : await _service.create(reminder, itemIds: _selectedItemIds.toList());
-
-      // Schedule directly on the phone. Once scheduled, Android/iOS can fire
-      // the reminder even when the app is closed or the user is logged out.
-      await NotificationService.instance.scheduleReminder(saved);
-      widget.onSaved();
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final maxHeight = media.size.height * 0.92;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // The form itself scrolls. The action bar below does not, so the
-              // Save button is always visible even when a module has many
-              // selectable records or the keyboard is open.
-              Flexible(
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'All reminders',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Reminders created here, in Daily Planner, Project Tasks and other linked modules appear together.',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              childAspectRatio: 1.9,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _StatCard(
+                  label: 'Active',
+                  value: '${_stats['active'] ?? 0}',
+                  icon: Icons.notifications_active_outlined,
+                  selected: _selectedScope == 'active',
+                  onTap: () => _selectScope('active'),
+                ),
+                _StatCard(
+                  label: 'Daily',
+                  value: '${_stats['daily'] ?? 0}',
+                  icon: Icons.today_outlined,
+                  selected: _selectedScope == 'daily',
+                  onTap: () => _selectScope('daily'),
+                ),
+                _StatCard(
+                  label: 'Weekly',
+                  value: '${_stats['weekly'] ?? 0}',
+                  icon: Icons.date_range_outlined,
+                  selected: _selectedScope == 'weekly',
+                  onTap: () => _selectScope('weekly'),
+                ),
+                _StatCard(
+                  label: 'Total',
+                  value: '${_stats['total'] ?? 0}',
+                  icon: Icons.list_alt_outlined,
+                  selected: _selectedScope == 'total',
+                  onTap: () => _selectScope('total'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const Text(
+                  'Showing',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _selectedScope == 'total'
+                      ? 'All reminders'
+                      : '${_selectedScope[0].toUpperCase()}${_selectedScope.substring(1)} reminders',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (_loading && _items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null && _items.isEmpty)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.error_outline),
+                  title: Text(_error!),
+                  subtitle: const Text('Tap to try again.'),
+                  onTap: _load,
+                ),
+              )
+            else if (_items.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Icon(
+                        Icons.notifications_none_outlined,
+                        size: 38,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      SizedBox(height: 8),
                       Text(
-                        widget.existing != null ? 'Edit Reminder' : 'New Reminder',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        'No reminders yet.',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(height: 16),
-                      if (_error != null) ...[
-                        Text(_error!, style: const TextStyle(color: Colors.red)),
-                        const SizedBox(height: 8),
-                      ],
-                      TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title')),
-                      const SizedBox(height: 12),
-                      TextField(controller: _messageController, decoration: const InputDecoration(labelText: 'Message (optional)'), maxLines: 2),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _frequency,
-                        decoration: const InputDecoration(labelText: 'Repeats'),
-                        items: _frequencies.map((f) => DropdownMenuItem(value: f, child: Text(f.replaceAll('_', ' ')))).toList(),
-                        onChanged: (v) => setState(() => _frequency = v!),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _channel,
-                        decoration: const InputDecoration(labelText: 'Send Via'),
-                        items: const [
-                          DropdownMenuItem(value: 'database', child: Text('In-App Only')),
-                          DropdownMenuItem(value: 'mail', child: Text('In-App + Email')),
-                        ],
-                        onChanged: (v) => setState(() => _channel = v!),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _module,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Related Module (optional)',
-                          helperText: 'Includes Finance, Health, Work and Personal Life items',
+                      SizedBox(height: 3),
+                      Text(
+                        'Set a reminder while creating a Daily Planner or Project Task, or create a standalone reminder.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
                         ),
-                        items: [
-                          const DropdownMenuItem<String>(value: null, child: Text('None')),
-                          ..._modules.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
-                        ],
-                        onChanged: (v) {
-                          setState(() {
-                            _module = v;
-                            _selectedItemIds.clear();
-                          });
-                          if (v != null && v.isNotEmpty && v != 'custom' && v != 'budget') {
-                            _loadItemsForModule(v);
-                          } else {
-                            setState(() => _moduleItems = []);
-                          }
-                        },
-                      ),
-                      if (_module != null && _module != 'custom' && _module != 'budget' && _module != 'daily_planner') ...[
-                        const SizedBox(height: 12),
-                        if (_loadingItems)
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-                        else if (_moduleItems.isEmpty)
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Text('No records found in this module yet.', style: TextStyle(color: Colors.grey, fontSize: 12)))
-                        else ...[
-                          const Text('Specific item(s) (optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                          const Text(
-                            'Leave nothing selected to keep this reminder general to the whole module.',
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 4),
-                          ..._moduleItems.map((item) {
-                            final id = int.tryParse(item['id'].toString()) ?? 0;
-                            return CheckboxListTile(
-                              dense: true,
-                              visualDensity: VisualDensity.compact,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(item['label']?.toString() ?? '', style: const TextStyle(fontSize: 13)),
-                              value: _selectedItemIds.contains(id),
-                              onChanged: id <= 0 ? null : (checked) => setState(() {
-                                if (checked == true) {
-                                  _selectedItemIds.add(id);
-                                } else {
-                                  _selectedItemIds.remove(id);
-                                }
-                              }),
-                            );
-                          }),
-                        ],
-                      ],
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Next run at'),
-                        subtitle: Text(DateFormat('yMMMd – jm').format(_nextRunAt)),
-                        trailing: const Icon(Icons.calendar_today),
-                        onTap: _pickDateTime,
                       ),
                     ],
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.35))),
-                ),
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _saving ? null : _save,
-                    icon: _saving
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.save_outlined),
-                    label: Text(_saving ? 'Saving...' : (widget.existing != null ? 'Update Reminder' : 'Save Reminder')),
+              )
+            else
+              ..._items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Icon(
+                          _isActive(item)
+                              ? Icons.notifications_active_outlined
+                              : Icons.notifications_off_outlined,
+                        ),
+                      ),
+                      title: Text(
+                        (item['title'] ?? 'Reminder').toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_dateLabel(item['next_run_at'])),
+                            const SizedBox(height: 5),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                _SmallChip(_sourceLabel(item)),
+                                _SmallChip(_repeatLabel(_frequency(item))),
+                                _SmallChip(
+                                  _isActive(item) ? 'Active' : 'Inactive',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'delete') {
+                            _delete(item);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: selected ? 2 : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: selected ? scheme.primary : const Color(0xFFE2E8F0),
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: selected ? scheme.primary : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                        color: selected
+                            ? scheme.primary
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallChip extends StatelessWidget {
+  final String label;
+
+  const _SmallChip(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF475569),
         ),
       ),
     );

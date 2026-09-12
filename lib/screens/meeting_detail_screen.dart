@@ -61,7 +61,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final pending = await PendingRecordingSyncService().pendingFor(widget.meeting.id);
+    final pending =
+        await PendingRecordingSyncService().pendingFor(widget.meeting.id);
     try {
       final recordings = await _service.list(widget.meeting.id);
       setState(() {
@@ -74,7 +75,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _pendingRecordings = pending;
         _loading = false;
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       // No connection — still show whatever's pending locally even
       // though the server-side recordings list couldn't be fetched.
@@ -85,7 +88,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  void _showMessage(String message, {Duration duration = const Duration(seconds: 4)}) {
+  void _showMessage(String message,
+      {Duration duration = const Duration(seconds: 4)}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: duration),
@@ -93,7 +97,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   bool _isNetworkFailure(Object error) {
-    return error is SocketException || error is TimeoutException || error is http.ClientException;
+    return error is SocketException ||
+        error is TimeoutException ||
+        error is http.ClientException;
   }
 
   String _fileNameFromPath(String path) {
@@ -104,16 +110,36 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final lower = fileName.toLowerCase();
 
     const mimeByExtension = <String, String>{
-      '.mp3': 'audio/mpeg', '.mp2': 'audio/mpeg', '.m4a': 'audio/mp4',
-      '.m4b': 'audio/mp4', '.mp4': 'audio/mp4', '.aac': 'audio/aac',
-      '.adts': 'audio/aac', '.wav': 'audio/wav', '.wave': 'audio/wav',
-      '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/opus',
-      '.webm': 'audio/webm', '.weba': 'audio/webm', '.flac': 'audio/flac',
-      '.amr': 'audio/amr', '.awb': 'audio/amr-wb', '.3gp': 'audio/3gpp',
-      '.3gpp': 'audio/3gpp', '.3g2': 'audio/3gpp2', '.caf': 'audio/x-caf',
-      '.aif': 'audio/aiff', '.aiff': 'audio/aiff', '.aifc': 'audio/aiff',
-      '.wma': 'audio/x-ms-wma', '.mid': 'audio/midi', '.midi': 'audio/midi',
-      '.ac3': 'audio/ac3', '.eac3': 'audio/eac3', '.mka': 'audio/x-matroska',
+      '.mp3': 'audio/mpeg',
+      '.mp2': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.m4b': 'audio/mp4',
+      '.mp4': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.adts': 'audio/aac',
+      '.wav': 'audio/wav',
+      '.wave': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.oga': 'audio/ogg',
+      '.opus': 'audio/opus',
+      '.webm': 'audio/webm',
+      '.weba': 'audio/webm',
+      '.flac': 'audio/flac',
+      '.amr': 'audio/amr',
+      '.awb': 'audio/amr-wb',
+      '.3gp': 'audio/3gpp',
+      '.3gpp': 'audio/3gpp',
+      '.3g2': 'audio/3gpp2',
+      '.caf': 'audio/x-caf',
+      '.aif': 'audio/aiff',
+      '.aiff': 'audio/aiff',
+      '.aifc': 'audio/aiff',
+      '.wma': 'audio/x-ms-wma',
+      '.mid': 'audio/midi',
+      '.midi': 'audio/midi',
+      '.ac3': 'audio/ac3',
+      '.eac3': 'audio/eac3',
+      '.mka': 'audio/x-matroska',
     };
 
     for (final entry in mimeByExtension.entries) {
@@ -140,7 +166,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         contentType: contentType,
       ),
     );
-    final pending = await PendingRecordingSyncService().pendingFor(widget.meeting.id);
+    final pending =
+        await PendingRecordingSyncService().pendingFor(widget.meeting.id);
     if (mounted) setState(() => _pendingRecordings = pending);
   }
 
@@ -187,8 +214,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           'its transcript, and any AI-generated summary will be stored under this meeting.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('I Confirm — Start')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('I Confirm — Start')),
         ],
       ),
     );
@@ -197,9 +228,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _startRecording() async {
-    if (! await _recorder.hasPermission()) {
+    if (!await _recorder.hasPermission()) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Microphone permission is required to record.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Microphone permission is required to record.')));
       }
       return;
     }
@@ -211,7 +243,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     // 100% local via the `record` package regardless of whether the
     // device is online.
     final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/meeting_${widget.meeting.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final path =
+        '${dir.path}/meeting_${widget.meeting.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
     await _recorder.start(
       const RecordConfig(
@@ -232,7 +265,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       _elapsedSeconds = 0;
     });
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _elapsedSeconds++));
+    _timer = Timer.periodic(
+        const Duration(seconds: 1), (_) => setState(() => _elapsedSeconds++));
   }
 
   Future<void> _pauseRecording() async {
@@ -240,16 +274,19 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     _timer?.cancel();
     setState(() => _recordingStatus = 'paused');
     if (_activeRecordingId != null) {
-      await _service.updateStatus(_activeRecordingId!, 'paused', _elapsedSeconds);
+      await _service.updateStatus(
+          _activeRecordingId!, 'paused', _elapsedSeconds);
     }
   }
 
   Future<void> _resumeRecording() async {
     await _recorder.resume();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _elapsedSeconds++));
+    _timer = Timer.periodic(
+        const Duration(seconds: 1), (_) => setState(() => _elapsedSeconds++));
     setState(() => _recordingStatus = 'recording');
     if (_activeRecordingId != null) {
-      await _service.updateStatus(_activeRecordingId!, 'recording', _elapsedSeconds);
+      await _service.updateStatus(
+          _activeRecordingId!, 'recording', _elapsedSeconds);
     }
   }
 
@@ -366,7 +403,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         await localCopy.writeAsBytes(bytes, flush: true);
         retryPath = localCopy.path;
       } else {
-        _showMessage('The selected recording could not be read on this device.');
+        _showMessage(
+            'The selected recording could not be read on this device.');
         return;
       }
 
@@ -400,7 +438,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           contentType: contentType,
         );
       } else {
-        _showMessage('Upload failed: $error', duration: const Duration(seconds: 7));
+        _showMessage('Upload failed: $error',
+            duration: const Duration(seconds: 7));
       }
     } finally {
       if (mounted) setState(() => _uploadingRecording = false);
@@ -416,7 +455,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Future<void> _openAudio(String? url) async {
     if (url == null) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri))
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   /// Builds one combined, readable text block from whatever's actually
@@ -465,7 +505,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           final task = item['task'] ?? '';
           final assignee = item['assigned_to'];
           final deadline = item['deadline'];
-          buffer.writeln('- $task${assignee != null ? ' — $assignee' : ''}${deadline != null ? ' (due $deadline)' : ''}');
+          buffer.writeln(
+              '- $task${assignee != null ? ' — $assignee' : ''}${deadline != null ? ' (due $deadline)' : ''}');
         }
         buffer.writeln();
       }
@@ -480,7 +521,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     // Same share_plus API-version uncertainty flagged elsewhere in this
     // app — if this doesn't compile, use Share.share(buffer.toString())
     // instead.
-    await SharePlus.instance.share(ShareParams(text: buffer.toString(), subject: widget.meeting.title));
+    await SharePlus.instance.share(
+        ShareParams(text: buffer.toString(), subject: widget.meeting.title));
   }
 
   Future<void> _transcribe(MeetingRecording recording) async {
@@ -488,7 +530,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       await _service.transcribe(recording.id, language: _transcriptionLanguage);
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -497,12 +541,18 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       await _service.summarize(recording.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   Future<void> _deleteRecording(MeetingRecording recording) async {
-    final confirmed = await showAppConfirmDialog(context, title: 'Delete this recording?', message: 'This also removes its transcript and summary. This action cannot be undone.', confirmText: 'Delete recording');
+    final confirmed = await showAppConfirmDialog(context,
+        title: 'Delete this recording?',
+        message:
+            'This also removes its transcript and summary. This action cannot be undone.',
+        confirmText: 'Delete recording');
     if (!confirmed) return;
 
     try {
@@ -510,7 +560,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       setState(() => _recordings.removeWhere((r) => r.id == recording.id));
       _showMessage('Recording deleted.');
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -518,7 +570,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     if (mounted) setState(() => _uploadingRecording = true);
     try {
       await PendingRecordingSyncService().syncAll();
-      final pending = await PendingRecordingSyncService().pendingFor(widget.meeting.id);
+      final pending =
+          await PendingRecordingSyncService().pendingFor(widget.meeting.id);
       if (!mounted) return;
       setState(() => _pendingRecordings = pending);
       if (pending.isEmpty) {
@@ -536,11 +589,16 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _deletePendingRecording(PendingRecording recording) async {
-    final confirmed = await showAppConfirmDialog(context, title: 'Delete queued recording?', message: 'This removes the saved audio from this phone and cannot be undone.', confirmText: 'Delete recording');
+    final confirmed = await showAppConfirmDialog(context,
+        title: 'Delete queued recording?',
+        message:
+            'This removes the saved audio from this phone and cannot be undone.',
+        confirmText: 'Delete recording');
     if (!confirmed) return;
 
     await PendingRecordingSyncService().remove(recording.localId);
-    final pending = await PendingRecordingSyncService().pendingFor(widget.meeting.id);
+    final pending =
+        await PendingRecordingSyncService().pendingFor(widget.meeting.id);
     if (mounted) {
       setState(() => _pendingRecordings = pending);
       _showMessage('Queued recording deleted.');
@@ -569,20 +627,29 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.cloud_upload_outlined, size: 18, color: Color(0xFF92400E)),
+                          const Icon(Icons.cloud_upload_outlined,
+                              size: 18, color: Color(0xFF92400E)),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               '${_pendingRecordings.length} recording${_pendingRecordings.length == 1 ? '' : 's'} saved on this phone and waiting to upload.',
-                              style: const TextStyle(fontSize: 12.5, color: Color(0xFF92400E)),
+                              style: const TextStyle(
+                                  fontSize: 12.5, color: Color(0xFF92400E)),
                             ),
                           ),
                           IconButton(
                             icon: _uploadingRecording
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.refresh, color: Color(0xFF92400E)),
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.refresh,
+                                    color: Color(0xFF92400E)),
                             tooltip: 'Retry uploads',
-                            onPressed: _uploadingRecording ? null : _retryPendingRecordings,
+                            onPressed: _uploadingRecording
+                                ? null
+                                : _retryPendingRecordings,
                           ),
                         ],
                       ),
@@ -593,10 +660,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         child: ListTile(
                           dense: true,
                           leading: const Icon(Icons.schedule_send_outlined),
-                          title: Text(pending.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          title: Text(pending.fileName,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: const Text('Queued for automatic upload'),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.red),
                             tooltip: 'Delete queued recording',
                             onPressed: () => _deletePendingRecording(pending),
                           ),
@@ -610,7 +679,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Recording', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text('Recording',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: _transcriptionLanguage,
@@ -621,19 +691,25 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                               isDense: true,
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'en-GB', child: Text('UK English')),
-                              DropdownMenuItem(value: 'lg', child: Text('Luganda')),
-                              DropdownMenuItem(value: 'sw', child: Text('Kiswahili')),
-                              DropdownMenuItem(value: 'auto', child: Text('Auto detect')),
+                              DropdownMenuItem(
+                                  value: 'en-GB', child: Text('UK English')),
+                              DropdownMenuItem(
+                                  value: 'lg', child: Text('Luganda')),
+                              DropdownMenuItem(
+                                  value: 'sw', child: Text('Kiswahili')),
+                              DropdownMenuItem(
+                                  value: 'auto', child: Text('Auto detect')),
                             ],
                             onChanged: (value) {
-                              if (value != null) setState(() => _transcriptionLanguage = value);
+                              if (value != null)
+                                setState(() => _transcriptionLanguage = value);
                             },
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Choose the language actually spoken. Recording uses mono voice capture with automatic gain, echo cancellation and noise suppression when supported by the phone.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 10),
                           if (_recordingStatus == 'idle')
@@ -642,13 +718,20 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                               children: [
                                 ElevatedButton.icon(
                                   onPressed: _showConsentDialog,
-                                  icon: const Icon(Icons.fiber_manual_record, color: Colors.red),
+                                  icon: const Icon(Icons.fiber_manual_record,
+                                      color: Colors.red),
                                   label: const Text('Start Recording'),
                                 ),
                                 OutlinedButton.icon(
-                                  onPressed: _uploadingRecording ? null : _uploadRecording,
+                                  onPressed: _uploadingRecording
+                                      ? null
+                                      : _uploadRecording,
                                   icon: _uploadingRecording
-                                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                      ? const SizedBox(
+                                          height: 16,
+                                          width: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
                                       : const Icon(Icons.upload_outlined),
                                   label: const Text('Upload Recording'),
                                 ),
@@ -657,17 +740,32 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           else
                             Row(
                               children: [
-                                Icon(Icons.fiber_manual_record, color: _recordingStatus == 'recording' ? Colors.red : Colors.grey, size: 16),
+                                Icon(Icons.fiber_manual_record,
+                                    color: _recordingStatus == 'recording'
+                                        ? Colors.red
+                                        : Colors.grey,
+                                    size: 16),
                                 const SizedBox(width: 6),
-                                Text(_recordingStatus == 'recording' ? 'Recording' : 'Paused'),
+                                Text(_recordingStatus == 'recording'
+                                    ? 'Recording'
+                                    : 'Paused'),
                                 const SizedBox(width: 12),
-                                Text(_formatTimer(_elapsedSeconds), style: const TextStyle(fontFamily: 'monospace', fontSize: 16)),
+                                Text(_formatTimer(_elapsedSeconds),
+                                    style: const TextStyle(
+                                        fontFamily: 'monospace', fontSize: 16)),
                                 const Spacer(),
                                 if (_recordingStatus == 'recording')
-                                  IconButton(icon: const Icon(Icons.pause), onPressed: _pauseRecording)
+                                  IconButton(
+                                      icon: const Icon(Icons.pause),
+                                      onPressed: _pauseRecording)
                                 else
-                                  IconButton(icon: const Icon(Icons.play_arrow), onPressed: _resumeRecording),
-                                IconButton(icon: const Icon(Icons.stop, color: Colors.red), onPressed: _stopRecording),
+                                  IconButton(
+                                      icon: const Icon(Icons.play_arrow),
+                                      onPressed: _resumeRecording),
+                                IconButton(
+                                    icon: const Icon(Icons.stop,
+                                        color: Colors.red),
+                                    onPressed: _stopRecording),
                               ],
                             ),
                         ],
@@ -675,7 +773,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Past Recordings', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Past Recordings',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (_recordings.isEmpty) const Text('No recordings yet.'),
                   ..._recordings.map(_buildRecordingCard),
@@ -697,8 +796,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               children: [
                 Icon(Icons.graphic_eq, color: Colors.grey.shade600),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Recording — ${recording.formattedDuration}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _deleteRecording(recording)),
+                Expanded(
+                    child: Text('Recording — ${recording.formattedDuration}',
+                        style: const TextStyle(fontWeight: FontWeight.bold))),
+                IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _deleteRecording(recording)),
               ],
             ),
             if (recording.audioUrl != null)
@@ -707,47 +810,74 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                 icon: const Icon(Icons.play_circle_outline),
                 label: const Text('Play Audio'),
               ),
-            if (recording.transcriptionStatus == 'completed' || (recording.summaryStatus == 'completed' && recording.summary != null))
+            if (recording.transcriptionStatus == 'completed' ||
+                (recording.summaryStatus == 'completed' &&
+                    recording.summary != null))
               TextButton.icon(
                 onPressed: () => _shareTranscriptAndSummary(recording),
                 icon: const Icon(Icons.share_outlined),
                 label: const Text('Share Transcript & Summary'),
               ),
             const Divider(),
-            const Text('Transcript', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const Text('Transcript',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             if (recording.transcriptionStatus == 'completed') ...[
               const SizedBox(height: 6),
               ...recording.transcriptSegments.map((segment) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: RichText(
                       text: TextSpan(
-                        style: const TextStyle(color: Colors.black87, fontSize: 13),
+                        style: const TextStyle(
+                            color: Colors.black87, fontSize: 13),
                         children: [
-                          TextSpan(text: '[${segment.formattedTimestamp()}] ', style: const TextStyle(color: Colors.grey, fontFamily: 'monospace')),
+                          TextSpan(
+                              text: '[${segment.formattedTimestamp()}] ',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontFamily: 'monospace')),
                           TextSpan(text: segment.text),
                         ],
                       ),
                     ),
                   )),
-              if (recording.transcriptSegments.isEmpty && recording.transcript != null) Text(recording.transcript!),
+              if (recording.transcriptSegments.isEmpty &&
+                  recording.transcript != null)
+                Text(recording.transcript!),
             ] else if (recording.transcriptionStatus == 'processing') ...[
               const SizedBox(height: 6),
-              const Row(children: [SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 8), Text('Transcribing...')]),
+              const Row(children: [
+                SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 8),
+                Text('Transcribing...')
+              ]),
             ] else ...[
-              if (recording.transcriptionStatus == 'failed' && recording.transcriptionError != null)
+              if (recording.transcriptionStatus == 'failed' &&
+                  recording.transcriptionError != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(recording.transcriptionError!, style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                  child: Text(recording.transcriptionError!,
+                      style:
+                          const TextStyle(color: Colors.orange, fontSize: 12)),
                 ),
-              OutlinedButton(onPressed: () => _transcribe(recording), child: const Text('Transcribe Recording')),
+              OutlinedButton(
+                  onPressed: () => _transcribe(recording),
+                  child: const Text('Transcribe Recording')),
             ],
             if (recording.transcript != null) ...[
               const Divider(),
-              const Text('AI Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              if (recording.summaryStatus == 'completed' && recording.summary != null) ...[
+              const Text('AI Summary',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              if (recording.summaryStatus == 'completed' &&
+                  recording.summary != null) ...[
                 const SizedBox(height: 6),
-                if (recording.summary!.mainPoints.isNotEmpty) _buildSummarySection('Main Points', recording.summary!.mainPoints),
-                if (recording.summary!.decisions.isNotEmpty) _buildSummarySection('Decisions', recording.summary!.decisions),
+                if (recording.summary!.mainPoints.isNotEmpty)
+                  _buildSummarySection(
+                      'Main Points', recording.summary!.mainPoints),
+                if (recording.summary!.decisions.isNotEmpty)
+                  _buildSummarySection(
+                      'Decisions', recording.summary!.decisions),
                 if (recording.summary!.actionItems.isNotEmpty)
                   _buildSummarySection(
                     'Action Items',
@@ -759,17 +889,30 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     }).toList(),
                   ),
                 if (recording.summary!.questionsForFollowup.isNotEmpty)
-                  _buildSummarySection('Follow-up Questions', recording.summary!.questionsForFollowup),
+                  _buildSummarySection('Follow-up Questions',
+                      recording.summary!.questionsForFollowup),
               ] else if (recording.summaryStatus == 'processing') ...[
                 const SizedBox(height: 6),
-                const Row(children: [SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 8), Text('Generating summary...')]),
+                const Row(children: [
+                  SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 8),
+                  Text('Generating summary...')
+                ]),
               ] else ...[
-                if (recording.summaryStatus == 'failed' && recording.summaryError != null)
+                if (recording.summaryStatus == 'failed' &&
+                    recording.summaryError != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(recording.summaryError!, style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                    child: Text(recording.summaryError!,
+                        style: const TextStyle(
+                            color: Colors.orange, fontSize: 12)),
                   ),
-                OutlinedButton(onPressed: () => _summarize(recording), child: const Text('Generate Summary')),
+                OutlinedButton(
+                    onPressed: () => _summarize(recording),
+                    child: const Text('Generate Summary')),
               ],
             ],
           ],
@@ -784,7 +927,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey)),
+          Text(title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.grey)),
           ...items.map((item) => Padding(
                 padding: const EdgeInsets.only(left: 8, top: 2),
                 child: Text('• $item', style: const TextStyle(fontSize: 13)),

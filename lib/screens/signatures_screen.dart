@@ -42,19 +42,26 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
     _load();
   }
 
-
   Future<List<int>> _signatureBytes(SavedSignature sig) {
-    return _signatureImageFutures.putIfAbsent(sig.id, () => _service.signatureImageBytes(sig.id));
+    return _signatureImageFutures.putIfAbsent(
+        sig.id, () => _service.signatureImageBytes(sig.id));
   }
 
-  Widget _signatureImage(SavedSignature sig, {double? width, BoxFit fit = BoxFit.contain}) {
+  Widget _signatureImage(SavedSignature sig,
+      {double? width, BoxFit fit = BoxFit.contain}) {
     return FutureBuilder<List<int>>(
       future: _signatureBytes(sig),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(width: width, height: width != null ? 64 : 120, child: const Center(child: CircularProgressIndicator(strokeWidth: 2)));
+          return SizedBox(
+              width: width,
+              height: width != null ? 64 : 120,
+              child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2)));
         }
-        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+        if (snapshot.hasError ||
+            snapshot.data == null ||
+            snapshot.data!.isEmpty) {
           return SizedBox(
             width: width,
             height: width != null ? 64 : 120,
@@ -69,7 +76,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
             ),
           );
         }
-        return Image.memory(Uint8List.fromList(snapshot.data!), width: width, fit: fit, gaplessPlayback: true);
+        return Image.memory(Uint8List.fromList(snapshot.data!),
+            width: width, fit: fit, gaplessPlayback: true);
       },
     );
   }
@@ -88,8 +96,13 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 12, 8, 8),
                 child: Row(
                   children: [
-                    Expanded(child: Text(sig.label.isEmpty ? 'Signature preview' : sig.label, style: Theme.of(ctx).textTheme.titleMedium)),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(ctx).pop()),
+                    Expanded(
+                        child: Text(
+                            sig.label.isEmpty ? 'Signature preview' : sig.label,
+                            style: Theme.of(ctx).textTheme.titleMedium)),
+                    IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(ctx).pop()),
                   ],
                 ),
               ),
@@ -102,12 +115,14 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                 child: InteractiveViewer(
                   minScale: .8,
                   maxScale: 4,
-                  child: Center(child: _signatureImage(sig, fit: BoxFit.contain)),
+                  child:
+                      Center(child: _signatureImage(sig, fit: BoxFit.contain)),
                 ),
               ),
               const Padding(
                 padding: EdgeInsets.all(12),
-                child: Text('Pinch to zoom the signature preview.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                child: Text('Pinch to zoom the signature preview.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
               ),
             ],
           ),
@@ -129,12 +144,15 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   Future<void> _uploadSignature() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+    final picked = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 90);
     if (picked == null || !mounted) return;
 
     final label = await showDialog<String>(
@@ -143,10 +161,17 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
         final controller = TextEditingController();
         return AlertDialog(
           title: const Text('Name this signature (optional)'),
-          content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'e.g. Formal, Initials')),
+          content: TextField(
+              controller: controller,
+              decoration:
+                  const InputDecoration(hintText: 'e.g. Formal, Initials')),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Skip')),
-            TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Save')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Skip')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+                child: const Text('Save')),
           ],
         );
       },
@@ -155,7 +180,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
     setState(() => _uploadingSignature = true);
     try {
       final bytes = await File(picked.path).readAsBytes();
-      final saved = await _service.uploadSignature(fileBytes: bytes, fileName: picked.name, label: label);
+      final saved = await _service.uploadSignature(
+          fileBytes: bytes, fileName: picked.name, label: label);
       setState(() {
         _signatureImageFutures.remove(saved.id);
         _signatures = [saved, ..._signatures];
@@ -163,7 +189,9 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _uploadingSignature = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -172,10 +200,15 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove this signature?'),
-        content: const Text("It can't be used for signing documents once removed."),
+        content:
+            const Text("It can't be used for signing documents once removed."),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Remove')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Remove')),
         ],
       ),
     );
@@ -186,24 +219,32 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       _signatureImageFutures.remove(sig.id);
       setState(() => _signatures.removeWhere((s) => s.id == sig.id));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   Future<void> _download(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri))
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _delete(SignedDocument doc) async {
-    final confirmed = await showAppConfirmDialog(context, title: 'Delete this document?', message: 'This signed document will be permanently deleted.', confirmText: 'Delete document');
+    final confirmed = await showAppConfirmDialog(context,
+        title: 'Delete this document?',
+        message: 'This signed document will be permanently deleted.',
+        confirmText: 'Delete document');
     if (!confirmed) return;
 
     try {
       await _service.deleteDocument(doc.id);
       setState(() => _documents.removeWhere((d) => d.id == doc.id));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -226,7 +267,9 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       // Share.shareXFiles([XFile(file.path)]) instead.
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not share: $e')));
     }
   }
 
@@ -253,14 +296,20 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       if (!mounted) return;
       await SharePlus.instance.share(ShareParams(files: files));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not share: $e')));
     } finally {
       if (mounted) setState(() => _bulkWorking = false);
     }
   }
 
   Future<void> _bulkDelete() async {
-    final confirmed = await showAppConfirmDialog(context, title: 'Delete selected documents?', message: 'Delete ${_selectedIds.length} selected document${_selectedIds.length == 1 ? '' : 's'}? This action cannot be undone.', confirmText: 'Delete selected');
+    final confirmed = await showAppConfirmDialog(context,
+        title: 'Delete selected documents?',
+        message:
+            'Delete ${_selectedIds.length} selected document${_selectedIds.length == 1 ? '' : 's'}? This action cannot be undone.',
+        confirmText: 'Delete selected');
     if (!confirmed) return;
 
     setState(() => _bulkWorking = true);
@@ -274,7 +323,9 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _bulkWorking = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -293,12 +344,20 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
               title: Text('${_selectedIds.length} selected'),
               actions: [
                 IconButton(
-                  icon: _bulkWorking ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.share),
-                  onPressed: _bulkWorking || _selectedIds.isEmpty ? null : _bulkShare,
+                  icon: _bulkWorking
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.share),
+                  onPressed:
+                      _bulkWorking || _selectedIds.isEmpty ? null : _bulkShare,
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  onPressed: _bulkWorking || _selectedIds.isEmpty ? null : _bulkDelete,
+                  onPressed:
+                      _bulkWorking || _selectedIds.isEmpty ? null : _bulkDelete,
                 ),
               ],
             )
@@ -314,11 +373,17 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('My Signatures', style: Theme.of(context).textTheme.titleMedium),
+                        Text('My Signatures',
+                            style: Theme.of(context).textTheme.titleMedium),
                         TextButton.icon(
-                          onPressed: _uploadingSignature ? null : _uploadSignature,
+                          onPressed:
+                              _uploadingSignature ? null : _uploadSignature,
                           icon: _uploadingSignature
-                              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.add, size: 18),
                           label: const Text('Add'),
                         ),
@@ -326,7 +391,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                     ),
                   ),
                   if (_signatures.isEmpty)
-                    const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('No signatures saved yet — tap "Add" to upload one.'))
+                    const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                            'No signatures saved yet — tap "Add" to upload one.'))
                   else
                     SizedBox(
                       height: 70,
@@ -342,7 +410,9 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                             child: Container(
                               margin: const EdgeInsets.only(right: 8),
                               padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(border: Border.all(color: Colors.black12), borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black12),
+                                  borderRadius: BorderRadius.circular(8)),
                               child: _signatureImage(sig, width: 100),
                             ),
                           );
@@ -351,40 +421,67 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                     ),
                   if (_signatures.isNotEmpty)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: Text('Long-press a signature to remove it.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: Text('Long-press a signature to remove it.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
                     ),
                   const Divider(height: 24),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Signed Documents', style: Theme.of(context).textTheme.titleMedium),
+                    child: Text('Signed Documents',
+                        style: Theme.of(context).textTheme.titleMedium),
                   ),
                   if (_documents.isEmpty)
-                    const Padding(padding: EdgeInsets.all(16), child: Text('No signed documents yet.'))
+                    const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('No signed documents yet.'))
                   else
                     ..._documents.map((doc) {
                       final isSelected = _selectedIds.contains(doc.id);
                       return ListTile(
-                        onTap: _selectionMode ? () => _toggleSelected(doc.id) : null,
+                        onTap: _selectionMode
+                            ? () => _toggleSelected(doc.id)
+                            : null,
                         onLongPress: () => setState(() {
                           _selectionMode = true;
                           _selectedIds.add(doc.id);
                         }),
                         leading: _selectionMode
-                            ? Checkbox(value: isSelected, onChanged: (_) => _toggleSelected(doc.id))
-                            : Icon(doc.wasStamped ? Icons.check_circle : Icons.description, color: doc.wasStamped ? Colors.green : Colors.grey),
+                            ? Checkbox(
+                                value: isSelected,
+                                onChanged: (_) => _toggleSelected(doc.id))
+                            : Icon(
+                                doc.wasStamped
+                                    ? Icons.check_circle
+                                    : Icons.description,
+                                color: doc.wasStamped
+                                    ? Colors.green
+                                    : Colors.grey),
                         title: Text(doc.originalFilename),
                         subtitle: doc.wasStamped
-                            ? Text('${doc.placementCount} signature(s) across ${doc.pageCount} page(s)')
-                            : (doc.stampError != null ? Text(doc.stampError!, style: const TextStyle(color: Colors.orange)) : null),
+                            ? Text(
+                                '${doc.placementCount} signature(s) across ${doc.pageCount} page(s)')
+                            : (doc.stampError != null
+                                ? Text(doc.stampError!,
+                                    style:
+                                        const TextStyle(color: Colors.orange))
+                                : null),
                         trailing: _selectionMode
                             ? null
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(icon: const Icon(Icons.share_outlined), onPressed: () => _shareOne(doc)),
-                                  IconButton(icon: const Icon(Icons.download), onPressed: () => _download(doc.downloadUrl)),
-                                  IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(doc)),
+                                  IconButton(
+                                      icon: const Icon(Icons.share_outlined),
+                                      onPressed: () => _shareOne(doc)),
+                                  IconButton(
+                                      icon: const Icon(Icons.download),
+                                      onPressed: () =>
+                                          _download(doc.downloadUrl)),
+                                  IconButton(
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () => _delete(doc)),
                                 ],
                               ),
                       );

@@ -130,7 +130,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 56,
+                  minHeight: constraints.maxHeight > 56
+                      ? constraints.maxHeight - 56
+                      : 0,
                 ),
                 child: Center(
                   child: Column(

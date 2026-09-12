@@ -1,0 +1,12 @@
+Android local_auth requirement
+
+Ensure LaunchTheme inherits from an AppCompat theme.
+
+Example:
+
+<style name="LaunchTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowBackground">@drawable/launch_background</item>
+</style>
+
+Keep your existing launch-background items; only use an AppCompat-compatible
+parent if your current theme is not already compatible.

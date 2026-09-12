@@ -82,21 +82,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-
-
-
   Future<void> _loadSyncStatus() async {
     final snapshot = await SyncStatusService().refresh();
     if (!mounted) return;
     String label;
     if (snapshot.conflicts > 0) {
-      label = '${snapshot.conflicts} change${snapshot.conflicts == 1 ? '' : 's'} need review';
+      label =
+          '${snapshot.conflicts} change${snapshot.conflicts == 1 ? '' : 's'} need review';
     } else if (!snapshot.online) {
       label = snapshot.totalPending > 0
           ? 'Offline · ${snapshot.totalPending} change${snapshot.totalPending == 1 ? '' : 's'} saved on this device'
           : 'Offline · saved data remains available';
     } else if (snapshot.totalPending > 0) {
-      label = '${snapshot.totalPending} item${snapshot.totalPending == 1 ? '' : 's'} waiting to sync';
+      label =
+          '${snapshot.totalPending} item${snapshot.totalPending == 1 ? '' : 's'} waiting to sync';
     } else if (snapshot.lastSyncedAt != null) {
       final diff = DateTime.now().difference(snapshot.lastSyncedAt!);
       if (diff.inMinutes < 1) {
@@ -134,7 +133,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_currencyLoading) return;
     if (_currencyOptions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No additional currencies are configured yet.')),
+        const SnackBar(
+            content: Text('No additional currencies are configured yet.')),
       );
       return;
     }
@@ -159,93 +159,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   24 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
                 child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Preferred Currency', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                const Text(
-                  'Choose how amounts are displayed in My Digital Diary. This does not change the original stored amounts or payment gateway settlement currency.',
-                  style: TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: value,
-                  isExpanded: true,
-                  menuMaxHeight: MediaQuery.sizeOf(context).height * 0.42,
-                  decoration: InputDecoration(
-                    labelText: 'Display currency',
-                    prefixIcon: const Icon(Icons.currency_exchange),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Preferred Currency',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Choose how amounts are displayed in My Digital Diary. This does not change the original stored amounts or payment gateway settlement currency.',
+                      style: TextStyle(color: Colors.black54),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: value,
+                      isExpanded: true,
+                      menuMaxHeight: MediaQuery.sizeOf(context).height * 0.42,
+                      decoration: InputDecoration(
+                        labelText: 'Display currency',
+                        prefixIcon: const Icon(Icons.currency_exchange),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
+                      ),
+                      selectedItemBuilder: (context) =>
+                          _currencyOptions.map((option) {
+                        final code =
+                            (option['code'] ?? '').toString().toUpperCase();
+                        final symbol = (option['symbol'] ?? code).toString();
+                        final rate = double.tryParse(
+                                (option['rate'] ?? '1').toString()) ??
+                            1;
+                        final suffix = rate == 1 ? ' · Base' : '';
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '$code ($symbol)$suffix',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      items: _currencyOptions.map((option) {
+                        final code =
+                            (option['code'] ?? '').toString().toUpperCase();
+                        final symbol = (option['symbol'] ?? code).toString();
+                        final rate = double.tryParse(
+                                (option['rate'] ?? '1').toString()) ??
+                            1;
+                        final hint = rate == 1
+                            ? 'Base currency'
+                            : '1 $code = ${rate.toStringAsFixed(rate == rate.roundToDouble() ? 0 : 2)} base units';
+                        return DropdownMenuItem(
+                          value: code,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '$code ($symbol)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  hint,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.black54,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (next) {
+                        if (next != null) setSheetState(() => value = next);
+                      },
                     ),
-                  ),
-                  selectedItemBuilder: (context) => _currencyOptions.map((option) {
-                    final code = (option['code'] ?? '').toString().toUpperCase();
-                    final symbol = (option['symbol'] ?? code).toString();
-                    final rate = double.tryParse((option['rate'] ?? '1').toString()) ?? 1;
-                    final suffix = rate == 1 ? ' · Base' : '';
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$code ($symbol)$suffix',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.pop(sheetContext, value),
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Use this currency'),
                       ),
-                    );
-                  }).toList(),
-                  items: _currencyOptions.map((option) {
-                    final code = (option['code'] ?? '').toString().toUpperCase();
-                    final symbol = (option['symbol'] ?? code).toString();
-                    final rate = double.tryParse((option['rate'] ?? '1').toString()) ?? 1;
-                    final hint = rate == 1
-                        ? 'Base currency'
-                        : '1 $code = ${rate.toStringAsFixed(rate == rate.roundToDouble() ? 0 : 2)} base units';
-                    return DropdownMenuItem(
-                      value: code,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '$code ($symbol)',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              hint,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.black54,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (next) {
-                    if (next != null) setSheetState(() => value = next);
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => Navigator.pop(sheetContext, value),
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Use this currency'),
-                  ),
-                ),
+                    ),
                   ],
                 ),
               ),
@@ -261,7 +276,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       BrandingService.applyCurrencyPreference(data);
       if (!mounted) return;
       setState(() {
-        _selectedCurrency = (data['selected'] ?? chosen).toString().toUpperCase();
+        _selectedCurrency =
+            (data['selected'] ?? chosen).toString().toUpperCase();
         _currencyOptions = (data['options'] as List? ?? _currencyOptions)
             .whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row))
@@ -272,7 +288,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -291,7 +308,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _avatar(BuildContext context, String? name) {
     final primary = Theme.of(context).colorScheme.primary;
-    final initial = (name?.trim().isNotEmpty == true ? name!.trim()[0] : '?').toUpperCase();
+    final initial =
+        (name?.trim().isNotEmpty == true ? name!.trim()[0] : '?').toUpperCase();
 
     return CircleAvatar(
       radius: 40,
@@ -370,7 +388,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: Text(user?.subscriptionStatus ?? '—'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen()),
                     ),
                   ),
                   const Divider(height: 1),
@@ -379,7 +398,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: const Text('Family, Team & Organization'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const OrganizationScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const OrganizationScreen()),
                     ),
                   ),
                   const Divider(height: 1),
@@ -403,7 +423,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: Text(_syncSummary),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OfflineSyncQueueScreen()));
+                      await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const OfflineSyncQueueScreen()));
                       await _loadSyncStatus();
                     },
                   ),
@@ -413,27 +434,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: const Text('Appearance'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AppearanceScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const AppearanceScreen()),
                     ),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.tune_outlined),
                     title: const Text('Personalisation & AI Privacy'),
-                    subtitle: const Text('Choose priorities and what AI may use'),
+                    subtitle:
+                        const Text('Choose priorities and what AI may use'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const PersonalisationScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const PersonalisationScreen()),
                     ),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.campaign_outlined),
                     title: const Text('Social Media Settings'),
-                    subtitle: const Text('WhatsApp Status, Channel and social accounts'),
+                    subtitle: const Text(
+                        'WhatsApp Status, Channel and social accounts'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SocialMediaAccountsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const SocialMediaAccountsScreen()),
                     ),
                   ),
                   if (user != null &&
@@ -442,10 +468,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.admin_panel_settings_outlined),
                       title: const Text('Admin Social Media'),
-                      subtitle: const Text('Review users, accounts and scheduled communication'),
+                      subtitle: const Text(
+                          'Review users, accounts and scheduled communication'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AdminSocialMediaScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const AdminSocialMediaScreen()),
                       ),
                     ),
                   ],
@@ -453,10 +481,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.calendar_view_month_outlined),
                     title: const Text('My Month in Review'),
-                    subtitle: const Text('See progress, wins and next-month focus'),
+                    subtitle:
+                        const Text('See progress, wins and next-month focus'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const MonthlyReviewScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const MonthlyReviewScreen()),
                     ),
                   ),
                   const Divider(height: 1),
@@ -501,7 +531,8 @@ Future<void> _inviteAFriend() async {
   final base = ApiClient.baseUrl.replaceAll('/api', '');
   await SharePlus.instance.share(
     ShareParams(
-      text: "I've been using My Digital Diary to track expenses, health, projects and more, all in one app. "
+      text:
+          "I've been using My Digital Diary to track expenses, health, projects and more, all in one app. "
           'Give it a try: $base',
       subject: 'Try My Digital Diary',
     ),

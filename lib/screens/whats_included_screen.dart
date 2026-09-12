@@ -139,7 +139,10 @@ class WhatsIncludedScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
@@ -155,7 +158,8 @@ class WhatsIncludedScreen extends StatelessWidget {
                           children: [
                             Padding(
                               padding: const EdgeInsets.only(top: 3),
-                              child: Icon(Icons.check_circle_outline, size: 18, color: color),
+                              child: Icon(Icons.check_circle_outline,
+                                  size: 18, color: color),
                             ),
                             const SizedBox(width: 9),
                             Expanded(

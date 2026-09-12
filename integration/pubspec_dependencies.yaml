@@ -1,0 +1,5 @@
+dependencies:
+  local_auth: ^3.0.2
+
+# shared_preferences and flutter_secure_storage are already used by
+# My Digital Diary's current ApiClient. Do not duplicate them if present.

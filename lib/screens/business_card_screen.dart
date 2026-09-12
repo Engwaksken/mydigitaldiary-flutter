@@ -129,7 +129,8 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
     _facebookController.text = card?.socialLinks['facebook']?.toString() ?? '';
     _twitterController.text = card?.socialLinks['twitter']?.toString() ?? '';
     _linkedinController.text = card?.socialLinks['linkedin']?.toString() ?? '';
-    _instagramController.text = card?.socialLinks['instagram']?.toString() ?? '';
+    _instagramController.text =
+        card?.socialLinks['instagram']?.toString() ?? '';
     _cardColor = card?.cardColor ?? '#00897B';
     _cardColorSecondary = card?.cardColorSecondary ?? '#73BEB6';
   }
@@ -181,10 +182,14 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
         address: _nullable(_addressController),
         bio: _nullable(_bioController),
         socialLinks: {
-          if (_nullable(_facebookController) != null) 'facebook': _nullable(_facebookController),
-          if (_nullable(_twitterController) != null) 'twitter': _nullable(_twitterController),
-          if (_nullable(_linkedinController) != null) 'linkedin': _nullable(_linkedinController),
-          if (_nullable(_instagramController) != null) 'instagram': _nullable(_instagramController),
+          if (_nullable(_facebookController) != null)
+            'facebook': _nullable(_facebookController),
+          if (_nullable(_twitterController) != null)
+            'twitter': _nullable(_twitterController),
+          if (_nullable(_linkedinController) != null)
+            'linkedin': _nullable(_linkedinController),
+          if (_nullable(_instagramController) != null)
+            'instagram': _nullable(_instagramController),
         },
         cardColor: _cardColor,
         cardColorSecondary: _cardColorSecondary,
@@ -225,8 +230,10 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      final validation = e.errors?.values.expand((v) => v is List ? v : [v]).join('\n');
-      _message(validation?.isNotEmpty == true ? validation! : e.message, error: true);
+      final validation =
+          e.errors?.values.expand((v) => v is List ? v : [v]).join('\n');
+      _message(validation?.isNotEmpty == true ? validation! : e.message,
+          error: true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -236,7 +243,8 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
 
   Future<void> _sharePublicLink() async {
     if (_card?.publicUrl == null) return;
-    await SharePlus.instance.share(ShareParams(text: _card!.publicUrl!, subject: 'My digital business card'));
+    await SharePlus.instance.share(ShareParams(
+        text: _card!.publicUrl!, subject: 'My digital business card'));
   }
 
   Future<void> _openPublicLink() async {
@@ -258,7 +266,8 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
       final path = '${dir.path}/business-card.pdf';
       await File(path).writeAsBytes(bytes);
       if (!mounted) return;
-      await SharePlus.instance.share(ShareParams(files: [XFile(path)], subject: 'My business card'));
+      await SharePlus.instance.share(
+          ShareParams(files: [XFile(path)], subject: 'My business card'));
     } on ApiException catch (e) {
       _message(e.message, error: true);
     } finally {
@@ -302,11 +311,13 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                               height: 180,
                               errorBuilder: (_, __, ___) => const SizedBox(
                                 height: 80,
-                                child: Center(child: Icon(Icons.qr_code_2, size: 56)),
+                                child: Center(
+                                    child: Icon(Icons.qr_code_2, size: 56)),
                               ),
                             ),
                           const SizedBox(height: 8),
-                          const Text('Public page generated', style: TextStyle(fontWeight: FontWeight.w600)),
+                          const Text('Public page generated',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           SelectableText(
                             _card!.publicUrl!,
@@ -318,12 +329,23 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                             alignment: WrapAlignment.center,
                             spacing: 4,
                             children: [
-                              TextButton.icon(onPressed: _sharePublicLink, icon: const Icon(Icons.share), label: const Text('Share')),
-                              TextButton.icon(onPressed: _openPublicLink, icon: const Icon(Icons.open_in_new), label: const Text('View Page')),
                               TextButton.icon(
-                                onPressed: _downloadingPdf ? null : _downloadPdf,
+                                  onPressed: _sharePublicLink,
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Share')),
+                              TextButton.icon(
+                                  onPressed: _openPublicLink,
+                                  icon: const Icon(Icons.open_in_new),
+                                  label: const Text('View Page')),
+                              TextButton.icon(
+                                onPressed:
+                                    _downloadingPdf ? null : _downloadPdf,
                                 icon: _downloadingPdf
-                                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                    ? const SizedBox(
+                                        height: 16,
+                                        width: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
                                     : const Icon(Icons.picture_as_pdf),
                                 label: const Text('PDF'),
                               ),
@@ -342,7 +364,9 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                       radius: 42,
                       backgroundImage: _pickedPhoto != null
                           ? FileImage(File(_pickedPhoto!.path))
-                          : (_serverPhotoBytes != null ? MemoryImage(_serverPhotoBytes!) : null) as ImageProvider?,
+                          : (_serverPhotoBytes != null
+                              ? MemoryImage(_serverPhotoBytes!)
+                              : null) as ImageProvider?,
                       child: (_pickedPhoto == null && _serverPhotoBytes == null)
                           ? const Icon(Icons.camera_alt, size: 28)
                           : null,
@@ -356,39 +380,53 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                 const SizedBox(height: 12),
                 _field(_companyController, 'Company'),
                 const SizedBox(height: 12),
-                _field(_phoneController, 'Phone', keyboardType: TextInputType.phone),
+                _field(_phoneController, 'Phone',
+                    keyboardType: TextInputType.phone),
                 const SizedBox(height: 12),
-                _field(_whatsappController, 'WhatsApp Number', keyboardType: TextInputType.phone),
+                _field(_whatsappController, 'WhatsApp Number',
+                    keyboardType: TextInputType.phone),
                 const SizedBox(height: 12),
-                _field(_emailController, 'Email', keyboardType: TextInputType.emailAddress),
+                _field(_emailController, 'Email',
+                    keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 12),
-                _field(_websiteController, 'Website', keyboardType: TextInputType.url),
+                _field(_websiteController, 'Website',
+                    keyboardType: TextInputType.url),
                 const SizedBox(height: 12),
                 _field(_addressController, 'Address'),
                 const SizedBox(height: 12),
                 _field(_bioController, 'Short Bio', maxLines: 3),
                 const SizedBox(height: 20),
-                const Text('Social Links', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Social Links',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
-                _field(_facebookController, 'Facebook', keyboardType: TextInputType.url),
+                _field(_facebookController, 'Facebook',
+                    keyboardType: TextInputType.url),
                 const SizedBox(height: 12),
-                _field(_twitterController, 'X / Twitter', keyboardType: TextInputType.url),
+                _field(_twitterController, 'X / Twitter',
+                    keyboardType: TextInputType.url),
                 const SizedBox(height: 12),
-                _field(_linkedinController, 'LinkedIn', keyboardType: TextInputType.url),
+                _field(_linkedinController, 'LinkedIn',
+                    keyboardType: TextInputType.url),
                 const SizedBox(height: 12),
-                _field(_instagramController, 'Instagram', keyboardType: TextInputType.url),
+                _field(_instagramController, 'Instagram',
+                    keyboardType: TextInputType.url),
                 const SizedBox(height: 20),
-                const Text('Card Colors', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Card Colors',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                const Text('Pick both gradient colors for your public card background.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                    'Pick both gradient colors for your public card background.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
-                const Text('Primary', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Primary',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   children: _stickyNoteColors.keys.map((hex) {
-                    final selected = _cardColor.toUpperCase() == hex.toUpperCase();
+                    final selected =
+                        _cardColor.toUpperCase() == hex.toUpperCase();
                     return GestureDetector(
                       onTap: () => setState(() => _cardColor = hex),
                       child: Tooltip(
@@ -399,7 +437,11 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                           decoration: BoxDecoration(
                             color: _colorFromHex(hex),
                             shape: BoxShape.circle,
-                            border: Border.all(color: selected ? Colors.black87 : Colors.transparent, width: 2.5),
+                            border: Border.all(
+                                color: selected
+                                    ? Colors.black87
+                                    : Colors.transparent,
+                                width: 2.5),
                           ),
                         ),
                       ),
@@ -407,13 +449,15 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                const Text('Secondary', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Secondary',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   children: _stickyNoteColors.keys.map((hex) {
-                    final selected = _cardColorSecondary.toUpperCase() == hex.toUpperCase();
+                    final selected =
+                        _cardColorSecondary.toUpperCase() == hex.toUpperCase();
                     return GestureDetector(
                       onTap: () => setState(() => _cardColorSecondary = hex),
                       child: Tooltip(
@@ -424,7 +468,11 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                           decoration: BoxDecoration(
                             color: _colorFromHex(hex),
                             shape: BoxShape.circle,
-                            border: Border.all(color: selected ? Colors.black87 : Colors.transparent, width: 2.5),
+                            border: Border.all(
+                                color: selected
+                                    ? Colors.black87
+                                    : Colors.transparent,
+                                width: 2.5),
                           ),
                         ),
                       ),
@@ -436,14 +484,20 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                   height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(colors: [_colorFromHex(_cardColor), _colorFromHex(_cardColorSecondary)]),
+                    gradient: LinearGradient(colors: [
+                      _colorFromHex(_cardColor),
+                      _colorFromHex(_cardColorSecondary)
+                    ]),
                   ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: _saving ? null : _save,
                   icon: _saving
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.save_outlined),
                   label: Text(_saving ? 'Saving...' : 'Save & Generate Card'),
                 ),
@@ -454,12 +508,16 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                       try {
                         final updated = await _service.togglePublished();
                         if (mounted) setState(() => _card = updated);
-                        _message(updated.isPublished ? 'Business card is now public.' : 'Business card is now hidden.');
+                        _message(updated.isPublished
+                            ? 'Business card is now public.'
+                            : 'Business card is now hidden.');
                       } on ApiException catch (e) {
                         _message(e.message, error: true);
                       }
                     },
-                    child: Text(_card!.isPublished ? 'Public — tap to hide' : 'Hidden — tap to make public'),
+                    child: Text(_card!.isPublished
+                        ? 'Public — tap to hide'
+                        : 'Hidden — tap to make public'),
                   ),
                 ],
               ],

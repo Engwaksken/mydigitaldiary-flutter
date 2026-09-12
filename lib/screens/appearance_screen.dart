@@ -42,7 +42,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     '#00897B': 'Mint',
   };
 
-  static const _fontFamilies = ['System', 'Roboto', 'Poppins', 'Lato', 'Merriweather'];
+  static const _fontFamilies = [
+    'System',
+    'Roboto',
+    'Poppins',
+    'Lato',
+    'Merriweather'
+  ];
 
   @override
   void initState() {
@@ -79,15 +85,20 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             fontFamily: _fontFamily,
             fontSize: _fontSize.round(),
           );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Appearance saved.')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Appearance saved.')));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Widget _colorRow(String label, String selected, ValueChanged<String> onSelect) {
+  Widget _colorRow(
+      String label, String selected, ValueChanged<String> onSelect) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -106,7 +117,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 decoration: BoxDecoration(
                   color: _colorFromHex(hex),
                   shape: BoxShape.circle,
-                  border: Border.all(color: isSelected ? Colors.black87 : Colors.transparent, width: 3),
+                  border: Border.all(
+                      color: isSelected ? Colors.black87 : Colors.transparent,
+                      width: 3),
                 ),
               ),
             );
@@ -123,16 +136,19 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Colors', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text('Colors',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 4),
           const Text(
             'Pick both gradient colors — this only changes what you see, not anyone else.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-          _colorRow('Primary', _primary, (hex) => setState(() => _primary = hex)),
+          _colorRow(
+              'Primary', _primary, (hex) => setState(() => _primary = hex)),
           const SizedBox(height: 16),
-          _colorRow('Secondary', _secondary, (hex) => setState(() => _secondary = hex)),
+          _colorRow('Secondary', _secondary,
+              (hex) => setState(() => _secondary = hex)),
           const SizedBox(height: 16),
           Container(
             height: 56,
@@ -146,19 +162,24 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             ),
           ),
           const SizedBox(height: 28),
-          const Text('Font Family', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text('Font Family',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _fontFamily,
-            items: _fontFamilies.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+            items: _fontFamilies
+                .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                .toList(),
             onChanged: (value) => setState(() => _fontFamily = value ?? 'Lato'),
           ),
           const SizedBox(height: 28),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Font Size', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text('${_fontSize.round()}%', style: const TextStyle(color: Colors.grey)),
+              const Text('Font Size',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('${_fontSize.round()}%',
+                  style: const TextStyle(color: Colors.grey)),
             ],
           ),
           Slider(
@@ -173,7 +194,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ElevatedButton(
             onPressed: _saving ? null : _save,
             child: _saving
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Text('Save Appearance'),
           ),
         ],

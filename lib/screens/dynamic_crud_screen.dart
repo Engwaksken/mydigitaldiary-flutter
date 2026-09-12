@@ -8,6 +8,8 @@ import '../models/field_config.dart';
 import '../services/dynamic_crud_service.dart';
 import '../services/api_client.dart';
 import '../services/branding_service.dart';
+import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
 import '../widgets/voice_text_field.dart';
 import '../widgets/confirm_action_dialog.dart';
 import 'archived_items_screen.dart';
@@ -30,11 +32,13 @@ class DynamicCrudScreen extends StatefulWidget {
 }
 
 class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
-  late final DynamicCrudService _service =
-      DynamicCrudService(widget.config.endpoint);
+  late final DynamicCrudService _service = DynamicCrudService(
+    widget.config.endpoint,
+  );
   List<DynamicItem> _items = [];
   bool _loading = true;
   bool _redirectingToDedicatedScreen = false;
+  String _educationStatusFilter = 'all';
 
   bool get _usesDedicatedScreen =>
       widget.config.endpoint == 'budgets' ||
@@ -62,13 +66,13 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       'budgets' => const BudgetsScreen(),
       'spiritual-practices' => const SpiritualGrowthScreen(),
       _ => throw StateError(
-          'No dedicated screen registered for ${widget.config.endpoint}.',
-        ),
+        'No dedicated screen registered for ${widget.config.endpoint}.',
+      ),
     };
 
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    await Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => screen));
   }
 
   Future<void> _load() async {
@@ -91,32 +95,42 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Offline. No saved copy of this list is available yet.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Offline. No saved copy of this list is available yet.',
+            ),
+          ),
+        );
       }
     }
   }
 
   Future<void> _delete(DynamicItem item) async {
     try {
-      await _service.delete(item.id,
-          baseUpdatedAt: item['updated_at']?.toString());
+      await _service.delete(
+        item.id,
+        baseUpdatedAt: item['updated_at']?.toString(),
+      );
       if (!mounted) return;
       setState(() => _items.removeWhere((i) => i.id == item.id));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${widget.config.title} item deleted.')),
       );
     } on ApiException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -136,13 +150,19 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     try {
       await _service.archive(item.id);
       setState(() => _items.removeWhere((i) => i.id == item.id));
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Archived. Find it later under Archived.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Archived. Find it later under Archived.'),
+          ),
+        );
+      }
     } on ApiException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -162,12 +182,18 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       // Same share_plus API-version uncertainty flagged elsewhere in
       // this app — if this doesn't compile, use
       // Share.shareXFiles([XFile(path)]) instead.
-      await SharePlus.instance.share(ShareParams(
-          files: [XFile(path)], subject: '${widget.config.title} Report'));
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          subject: '${widget.config.title} Report',
+        ),
+      );
     } on ApiException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _downloadingPdf = false);
     }
@@ -182,13 +208,20 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _DynamicForm(
-        config: widget.config,
-        existing: existing,
-        onSaved: () {
-          Navigator.of(context).pop();
-          _load();
-        },
+      builder: (_) => SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: _DynamicForm(
+              config: widget.config,
+              existing: existing,
+              onSaved: () {
+                Navigator.of(context).pop();
+                _load();
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -240,10 +273,90 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     return null;
   }
 
+  bool get _isEducation => widget.config.endpoint == 'education-plans';
+
+  List<DynamicItem> get _visibleItems {
+    final items = _educationStatusFilter == 'all'
+        ? List<DynamicItem>.from(_items)
+        : _items
+              .where((item) => item['status'] == _educationStatusFilter)
+              .toList();
+
+    if (_isEducation) {
+      items.sort((a, b) {
+        final aDate = DateTime.tryParse(
+          a['target_completion_date']?.toString() ?? '',
+        );
+        final bDate = DateTime.tryParse(
+          b['target_completion_date']?.toString() ?? '',
+        );
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return aDate.compareTo(bDate);
+      });
+    }
+
+    return items;
+  }
+
+  Color _educationStatusColor(String? status) => switch (status) {
+    'completed' => AppColors.success,
+    'in_progress' => AppColors.forest,
+    'on_hold' => AppColors.warning,
+    _ => AppColors.textSecondary,
+  };
+
+  String? _educationDueLabel(DynamicItem item) {
+    if (!_isEducation || item['status'] == 'completed') return null;
+    final date = DateTime.tryParse(
+      item['target_completion_date']?.toString() ?? '',
+    );
+    if (date == null) return null;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final due = DateUtils.dateOnly(date);
+    final days = due.difference(today).inDays;
+    if (days < 0) return '${-days}d overdue';
+    if (days == 0) return 'Due today';
+    if (days == 1) return 'Due tomorrow';
+    if (days <= 14) return 'Due in $days days';
+    return null;
+  }
+
+  Widget _buildEducationFilters() {
+    const filters = [
+      ('all', 'All'),
+      ('in_progress', 'In progress'),
+      ('planned', 'Planned'),
+      ('on_hold', 'On hold'),
+      ('completed', 'Completed'),
+    ];
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          return ChoiceChip(
+            label: Text(filter.$2),
+            selected: _educationStatusFilter == filter.$1,
+            onSelected: (_) =>
+                setState(() => _educationStatusFilter = filter.$1),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildProgressBanner() {
     final total = _items.length;
-    final completed =
-        _items.where((item) => item['status'] == 'completed').length;
+    final completed = _items
+        .where((item) => item['status'] == 'completed')
+        .length;
     final percent = total > 0 ? (completed / total * 100) : 0.0;
 
     return Container(
@@ -256,11 +369,17 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${percent.toStringAsFixed(0)}% Complete',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: widget.config.color)),
-              Text('$completed of $total',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                '${percent.toStringAsFixed(0)}% Complete',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: widget.config.color,
+                ),
+              ),
+              Text(
+                '$completed of $total',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -295,9 +414,10 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           Text(
             '${_items.length} ${_items.length == 1 ? 'item' : 'items'}',
             style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: widget.config.color,
-                fontSize: 13),
+              fontWeight: FontWeight.w600,
+              color: widget.config.color,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -307,63 +427,74 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
+    final visibleItems = _visibleItems;
 
     if (_usesDedicatedScreen) {
       return Scaffold(
         appBar: AppBar(title: Text(config.title)),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIds.isEmpty
-            ? config.title
-            : '${_selectedIds.length} selected'),
+        title: Text(
+          _selectedIds.isEmpty
+              ? config.title
+              : '${_selectedIds.length} selected',
+        ),
         leading: _selectedIds.isEmpty
             ? null
             : IconButton(
                 icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _selectedIds.clear())),
+                onPressed: () => setState(() => _selectedIds.clear()),
+              ),
         actions: [
           if (_selectedIds.isNotEmpty)
             IconButton(
-                icon: _bulkDeleting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.delete_outline),
-                tooltip: 'Delete selected',
-                onPressed: _bulkDeleting
-                    ? null
-                    : () async {
-                        final ok = await showAppConfirmDialog(context,
-                            title: 'Delete selected items?',
-                            message:
-                                'You are about to permanently delete ${_selectedIds.length} selected item${_selectedIds.length == 1 ? '' : 's'}.',
-                            confirmText: 'Delete selected');
-                        if (ok) {
-                          setState(() => _bulkDeleting = true);
-                          try {
-                            await _service.bulkDelete(_selectedIds.toList());
-                            _selectedIds.clear();
-                            await _load();
-                          } finally {
-                            if (mounted) setState(() => _bulkDeleting = false);
-                          }
+              icon: _bulkDeleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.delete_outline),
+              tooltip: 'Delete selected',
+              onPressed: _bulkDeleting
+                  ? null
+                  : () async {
+                      final ok = await showAppConfirmDialog(
+                        context,
+                        title: 'Delete selected items?',
+                        message:
+                            'You are about to permanently delete ${_selectedIds.length} selected item${_selectedIds.length == 1 ? '' : 's'}.',
+                        confirmText: 'Delete selected',
+                      );
+                      if (ok) {
+                        setState(() => _bulkDeleting = true);
+                        try {
+                          await _service.bulkDelete(_selectedIds.toList());
+                          _selectedIds.clear();
+                          await _load();
+                        } finally {
+                          if (mounted) setState(() => _bulkDeleting = false);
                         }
-                      }),
+                      }
+                    },
+            ),
           IconButton(
             icon: _downloadingPdf
                 ? const SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'Download PDF Report',
             onPressed: _downloadingPdf ? null : _downloadPdfReport,
@@ -371,8 +502,11 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           IconButton(
             icon: const Icon(Icons.archive_outlined),
             tooltip: 'Archived',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => ArchivedItemsScreen(config: config))),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ArchivedItemsScreen(config: config),
+              ),
+            ),
           ),
         ],
       ),
@@ -381,44 +515,72 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
         backgroundColor: config.color,
         child: const Icon(Icons.add),
       ),
-      body: Column(
-        children: [
-          if (_statusField() != null)
-            _buildProgressBanner()
-          else
-            _buildItemCountBanner(),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _load,
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _items.isEmpty
+      body: SafeArea(
+        child: AppLayout.bounded(
+          child: Column(
+            children: [
+              if (_statusField() != null)
+                _buildProgressBanner()
+              else
+                _buildItemCountBanner(),
+              if (_isEducation) _buildEducationFilters(),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : visibleItems.isEmpty
                       ? ListView(
-                          children: const [
+                          children: [
                             Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Text('Nothing here yet. Tap + to add one.',
-                                  textAlign: TextAlign.center),
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    _isEducation
+                                        ? Icons.school_outlined
+                                        : config.icon,
+                                    size: 44,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _isEducation &&
+                                            _educationStatusFilter != 'all'
+                                        ? 'No ${_formatValue(_educationStatusFilter).toLowerCase()} plans.'
+                                        : 'Nothing here yet. Tap + to add one.',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         )
                       : ListView.separated(
-                          itemCount: _items.length,
+                          padding: AppLayout.pagePadding(context),
+                          itemCount: visibleItems.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) {
-                            final item = _items[index];
+                            final item = visibleItems[index];
                             final subtitleParts = <String>[];
                             if (config.subtitleField != null &&
                                 item[config.subtitleField!] != null) {
                               subtitleParts.add(
-                                  _formatValue(item[config.subtitleField!]));
+                                _formatValue(item[config.subtitleField!]),
+                              );
                             }
                             if (config.dateField != null &&
                                 item[config.dateField!] != null) {
-                              subtitleParts
-                                  .add(_formatValue(item[config.dateField!]));
+                              subtitleParts.add(
+                                _formatValue(item[config.dateField!]),
+                              );
                             }
+                            final dueLabel = _educationDueLabel(item);
+                            if (dueLabel != null) subtitleParts.add(dueLabel);
 
                             return Dismissible(
                               key: ValueKey(item.id),
@@ -434,64 +596,101 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                                 return false;
                               },
                               background: Container(
-                                color: Colors.blueGrey,
+                                color: AppColors.textSecondary,
                                 alignment: Alignment.centerLeft,
                                 padding: const EdgeInsets.only(left: 20),
-                                child: const Icon(Icons.archive_outlined,
-                                    color: Colors.white),
+                                child: const Icon(
+                                  Icons.archive_outlined,
+                                  color: Colors.white,
+                                ),
                               ),
                               secondaryBackground: Container(
-                                color: Colors.red,
+                                color: AppColors.danger,
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.only(right: 20),
-                                child: const Icon(Icons.delete,
-                                    color: Colors.white),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ),
                               ),
                               child: Card(
-                                margin: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 0),
-                                elevation: 1,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14)),
+                                clipBehavior: Clip.antiAlias,
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 4),
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   leading: _selectedIds.isNotEmpty
                                       ? Checkbox(
                                           value: _selectedIds.contains(item.id),
                                           onChanged: (_) => setState(() {
-                                                if (_selectedIds
-                                                    .contains(item.id)) {
-                                                  _selectedIds.remove(item.id);
-                                                } else {
-                                                  _selectedIds.add(item.id);
-                                                }
-                                              }))
+                                            if (_selectedIds.contains(
+                                              item.id,
+                                            )) {
+                                              _selectedIds.remove(item.id);
+                                            } else {
+                                              _selectedIds.add(item.id);
+                                            }
+                                          }),
+                                        )
                                       : CircleAvatar(
                                           backgroundColor: config.color
                                               .withValues(alpha: 0.12),
-                                          child: Icon(config.icon,
-                                              color: config.color)),
+                                          child: Icon(
+                                            config.icon,
+                                            color: config.color,
+                                          ),
+                                        ),
                                   title: Text(
-                                    _formatValue(item[config.titleField])
-                                            .isEmpty
+                                    _formatValue(
+                                          item[config.titleField],
+                                        ).isEmpty
                                         ? '(untitled)'
                                         : _formatValue(item[config.titleField]),
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                   subtitle: (item['_offline_pending'] == true)
                                       ? Text(
                                           [
                                             if (subtitleParts.isNotEmpty)
                                               subtitleParts.join(' · '),
-                                            'Waiting to sync'
+                                            'Waiting to sync',
                                           ].join(' · '),
                                           style: const TextStyle(
-                                              color: Colors.orange))
-                                      : (subtitleParts.isEmpty
-                                          ? null
-                                          : Text(subtitleParts.join(' · '))),
+                                            color: Colors.orange,
+                                          ),
+                                        )
+                                      : (_isEducation
+                                            ? Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  if (subtitleParts.isNotEmpty)
+                                                    Text(
+                                                      subtitleParts.join(' · '),
+                                                    ),
+                                                  const SizedBox(height: 6),
+                                                  _EducationStatusChip(
+                                                    label: _formatValue(
+                                                      item['status'] ??
+                                                          'planned',
+                                                    ),
+                                                    color:
+                                                        _educationStatusColor(
+                                                          item['status']
+                                                              ?.toString(),
+                                                        ),
+                                                  ),
+                                                ],
+                                              )
+                                            : (subtitleParts.isEmpty
+                                                  ? null
+                                                  : Text(
+                                                      subtitleParts.join(' · '),
+                                                    ))),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -499,33 +698,43 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                                           item[config.amountField!] != null)
                                         ConstrainedBox(
                                           constraints: const BoxConstraints(
-                                              maxWidth: 100),
+                                            maxWidth: 100,
+                                          ),
                                           child: Text(
                                             (BrandingService.cached ??
                                                     BrandingInfo(siteName: ''))
                                                 .formatMoney(
-                                              double.tryParse(
-                                                      item[config.amountField!]
-                                                          .toString()) ??
-                                                  0,
-                                            ),
+                                                  double.tryParse(
+                                                        item[config
+                                                                .amountField!]
+                                                            .toString(),
+                                                      ) ??
+                                                      0,
+                                                ),
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
                                           ),
                                         ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: Colors.red, size: 20),
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.danger,
+                                          size: 20,
+                                        ),
                                         tooltip: 'Delete',
                                         onPressed: () async {
-                                          if (await _confirmDelete(item))
+                                          if (await _confirmDelete(item)) {
                                             await _delete(item);
+                                          }
                                         },
                                       ),
-                                      const Icon(Icons.chevron_right,
-                                          color: Colors.black38),
+                                      const Icon(
+                                        Icons.chevron_right,
+                                        color: Colors.black38,
+                                      ),
                                     ],
                                   ),
                                   onLongPress: () =>
@@ -548,9 +757,37 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                             );
                           },
                         ),
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EducationStatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _EducationStatusChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -561,16 +798,20 @@ class _DynamicForm extends StatefulWidget {
   final DynamicItem? existing;
   final VoidCallback onSaved;
 
-  const _DynamicForm(
-      {required this.config, this.existing, required this.onSaved});
+  const _DynamicForm({
+    required this.config,
+    this.existing,
+    required this.onSaved,
+  });
 
   @override
   State<_DynamicForm> createState() => _DynamicFormState();
 }
 
 class _DynamicFormState extends State<_DynamicForm> {
-  late final DynamicCrudService _service =
-      DynamicCrudService(widget.config.endpoint);
+  late final DynamicCrudService _service = DynamicCrudService(
+    widget.config.endpoint,
+  );
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, DateTime?> _dateValues = {};
   final Map<String, String?> _selectValues = {};
@@ -578,6 +819,12 @@ class _DynamicFormState extends State<_DynamicForm> {
   final Set<String> _loadingOptions = {};
   bool _saving = false;
   String? _error;
+
+  bool _projectReminderEnabled = false;
+  String _projectReminderOffset = '15';
+  DateTime? _projectReminderCustomAt;
+  TimeOfDay? _projectDueTime;
+  String _projectReminderChannel = 'push';
 
   @override
   void initState() {
@@ -602,9 +849,24 @@ class _DynamicFormState extends State<_DynamicForm> {
           }
           break;
         default:
-          _controllers[field.name] =
-              TextEditingController(text: existingValue?.toString() ?? '');
+          _controllers[field.name] = TextEditingController(
+            text: existingValue?.toString() ?? '',
+          );
       }
+    }
+
+    if (widget.config.endpoint == 'project-tasks') {
+      final existing = widget.existing;
+      _projectReminderEnabled = _truthy(existing?['reminder_enabled']);
+      _projectReminderOffset = existing?['reminder_custom_at'] != null
+          ? 'custom'
+          : (existing?['reminder_offset_minutes'] ?? 15).toString();
+      _projectReminderCustomAt = DateTime.tryParse(
+        existing?['reminder_custom_at']?.toString() ?? '',
+      );
+      _projectDueTime = _parseTime(existing?['due_time']);
+      _projectReminderChannel = (existing?['reminder_channel'] ?? 'push')
+          .toString();
     }
   }
 
@@ -617,10 +879,37 @@ class _DynamicFormState extends State<_DynamicForm> {
       final items = await DynamicCrudService(field.optionsEndpoint!).list();
       if (!mounted) return;
       setState(() {
-        _dynamicOptions[field.name] = items
-            .map((item) => FieldOption(item.id.toString(),
-                (item[field.optionsLabelField] ?? '#${item.id}').toString()))
+        final options = items
+            .map(
+              (item) => FieldOption(
+                item.id.toString(),
+                (item[field.optionsLabelField] ??
+                        item['title'] ??
+                        item['name'] ??
+                        '#${item.id}')
+                    .toString(),
+              ),
+            )
             .toList();
+
+        final selected = _selectValues[field.name];
+        if (selected != null &&
+            selected.isNotEmpty &&
+            !options.any((option) => option.value == selected)) {
+          options.insert(
+            0,
+            FieldOption(
+              selected,
+              (widget.existing?[field.optionsLabelField] ??
+                      widget.existing?['personal_goal_title'] ??
+                      widget.existing?['goal_title'] ??
+                      'Linked goal #$selected')
+                  .toString(),
+            ),
+          );
+        }
+
+        _dynamicOptions[field.name] = options;
         _loadingOptions.remove(field.name);
       });
     } on ApiException catch (_) {
@@ -655,11 +944,78 @@ class _DynamicFormState extends State<_DynamicForm> {
             : TimeOfDay.now(),
       );
       if (time == null) return;
-      setState(() => _dateValues[field.name] =
-          DateTime(date.year, date.month, date.day, time.hour, time.minute));
+      setState(
+        () => _dateValues[field.name] = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        ),
+      );
     } else {
       setState(() => _dateValues[field.name] = date);
     }
+  }
+
+  bool _truthy(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return const {
+      '1',
+      'true',
+      'yes',
+      'on',
+      'enabled',
+    }.contains(value?.toString().trim().toLowerCase());
+  }
+
+  TimeOfDay? _parseTime(dynamic value) {
+    final text = value?.toString() ?? '';
+    final parts = text.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  String? _formatApiTime(TimeOfDay? value) {
+    if (value == null) return null;
+    return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickProjectDueTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _projectDueTime ?? TimeOfDay.now(),
+    );
+    if (picked != null && mounted) setState(() => _projectDueTime = picked);
+  }
+
+  Future<void> _pickProjectReminderCustom() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _projectReminderCustomAt ?? now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: DateTime(2100),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_projectReminderCustomAt ?? now),
+    );
+    if (time == null) return;
+    setState(
+      () => _projectReminderCustomAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      ),
+    );
   }
 
   Map<String, dynamic> _buildPayload() {
@@ -669,8 +1025,9 @@ class _DynamicFormState extends State<_DynamicForm> {
       switch (field.type) {
         case FieldType.date:
           final value = _dateValues[field.name];
-          payload[field.name] =
-              value != null ? DateFormat('yyyy-MM-dd').format(value) : null;
+          payload[field.name] = value != null
+              ? DateFormat('yyyy-MM-dd').format(value)
+              : null;
           break;
         case FieldType.datetime:
           final value = _dateValues[field.name];
@@ -689,6 +1046,34 @@ class _DynamicFormState extends State<_DynamicForm> {
       }
     }
 
+    if (widget.config.endpoint == 'project-tasks') {
+      if (!payload.containsKey('progress_percent')) {
+        final status = (payload['status'] ?? '').toString();
+        payload['progress_percent'] = status == 'completed'
+            ? 100
+            : int.tryParse(
+                    _controllers['progress_percent']?.text.trim() ?? '',
+                  ) ??
+                  (int.tryParse(
+                        '${widget.existing?['progress_percent'] ?? 0}',
+                      ) ??
+                      0);
+      }
+      payload['due_time'] = _formatApiTime(_projectDueTime);
+      payload['reminder_enabled'] = _projectReminderEnabled;
+      payload['reminder_offset_minutes'] =
+          _projectReminderEnabled && _projectReminderOffset != 'custom'
+          ? int.tryParse(_projectReminderOffset)
+          : null;
+      payload['reminder_custom_at'] =
+          _projectReminderEnabled && _projectReminderOffset == 'custom'
+          ? _projectReminderCustomAt?.toIso8601String()
+          : null;
+      payload['reminder_channel'] = _projectReminderEnabled
+          ? _projectReminderChannel
+          : null;
+    }
+
     return payload;
   }
 
@@ -702,12 +1087,28 @@ class _DynamicFormState extends State<_DynamicForm> {
       if (!field.required) continue;
       final isEmpty = switch (field.type) {
         FieldType.date || FieldType.datetime => _dateValues[field.name] == null,
-        FieldType.select => _selectValues[field.name] == null ||
-            _selectValues[field.name]!.isEmpty,
+        FieldType.select =>
+          _selectValues[field.name] == null ||
+              _selectValues[field.name]!.isEmpty,
         _ => (_controllers[field.name]?.text.trim() ?? '').isEmpty,
       };
       if (isEmpty) {
         setState(() => _error = '${field.label} is required.');
+        return;
+      }
+    }
+
+    if (widget.config.endpoint == 'project-tasks' && _projectReminderEnabled) {
+      if (_projectReminderOffset != 'custom' && _projectDueTime == null) {
+        setState(
+          () =>
+              _error = 'Choose a task time before setting a relative reminder.',
+        );
+        return;
+      }
+      if (_projectReminderOffset == 'custom' &&
+          _projectReminderCustomAt == null) {
+        setState(() => _error = 'Choose the custom reminder date and time.');
         return;
       }
     }
@@ -720,13 +1121,20 @@ class _DynamicFormState extends State<_DynamicForm> {
     try {
       final payload = _buildPayload();
       final saved = widget.existing != null
-          ? await _service.update(widget.existing!.id, payload,
-              baseUpdatedAt: widget.existing!['updated_at']?.toString())
+          ? await _service.update(
+              widget.existing!.id,
+              payload,
+              baseUpdatedAt: widget.existing!['updated_at']?.toString(),
+            )
           : await _service.create(payload);
       if (mounted && saved['_offline_pending'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-                'Saved on this device. It will sync when you reconnect.')));
+              'Saved on this device. It will sync when you reconnect.',
+            ),
+          ),
+        );
       }
       widget.onSaved();
     } on ApiException catch (e) {
@@ -744,8 +1152,8 @@ class _DynamicFormState extends State<_DynamicForm> {
         final formatted = value == null
             ? 'Not set'
             : (field.type == FieldType.date
-                ? DateFormat('yMMMd').format(value)
-                : DateFormat('yMMMd, h:mm a').format(value));
+                  ? DateFormat('yMMMd').format(value)
+                  : DateFormat('yMMMd, h:mm a').format(value));
         return ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(field.label),
@@ -758,9 +1166,10 @@ class _DynamicFormState extends State<_DynamicForm> {
           return InputDecorator(
             decoration: InputDecoration(labelText: field.label),
             child: const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2)),
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           );
         }
         final options = _dynamicOptions[field.name] ?? field.options ?? [];
@@ -768,8 +1177,12 @@ class _DynamicFormState extends State<_DynamicForm> {
           initialValue: _selectValues[field.name],
           decoration: InputDecoration(labelText: field.label),
           items: options
-              .map((option) => DropdownMenuItem(
-                  value: option.value, child: Text(option.label)))
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option.value,
+                  child: Text(option.label),
+                ),
+              )
               .toList(),
           onChanged: (value) =>
               setState(() => _selectValues[field.name] = value),
@@ -785,8 +1198,10 @@ class _DynamicFormState extends State<_DynamicForm> {
         return TextField(
           controller: _controllers[field.name],
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration:
-              InputDecoration(labelText: field.label, hintText: field.hint),
+          decoration: InputDecoration(
+            labelText: field.label,
+            hintText: field.hint,
+          ),
         );
       case FieldType.text:
         return VoiceTextField(
@@ -826,6 +1241,149 @@ class _DynamicFormState extends State<_DynamicForm> {
               _buildField(field),
               const SizedBox(height: 12),
             ],
+            if (widget.config.endpoint == 'project-tasks') ...[
+              const Divider(height: 26),
+              if (!widget.config.fields.any(
+                (field) => field.name == 'progress_percent',
+              )) ...[
+                TextField(
+                  controller: _controllers.putIfAbsent(
+                    'progress_percent',
+                    () => TextEditingController(
+                      text: '${widget.existing?['progress_percent'] ?? 0}',
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Progress %',
+                    hintText: '0 to 100',
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const Text(
+                'Task scheduling',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.schedule_outlined),
+                title: const Text('Task time'),
+                subtitle: Text(
+                  _projectDueTime == null
+                      ? 'Not set'
+                      : _projectDueTime!.format(context),
+                ),
+                onTap: _pickProjectDueTime,
+              ),
+              Card(
+                color: const Color(0xFFFAF5FF),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        value: _projectReminderEnabled,
+                        title: const Text(
+                          'Set reminder',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: const Text(
+                          'The linked reminder will also appear under Reminders.',
+                        ),
+                        onChanged: (value) =>
+                            setState(() => _projectReminderEnabled = value),
+                      ),
+                      if (_projectReminderEnabled) ...[
+                        DropdownButtonFormField<String>(
+                          initialValue: _projectReminderOffset,
+                          decoration: const InputDecoration(
+                            labelText: 'Remind me',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: '0',
+                              child: Text('At task time'),
+                            ),
+                            DropdownMenuItem(
+                              value: '5',
+                              child: Text('5 minutes before'),
+                            ),
+                            DropdownMenuItem(
+                              value: '15',
+                              child: Text('15 minutes before'),
+                            ),
+                            DropdownMenuItem(
+                              value: '30',
+                              child: Text('30 minutes before'),
+                            ),
+                            DropdownMenuItem(
+                              value: '60',
+                              child: Text('1 hour before'),
+                            ),
+                            DropdownMenuItem(
+                              value: '120',
+                              child: Text('2 hours before'),
+                            ),
+                            DropdownMenuItem(
+                              value: '1440',
+                              child: Text('1 day before'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'custom',
+                              child: Text('Custom date & time'),
+                            ),
+                          ],
+                          onChanged: (value) => setState(
+                            () => _projectReminderOffset = value ?? '15',
+                          ),
+                        ),
+                        if (_projectReminderOffset == 'custom')
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.alarm_outlined),
+                            title: const Text('Custom reminder'),
+                            subtitle: Text(
+                              _projectReminderCustomAt == null
+                                  ? 'Choose date and time'
+                                  : DateFormat(
+                                      'dd MMM yyyy, h:mm a',
+                                    ).format(_projectReminderCustomAt!),
+                            ),
+                            onTap: _pickProjectReminderCustom,
+                          ),
+                        DropdownButtonFormField<String>(
+                          initialValue: _projectReminderChannel,
+                          decoration: const InputDecoration(
+                            labelText: 'Notification channel',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'in_app',
+                              child: Text('In-app'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'push',
+                              child: Text('Push notification'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'email',
+                              child: Text('Email'),
+                            ),
+                          ],
+                          onChanged: (value) => setState(
+                            () => _projectReminderChannel = value ?? 'push',
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: _saving ? null : _save,
@@ -834,7 +1392,10 @@ class _DynamicFormState extends State<_DynamicForm> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Save'),
             ),
           ],

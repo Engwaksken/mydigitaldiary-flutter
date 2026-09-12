@@ -540,11 +540,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       text: existing?['category']?.toString() ?? '',
     );
     final amount = TextEditingController(
-      text: _amount(existing).toStringAsFixed(
-        _amount(existing).truncateToDouble() == _amount(existing)
-            ? 0
-            : 2,
-      ),
+      text: existing == null
+          ? ''
+          : _amount(existing).toStringAsFixed(
+              _amount(existing).truncateToDouble() == _amount(existing)
+                  ? 0
+                  : 2,
+            ),
     );
     final notes = TextEditingController(
       text: existing?['notes']?.toString() ?? '',

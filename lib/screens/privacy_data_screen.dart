@@ -14,7 +14,12 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
   final _service = PrivacyService();
   final _reason = TextEditingController();
   final _password = TextEditingController();
-  final Set<String> _modules = {'daily_plans', 'expenses', 'savings_goals', 'notes'};
+  final Set<String> _modules = {
+    'daily_plans',
+    'expenses',
+    'savings_goals',
+    'notes'
+  };
   Map<String, dynamic>? _status;
   DateTime? _dateFrom;
   DateTime? _dateTo;
@@ -69,7 +74,8 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
   }
 
   Future<void> _pickDate({required bool from}) async {
-    final initial = from ? (_dateFrom ?? DateTime.now()) : (_dateTo ?? DateTime.now());
+    final initial =
+        from ? (_dateFrom ?? DateTime.now()) : (_dateTo ?? DateTime.now());
     final result = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -105,7 +111,8 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
         from: _dateFrom,
         to: _dateTo,
       );
-      _message(response['message']?.toString() ?? 'Report generated and emailed.');
+      _message(
+          response['message']?.toString() ?? 'Report generated and emailed.');
       await _load();
     } on ApiException catch (e) {
       _message(e.message);
@@ -128,8 +135,12 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
               'You can cancel during the grace period. After permanent deletion, your data cannot be restored.',
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm deletion')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Confirm deletion')),
             ],
           ),
         ) ??
@@ -143,7 +154,8 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
         reason: _reason.text.trim(),
         backup: _emailBackup,
       );
-      _message(response['message']?.toString() ?? 'Account deletion scheduled.');
+      _message(
+          response['message']?.toString() ?? 'Account deletion scheduled.');
       await _load();
     } on ApiException catch (e) {
       _message(e.message);
@@ -173,39 +185,53 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
                       Container(
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.shield_outlined, color: Color(0xFF047857)),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.shield_outlined,
+                            color: Color(0xFF047857)),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(child: Text('Privacy & Trust', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
+                      Expanded(
+                          child: Text('Privacy & Trust',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700))),
                     ],
                   ),
                   const SizedBox(height: 14),
                   const _PrivacyPoint(
                     icon: Icons.lock_outline,
                     title: 'Private by default',
-                    text: 'Your diary entries are not published or shared with other users by default. My Digital Diary does not sell private diary data for third-party advertising.',
+                    text:
+                        'Your diary entries are not published or shared with other users by default. My Digital Diary does not sell private diary data for third-party advertising.',
                   ),
                   const _PrivacyPoint(
                     icon: Icons.admin_panel_settings_outlined,
                     title: 'Who can technically access stored data?',
-                    text: 'Authorised system administrators may access stored information only when needed for support, security, maintenance, fraud prevention or legal obligations. Access should be limited to people who genuinely need it.',
+                    text:
+                        'Authorised system administrators may access stored information only when needed for support, security, maintenance, fraud prevention or legal obligations. Access should be limited to people who genuinely need it.',
                   ),
                   const _PrivacyPoint(
                     icon: Icons.auto_awesome_outlined,
                     title: 'You control AI access',
-                    text: 'Choose which life areas AI features may use. You can exclude Finance, Health, Notes, Spiritual Growth or other areas whenever you prefer.',
+                    text:
+                        'Choose which life areas AI features may use. You can exclude Finance, Health, Notes, Spiritual Growth or other areas whenever you prefer.',
                   ),
                   const _PrivacyPoint(
                     icon: Icons.cloud_outlined,
                     title: 'Cloud diary, honest limits',
-                    text: 'A cloud diary must store data on servers to sync devices and provide reminders, reports and backups. No online service can promise that authorised operators can never access stored data, so transparency and access controls matter.',
+                    text:
+                        'A cloud diary must store data on servers to sync devices and provide reminders, reports and backups. No online service can promise that authorised operators can never access stored data, so transparency and access controls matter.',
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalisationScreen())),
+                      onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const PersonalisationScreen())),
                       icon: const Icon(Icons.tune_outlined),
                       label: const Text('Review AI privacy choices'),
                     ),
@@ -221,13 +247,15 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Personal Data Report', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Personal Data Report',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _reason,
                     minLines: 2,
                     maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'Why do you need the report?'),
+                    decoration: const InputDecoration(
+                        labelText: 'Why do you need the report?'),
                   ),
                   const SizedBox(height: 12),
                   const Text('Period range'),
@@ -297,7 +325,8 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Recent reports', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Recent reports',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     ...reports.take(5).map((row) {
                       final report = Map<String, dynamic>.from(row as Map);
                       return ListTile(
@@ -320,12 +349,15 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Delete My Account', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  const Text('Delete My Account',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.red)),
                   const SizedBox(height: 8),
                   if (deletion != null) ...[
                     Text('Scheduled for permanent deletion: $deletion'),
                     const SizedBox(height: 4),
-                    const Text('Data cannot be restored after permanent deletion.'),
+                    const Text(
+                        'Data cannot be restored after permanent deletion.'),
                     OutlinedButton(
                       onPressed: _busy
                           ? null
@@ -337,23 +369,29 @@ class _PrivacyDataScreenState extends State<PrivacyDataScreen> {
                       child: const Text('Cancel Account Deletion'),
                     ),
                   ] else ...[
-                    const Text('Tell us why you want to delete your account, then confirm with your password.'),
+                    const Text(
+                        'Tell us why you want to delete your account, then confirm with your password.'),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _password,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Current password'),
+                      decoration:
+                          const InputDecoration(labelText: 'Current password'),
                     ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Email me a complete data backup before deletion'),
+                      title: const Text(
+                          'Email me a complete data backup before deletion'),
                       value: _emailBackup,
-                      onChanged: (value) => setState(() => _emailBackup = value ?? true),
+                      onChanged: (value) =>
+                          setState(() => _emailBackup = value ?? true),
                     ),
                     FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                      style:
+                          FilledButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: _busy ? null : _scheduleDeletion,
-                      child: const Text('Schedule deletion (30-day grace period)'),
+                      child:
+                          const Text('Schedule deletion (30-day grace period)'),
                     ),
                   ],
                 ],
@@ -371,7 +409,8 @@ class _PrivacyPoint extends StatelessWidget {
   final String title;
   final String text;
 
-  const _PrivacyPoint({required this.icon, required this.title, required this.text});
+  const _PrivacyPoint(
+      {required this.icon, required this.title, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +422,9 @@ class _PrivacyPoint extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, size: 18, color: const Color(0xFF0F766E)),
           ),
           const SizedBox(width: 10),
@@ -391,9 +432,15 @@ class _PrivacyPoint extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A))),
                 const SizedBox(height: 3),
-                Text(text, style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF64748B))),
+                Text(text,
+                    style: const TextStyle(
+                        fontSize: 12, height: 1.4, color: Color(0xFF64748B))),
               ],
             ),
           ),
@@ -402,4 +449,3 @@ class _PrivacyPoint extends StatelessWidget {
     );
   }
 }
-

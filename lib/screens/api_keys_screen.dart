@@ -51,7 +51,9 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       await _service.activate(credential.id);
       _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -60,10 +62,15 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove this key?'),
-        content: Text('"${credential.label}" will no longer be usable for AI Plan generation.'),
+        content: Text(
+            '"${credential.label}" will no longer be usable for AI Plan generation.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Remove')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Remove')),
         ],
       ),
     );
@@ -73,14 +80,18 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       await _service.delete(credential.id);
       _load();
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   Future<void> _showAddDialog() async {
     final overview = _overview;
     if (overview == null || overview.providers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No AI providers are available to add a key for yet.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('No AI providers are available to add a key for yet.')));
       return;
     }
 
@@ -102,14 +113,19 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
               children: [
                 TextField(
                   controller: labelController,
-                  decoration: const InputDecoration(labelText: 'Label', hintText: 'e.g. My OpenAI Key'),
+                  decoration: const InputDecoration(
+                      labelText: 'Label', hintText: 'e.g. My OpenAI Key'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: selectedProvider,
                   decoration: const InputDecoration(labelText: 'Provider'),
-                  items: overview.providers.map((p) => DropdownMenuItem(value: p.key, child: Text(p.name))).toList(),
-                  onChanged: (v) => setDialogState(() => selectedProvider = v ?? selectedProvider),
+                  items: overview.providers
+                      .map((p) =>
+                          DropdownMenuItem(value: p.key, child: Text(p.name)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(
+                      () => selectedProvider = v ?? selectedProvider),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -119,19 +135,24 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                 ),
                 if (formError != null) ...[
                   const SizedBox(height: 8),
-                  Text(formError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                  Text(formError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12)),
                 ],
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: saving ? null : () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: saving ? null : () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
             TextButton(
               onPressed: saving
                   ? null
                   : () async {
-                      if (labelController.text.trim().isEmpty || keyController.text.trim().isEmpty) {
-                        setDialogState(() => formError = 'Label and API key are both required.');
+                      if (labelController.text.trim().isEmpty ||
+                          keyController.text.trim().isEmpty) {
+                        setDialogState(() =>
+                            formError = 'Label and API key are both required.');
                         return;
                       }
                       setDialogState(() {
@@ -154,7 +175,10 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                       }
                     },
               child: saving
-                  ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Save'),
             ),
           ],
@@ -167,7 +191,8 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('API Keys')),
-      floatingActionButton: FloatingActionButton(onPressed: _showAddDialog, child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+          onPressed: _showAddDialog, child: const Icon(Icons.add)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -177,9 +202,11 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Could not load: $_error', textAlign: TextAlign.center),
+                        Text('Could not load: $_error',
+                            textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                        ElevatedButton(
+                            onPressed: _load, child: const Text('Retry')),
                       ],
                     ),
                   ),
@@ -191,7 +218,8 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                     children: [
                       _buildSharedKeyStatus(),
                       const SizedBox(height: 20),
-                      Text('Your Own Keys', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Your Own Keys',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 4),
                       const Text(
                         "Your own key always takes priority when active, is unlimited, and uses your own account's cost — not the shared one below.",
@@ -201,25 +229,35 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                       if (_overview!.credentials.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Text('No keys added yet — tap + to add one.', style: TextStyle(color: Colors.grey)),
+                          child: Text('No keys added yet — tap + to add one.',
+                              style: TextStyle(color: Colors.grey)),
                         )
                       else
                         ..._overview!.credentials.map((credential) => Card(
                               child: ListTile(
                                 leading: Icon(
-                                  credential.isActive ? Icons.check_circle : Icons.circle_outlined,
-                                  color: credential.isActive ? const Color(0xFF00897B) : Colors.grey,
+                                  credential.isActive
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: credential.isActive
+                                      ? const Color(0xFF00897B)
+                                      : Colors.grey,
                                 ),
                                 title: Text(credential.label),
                                 subtitle: Text(credential.provider),
                                 trailing: PopupMenuButton<String>(
                                   onSelected: (value) {
-                                    if (value == 'activate') _activate(credential);
+                                    if (value == 'activate')
+                                      _activate(credential);
                                     if (value == 'delete') _delete(credential);
                                   },
                                   itemBuilder: (context) => [
-                                    if (!credential.isActive) const PopupMenuItem(value: 'activate', child: Text('Set as Active')),
-                                    const PopupMenuItem(value: 'delete', child: Text('Remove')),
+                                    if (!credential.isActive)
+                                      const PopupMenuItem(
+                                          value: 'activate',
+                                          child: Text('Set as Active')),
+                                    const PopupMenuItem(
+                                        value: 'delete', child: Text('Remove')),
                                   ],
                                 ),
                               ),
@@ -236,7 +274,9 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
     if (!overview.hasSharedKeyConfigured) {
       return Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.blueGrey.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: Colors.blueGrey.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10)),
         child: const Text(
           "No shared/free AI key has been configured by the admin. You'll need to add your own key above to use AI Plan generation.",
           style: TextStyle(fontSize: 13),
@@ -244,7 +284,9 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       );
     }
 
-    final remaining = (overview.sharedLimitPerMonth - overview.sharedUsedThisMonth).clamp(0, overview.sharedLimitPerMonth);
+    final remaining =
+        (overview.sharedLimitPerMonth - overview.sharedUsedThisMonth)
+            .clamp(0, overview.sharedLimitPerMonth);
     final exhausted = remaining <= 0 && !overview.hasOwnActiveKey;
 
     return Container(
@@ -252,13 +294,17 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       decoration: BoxDecoration(
         color: exhausted ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: exhausted ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0)),
+        border: Border.all(
+            color:
+                exhausted ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            overview.hasOwnActiveKey ? 'Shared Key (not currently used — you have your own active)' : 'Shared Free Key',
+            overview.hasOwnActiveKey
+                ? 'Shared Key (not currently used — you have your own active)'
+                : 'Shared Free Key',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
           const SizedBox(height: 4),

@@ -1,0 +1,8 @@
+// Add this import to the appropriate Settings / Security / Profile screen:
+import '../widgets/biometric_settings_card.dart';
+
+// Add this card to the Security section while the user is signed in:
+BiometricSettingsCard(
+  // Use the signed-in user's email or name if available.
+  accountLabel: userEmail,
+),

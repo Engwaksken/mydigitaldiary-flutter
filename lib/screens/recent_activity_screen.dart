@@ -26,7 +26,8 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
       _error = null;
     });
     try {
-      final response = await ApiClient.instance.get('dashboard/recent-activity');
+      final response =
+          await ApiClient.instance.get('dashboard/recent-activity');
       final rows = (response['data'] as List).cast<Map<String, dynamic>>();
       setState(() {
         _items = rows;
@@ -53,9 +54,11 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Could not load recent activity: $_error', textAlign: TextAlign.center),
+                        Text('Could not load recent activity: $_error',
+                            textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                        ElevatedButton(
+                            onPressed: _load, child: const Text('Retry')),
                       ],
                     ),
                   ),
@@ -67,14 +70,16 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
                           children: const [
                             Padding(
                               padding: EdgeInsets.all(32),
-                              child: Text('No recent activity yet.', textAlign: TextAlign.center),
+                              child: Text('No recent activity yet.',
+                                  textAlign: TextAlign.center),
                             ),
                           ],
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.all(12),
                           itemCount: _items.length,
-                          itemBuilder: (context, index) => RecentActivityTile(item: _items[index]),
+                          itemBuilder: (context, index) =>
+                              RecentActivityTile(item: _items[index]),
                         ),
                 ),
     );

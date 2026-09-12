@@ -23,7 +23,8 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
     setState(() => _loading = true);
     try {
       final key = '${_month.year}-${_month.month.toString().padLeft(2, '0')}';
-      final response = await ApiClient.instance.get('monthly-review?month=$key');
+      final response =
+          await ApiClient.instance.get('monthly-review?month=$key');
       if (!mounted) return;
       final data = response is Map && response['data'] is Map
           ? Map<String, dynamic>.from(response['data'] as Map)
@@ -102,7 +103,8 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                       const SizedBox(height: 3),
                       Text(
                         _review!['period']?.toString() ?? '',
-                        style: const TextStyle(color: Colors.black54, fontSize: 13),
+                        style: const TextStyle(
+                            color: Colors.black54, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
                       _moneyGrid(),
@@ -119,7 +121,8 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                         'Your next 3 actions',
                         Icons.arrow_forward_rounded,
                         const Color(0xFF00897B),
-                        _review!['next_actions'] ?? _review!['focus_next_month'],
+                        _review!['next_actions'] ??
+                            _review!['focus_next_month'],
                       ),
                       const SizedBox(height: 12),
                       _simpleListCard(
@@ -137,10 +140,34 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
   Widget _moneyGrid() {
     final money = _map(_review!['money']);
     final items = [
-      ('Income', money['income'], Icons.trending_up, const Color(0xFF047857), const Color(0xFFECFDF5)),
-      ('Expenses', money['expenses'], Icons.receipt_long_outlined, const Color(0xFFBE123C), const Color(0xFFFFF1F2)),
-      ('Saved', money['saved'], Icons.savings_outlined, const Color(0xFF6D28D9), const Color(0xFFF5F3FF)),
-      ('Net', money['net'], Icons.balance_outlined, const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+      (
+        'Income',
+        money['income'],
+        Icons.trending_up,
+        const Color(0xFF047857),
+        const Color(0xFFECFDF5)
+      ),
+      (
+        'Expenses',
+        money['expenses'],
+        Icons.receipt_long_outlined,
+        const Color(0xFFBE123C),
+        const Color(0xFFFFF1F2)
+      ),
+      (
+        'Saved',
+        money['saved'],
+        Icons.savings_outlined,
+        const Color(0xFF6D28D9),
+        const Color(0xFFF5F3FF)
+      ),
+      (
+        'Net',
+        money['net'],
+        Icons.balance_outlined,
+        const Color(0xFF1D4ED8),
+        const Color(0xFFEFF6FF)
+      ),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -168,7 +195,10 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                       const SizedBox(width: 6),
                       Text(
                         item.$1,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: item.$4),
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: item.$4),
                       ),
                     ],
                   ),
@@ -177,7 +207,8 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                     _money(item.$2),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 14),
                   ),
                 ],
               ),
@@ -207,36 +238,53 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
         children: [
           const Text(
             'MONTHLY MOMENTUM',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), letterSpacing: .4),
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF4F46E5),
+                letterSpacing: .4),
           ),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(score.toStringAsFixed(0), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+              Text(score.toStringAsFixed(0),
+                  style: const TextStyle(
+                      fontSize: 34, fontWeight: FontWeight.w900)),
               const Padding(
                 padding: EdgeInsets.only(bottom: 6, left: 3),
-                child: Text('/100', style: TextStyle(color: Colors.black45, fontSize: 12)),
+                child: Text('/100',
+                    style: TextStyle(color: Colors.black45, fontSize: 12)),
               ),
               const Spacer(),
               if (change != 0)
                 Row(
                   children: [
-                    Icon(change > 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                        size: 15, color: change > 0 ? const Color(0xFF059669) : const Color(0xFFE11D48)),
+                    Icon(
+                        change > 0
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 15,
+                        color: change > 0
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFE11D48)),
                     Text(
                       '${change.abs()} pts',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: change > 0 ? const Color(0xFF059669) : const Color(0xFFE11D48),
+                        color: change > 0
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFE11D48),
                       ),
                     ),
                   ],
                 ),
             ],
           ),
-          Text(momentum['label']?.toString() ?? 'Building momentum', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF4338CA))),
+          Text(momentum['label']?.toString() ?? 'Building momentum',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, color: Color(0xFF4338CA))),
           const SizedBox(height: 10),
           LinearProgressIndicator(
             value: score / 100,
@@ -245,7 +293,9 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
             backgroundColor: Colors.white,
           ),
           const SizedBox(height: 10),
-          Text(momentum['message']?.toString() ?? '', style: const TextStyle(fontSize: 13, height: 1.35, color: Color(0xAB000000))),
+          Text(momentum['message']?.toString() ?? '',
+              style: const TextStyle(
+                  fontSize: 13, height: 1.35, color: Color(0xAB000000))),
         ],
       ),
     );
@@ -255,22 +305,50 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
     final comparison = _map(_review!['comparison']);
     final previous = comparison['previous_month']?.toString() ?? 'last month';
     final items = [
-      ('Income', comparison['income_change_percent'], false, '%', Icons.account_balance_wallet_outlined),
-      ('Spending', comparison['expense_change_percent'], true, '%', Icons.receipt_long_outlined),
-      ('Savings', comparison['saving_change_percent'], false, '%', Icons.savings_outlined),
-      ('Tasks', comparison['task_completion_change_points'], false, ' pts', Icons.checklist_rounded),
+      (
+        'Income',
+        comparison['income_change_percent'],
+        false,
+        '%',
+        Icons.account_balance_wallet_outlined
+      ),
+      (
+        'Spending',
+        comparison['expense_change_percent'],
+        true,
+        '%',
+        Icons.receipt_long_outlined
+      ),
+      (
+        'Savings',
+        comparison['saving_change_percent'],
+        false,
+        '%',
+        Icons.savings_outlined
+      ),
+      (
+        'Tasks',
+        comparison['task_completion_change_points'],
+        false,
+        ' pts',
+        Icons.checklist_rounded
+      ),
     ];
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFE5E7EB))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFE5E7EB))),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Compared with $previous', style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text('Compared with $previous',
+                style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 3),
-            const Text('A quick view of what moved.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const Text('A quick view of what moved.',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
             const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: 2,
@@ -281,12 +359,20 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
               childAspectRatio: 2.05,
               children: items.map((item) {
                 final raw = item.$2;
-                if (raw == null) return _deltaTile(item.$1, 'No previous data', Colors.black45, item.$5);
+                if (raw == null)
+                  return _deltaTile(
+                      item.$1, 'No previous data', Colors.black45, item.$5);
                 final value = _num(raw).toDouble();
                 final good = item.$3 ? value < 0 : value > 0;
                 final same = value.abs() < .05;
-                final color = same ? Colors.black54 : (good ? const Color(0xFF059669) : const Color(0xFFE11D48));
-                final label = same ? 'No change' : '${value > 0 ? '+' : ''}${value.toStringAsFixed(1)}${item.$4}';
+                final color = same
+                    ? Colors.black54
+                    : (good
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFE11D48));
+                final label = same
+                    ? 'No change'
+                    : '${value > 0 ? '+' : ''}${value.toStringAsFixed(1)}${item.$4}';
                 return _deltaTile(item.$1, label, color, item.$5);
               }).toList(),
             ),
@@ -296,9 +382,12 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
     );
   }
 
-  Widget _deltaTile(String title, String value, Color color, IconData icon) => Container(
+  Widget _deltaTile(String title, String value, Color color, IconData icon) =>
+      Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
             Icon(icon, size: 17, color: Colors.black45),
@@ -308,8 +397,16 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 11, color: Colors.black54)),
-                  Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color)),
+                  Text(title,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.black54)),
+                  Text(value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: color)),
                 ],
               ),
             ),
@@ -323,19 +420,30 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
     final percent = _num(p['completion_percent']).toDouble();
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFE5E7EB))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFE5E7EB))),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Productivity & wellbeing', style: TextStyle(fontWeight: FontWeight.w800)),
-            Text('${percent.toStringAsFixed(0)}%', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF00897B), fontSize: 19)),
+            const Text('Productivity & wellbeing',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            Text('${percent.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF00897B),
+                    fontSize: 19)),
           ]),
           const SizedBox(height: 9),
-          LinearProgressIndicator(value: (percent / 100).clamp(0, 1), minHeight: 6, borderRadius: BorderRadius.circular(20)),
+          LinearProgressIndicator(
+              value: (percent / 100).clamp(0, 1),
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(20)),
           const SizedBox(height: 13),
           Wrap(spacing: 15, runSpacing: 10, children: [
-            _metric('Tasks', '${p['completed_tasks'] ?? 0}/${p['total_tasks'] ?? 0}'),
+            _metric('Tasks',
+                '${p['completed_tasks'] ?? 0}/${p['total_tasks'] ?? 0}'),
             _metric('Meetings', '${p['meetings'] ?? 0}'),
             _metric('Plans', '${p['plans_completed'] ?? 0}'),
             _metric('Exercise', '${w['exercise_sessions'] ?? 0}'),
@@ -349,7 +457,11 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
     final value = _map(_review!['value']);
     final items = [
       ('Tasks', value['tasks_completed'] ?? 0, Icons.check_circle_outline),
-      ('Finance', value['financial_records'] ?? 0, Icons.account_balance_wallet_outlined),
+      (
+        'Finance',
+        value['financial_records'] ?? 0,
+        Icons.account_balance_wallet_outlined
+      ),
       ('AI plans', value['ai_plans'] ?? 0, Icons.auto_awesome_outlined),
       ('Meetings', value['meetings'] ?? 0, Icons.groups_outlined),
       ('Notes', value['notes_created'] ?? 0, Icons.note_alt_outlined),
@@ -362,9 +474,12 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
         border: Border.all(color: const Color(0xFFBAE6FD)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('What My Digital Diary helped you manage', style: TextStyle(fontWeight: FontWeight.w800)),
+        const Text('What My Digital Diary helped you manage',
+            style: TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 3),
-        const Text('Your activity becomes more valuable when it stays connected.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+        const Text(
+            'Your activity becomes more valuable when it stays connected.',
+            style: TextStyle(fontSize: 12, color: Colors.black54)),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -374,13 +489,22 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
                       width: 88,
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13)),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Icon(item.$3, size: 18, color: const Color(0xFF0284C7)),
-                        const SizedBox(height: 6),
-                        Text('${item.$2}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                        Text(item.$1, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                      ]),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(13)),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(item.$3,
+                                size: 18, color: const Color(0xFF0284C7)),
+                            const SizedBox(height: 6),
+                            Text('${item.$2}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w900)),
+                            Text(item.$1,
+                                style: const TextStyle(
+                                    fontSize: 10, color: Colors.black54)),
+                          ]),
                     ))
                 .toList(),
           ),
@@ -392,28 +516,42 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
   Widget _metric(String label, String value) => SizedBox(
         width: 82,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          Text(label,
+              style: const TextStyle(fontSize: 11, color: Colors.black54)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
         ]),
       );
 
-  Widget _simpleListCard(String title, IconData icon, Color color, dynamic raw) {
-    final items = raw is List ? raw.map((e) => e.toString()).toList() : <String>[];
+  Widget _simpleListCard(
+      String title, IconData icon, Color color, dynamic raw) {
+    final items =
+        raw is List ? raw.map((e) => e.toString()).toList() : <String>[];
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFE5E7EB))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFE5E7EB))),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Icon(icon, size: 20, color: color), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w800))]),
+          Row(children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800))
+          ]),
           const SizedBox(height: 10),
           ...items.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(Icons.circle, size: 6, color: color),
-                  const SizedBox(width: 9),
-                  Expanded(child: Text(e, style: const TextStyle(fontSize: 13, height: 1.35))),
-                ]),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.circle, size: 6, color: color),
+                      const SizedBox(width: 9),
+                      Expanded(
+                          child: Text(e,
+                              style:
+                                  const TextStyle(fontSize: 13, height: 1.35))),
+                    ]),
               )),
         ]),
       ),

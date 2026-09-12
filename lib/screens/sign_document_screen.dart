@@ -53,17 +53,20 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _loadingSignatures = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
 
   Widget _signaturePreview(SavedSignature signature) {
-    final future = _signatureImageFutures.putIfAbsent(signature.id, () => _service.signatureImageBytes(signature.id));
+    final future = _signatureImageFutures.putIfAbsent(
+        signature.id, () => _service.signatureImageBytes(signature.id));
     return FutureBuilder<List<int>>(
       future: future,
       builder: (context, snapshot) => snapshot.hasData
-          ? Image.memory(Uint8List.fromList(snapshot.data!), fit: BoxFit.contain, gaplessPlayback: true)
+          ? Image.memory(Uint8List.fromList(snapshot.data!),
+              fit: BoxFit.contain, gaplessPlayback: true)
           : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
     );
   }
@@ -72,7 +75,8 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
     final bytes = await file.readAsBytes();
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
-    final size = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
+    final size =
+        Size(frame.image.width.toDouble(), frame.image.height.toDouble());
     frame.image.dispose();
     codec.dispose();
     return size;
@@ -113,7 +117,8 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
     if (_scanning) return;
 
     if (!Platform.isAndroid) {
-      final image = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 86);
+      final image = await ImagePicker()
+          .pickImage(source: ImageSource.camera, imageQuality: 86);
       if (image != null && mounted) {
         setState(() {
           _pages
@@ -147,7 +152,8 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
       if (images.isEmpty || !mounted) return;
       final files = images.map((raw) {
         final uri = Uri.tryParse(raw);
-        final path = uri != null && uri.scheme == 'file' ? uri.toFilePath() : raw;
+        final path =
+            uri != null && uri.scheme == 'file' ? uri.toFilePath() : raw;
         return XFile(path);
       }).toList();
       setState(() {
@@ -172,12 +178,14 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
   }
 
   Future<void> _drawSignature() async {
-    final bytes = await showDialog<Uint8List>(context: context, builder: (_) => const _DrawSignatureDialog());
+    final bytes = await showDialog<Uint8List>(
+        context: context, builder: (_) => const _DrawSignatureDialog());
     if (bytes == null) return;
     try {
       final signature = await _service.uploadSignature(
         fileBytes: bytes,
-        fileName: 'drawn-signature-${DateTime.now().millisecondsSinceEpoch}.png',
+        fileName:
+            'drawn-signature-${DateTime.now().millisecondsSinceEpoch}.png',
         label: 'Drawn Signature',
       );
       if (!mounted) return;
@@ -186,20 +194,26 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
         _selectedSignature = signature;
       });
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   void _updateDragPosition(DragUpdateDetails details) {
     final box = _imageBoxKey.currentContext?.findRenderObject() as RenderBox?;
     final pageRect = _renderedPageRect;
-    if (box == null || pageRect == null || pageRect.width <= 0 || pageRect.height <= 0) return;
+    if (box == null ||
+        pageRect == null ||
+        pageRect.width <= 0 ||
+        pageRect.height <= 0) return;
 
     final local = box.globalToLocal(details.globalPosition);
     setState(() {
       final normalizedX = (local.dx - pageRect.left) / pageRect.width;
       final normalizedY = (local.dy - pageRect.top) / pageRect.height;
-      final x = (normalizedX - _sigWidthFraction / 2).clamp(0.0, 1.0 - _sigWidthFraction);
+      final x = (normalizedX - _sigWidthFraction / 2)
+          .clamp(0.0, 1.0 - _sigWidthFraction);
       final y = (normalizedY - .06).clamp(0.0, .88);
       _positions[_currentPage] = Offset(x, y);
     });
@@ -222,18 +236,29 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
           widthPercent: _sigWidthFraction * 100,
           heightPercent: _sigWidthFraction * 40,
         );
-        if (result['was_stamped'] != true) throw ApiException(422, result['stamp_error']?.toString() ?? 'Page ${i + 1} could not be signed.');
+        if (result['was_stamped'] != true)
+          throw ApiException(
+              422,
+              result['stamp_error']?.toString() ??
+                  'Page ${i + 1} could not be signed.');
         createdIds.add((result['id'] as num).toInt());
       }
 
       if (createdIds.length > 1) {
-        await _service.bundlePages(createdIds, filename: 'signed-document-${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await _service.bundlePages(createdIds,
+            filename:
+                'signed-document-${DateTime.now().millisecondsSinceEpoch}.pdf');
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(createdIds.length > 1 ? '${createdIds.length}-page signed PDF saved.' : 'Signed document saved.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(createdIds.length > 1
+              ? '${createdIds.length}-page signed PDF saved.'
+              : 'Signed document saved.')));
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -255,27 +280,66 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
                     Expanded(
                       child: DropdownButtonFormField<SavedSignature>(
                         initialValue: _selectedSignature,
-                        decoration: const InputDecoration(labelText: 'Signature'),
-                        items: _signatures.map((sig) => DropdownMenuItem(value: sig, child: Text(sig.label))).toList(),
-                        onChanged: (value) => setState(() => _selectedSignature = value),
+                        decoration:
+                            const InputDecoration(labelText: 'Signature'),
+                        items: _signatures
+                            .map((sig) => DropdownMenuItem(
+                                value: sig, child: Text(sig.label)))
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _selectedSignature = value),
                       ),
                     ),
-                    IconButton(onPressed: _drawSignature, tooltip: 'Draw new signature', icon: const Icon(Icons.draw_outlined)),
+                    IconButton(
+                        onPressed: _drawSignature,
+                        tooltip: 'Draw new signature',
+                        icon: const Icon(Icons.draw_outlined)),
                   ]),
                   const SizedBox(height: 10),
                   Row(children: [
-                    Expanded(child: OutlinedButton.icon(onPressed: _pickPages, icon: const Icon(Icons.upload_file), label: const Text('Upload page(s)'))),
+                    Expanded(
+                        child: OutlinedButton.icon(
+                            onPressed: _pickPages,
+                            icon: const Icon(Icons.upload_file),
+                            label: const Text('Upload page(s)'))),
                     const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton.icon(onPressed: _scanning ? null : _scanPages, icon: _scanning ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.document_scanner_outlined), label: Text(_scanning ? 'Opening scanner…' : 'Scan page(s)'))),
+                    Expanded(
+                        child: OutlinedButton.icon(
+                            onPressed: _scanning ? null : _scanPages,
+                            icon: _scanning
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.document_scanner_outlined),
+                            label: Text(_scanning
+                                ? 'Opening scanner…'
+                                : 'Scan page(s)'))),
                   ]),
                   if (_pages.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Row(children: [
-                      IconButton(onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null, icon: const Icon(Icons.chevron_left)),
-                      Expanded(child: Text('Page ${_currentPage + 1} of ${_pages.length}', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600))),
-                      IconButton(onPressed: _currentPage + 1 < _pages.length ? () => setState(() => _currentPage++) : null, icon: const Icon(Icons.chevron_right)),
+                      IconButton(
+                          onPressed: _currentPage > 0
+                              ? () => setState(() => _currentPage--)
+                              : null,
+                          icon: const Icon(Icons.chevron_left)),
+                      Expanded(
+                          child: Text(
+                              'Page ${_currentPage + 1} of ${_pages.length}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600))),
+                      IconButton(
+                          onPressed: _currentPage + 1 < _pages.length
+                              ? () => setState(() => _currentPage++)
+                              : null,
+                          icon: const Icon(Icons.chevron_right)),
                     ]),
-                    const Text('Preview each scanned/uploaded page here and drag the signature inside the actual page area. The saved position now matches this preview.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                        'Preview each scanned/uploaded page here and drag the signature inside the actual page area. The saved position now matches this preview.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(height: 6),
                   ],
                   if (current != null && _selectedSignature != null)
@@ -283,12 +347,20 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final sourceSize = _pageImageSizes[_currentPage];
-                          if (sourceSize == null || sourceSize.width <= 0 || sourceSize.height <= 0) {
+                          if (sourceSize == null ||
+                              sourceSize.width <= 0 ||
+                              sourceSize.height <= 0) {
                             return Stack(
                               key: _imageBoxKey,
                               children: [
-                                Positioned.fill(child: Image.file(File(current.path), fit: BoxFit.contain)),
-                                const Positioned.fill(child: IgnorePointer(child: Center(child: CircularProgressIndicator(strokeWidth: 2)))),
+                                Positioned.fill(
+                                    child: Image.file(File(current.path),
+                                        fit: BoxFit.contain)),
+                                const Positioned.fill(
+                                    child: IgnorePointer(
+                                        child: Center(
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2)))),
                               ],
                             );
                           }
@@ -316,14 +388,21 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Colors.black12),
-                                    boxShadow: const [BoxShadow(blurRadius: 8, color: Color(0x22000000))],
+                                    boxShadow: const [
+                                      BoxShadow(
+                                          blurRadius: 8,
+                                          color: Color(0x22000000))
+                                    ],
                                   ),
-                                  child: Image.file(File(current.path), fit: BoxFit.fill),
+                                  child: Image.file(File(current.path),
+                                      fit: BoxFit.fill),
                                 ),
                               ),
                               Positioned(
-                                left: pageRect.left + (_position.dx * pageRect.width),
-                                top: pageRect.top + (_position.dy * pageRect.height),
+                                left: pageRect.left +
+                                    (_position.dx * pageRect.width),
+                                top: pageRect.top +
+                                    (_position.dy * pageRect.height),
                                 width: _sigWidthFraction * pageRect.width,
                                 child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
@@ -331,10 +410,16 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: .10),
-                                      border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5),
+                                      color:
+                                          Colors.white.withValues(alpha: .10),
+                                      border: Border.all(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          width: 1.5),
                                     ),
-                                    child: _signaturePreview(_selectedSignature!),
+                                    child:
+                                        _signaturePreview(_selectedSignature!),
                                   ),
                                 ),
                               ),
@@ -344,13 +429,27 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
                       ),
                     )
                   else
-                    const Expanded(child: Center(child: Text('Upload or scan one or more pages to begin.', style: TextStyle(color: Colors.grey)))),
+                    const Expanded(
+                        child: Center(
+                            child: Text(
+                                'Upload or scan one or more pages to begin.',
+                                style: TextStyle(color: Colors.grey)))),
                   if (_pages.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     FilledButton.icon(
-                      onPressed: _submitting || _selectedSignature == null ? null : _submit,
-                      icon: _submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.preview_outlined),
-                      label: Text(_pages.length > 1 ? 'Save signed ${_pages.length}-page PDF' : 'Save signed document'),
+                      onPressed: _submitting || _selectedSignature == null
+                          ? null
+                          : _submit,
+                      icon: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.preview_outlined),
+                      label: Text(_pages.length > 1
+                          ? 'Save signed ${_pages.length}-page PDF'
+                          : 'Save signed document'),
                     ),
                   ],
                 ],
@@ -372,11 +471,13 @@ class _DrawSignatureDialogState extends State<_DrawSignatureDialog> {
 
   Future<void> _save() async {
     if (_points.whereType<Offset>().isEmpty) return;
-    final boundary = _boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final boundary = _boundaryKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
     if (boundary == null) return;
     final image = await boundary.toImage(pixelRatio: 3);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (data != null && mounted) Navigator.pop(context, data.buffer.asUint8List());
+    if (data != null && mounted)
+      Navigator.pop(context, data.buffer.asUint8List());
   }
 
   @override
@@ -391,16 +492,22 @@ class _DrawSignatureDialogState extends State<_DrawSignatureDialog> {
               color: Colors.white,
               child: GestureDetector(
                 onPanStart: (d) => setState(() => _points.add(d.localPosition)),
-                onPanUpdate: (d) => setState(() => _points.add(d.localPosition)),
+                onPanUpdate: (d) =>
+                    setState(() => _points.add(d.localPosition)),
                 onPanEnd: (_) => setState(() => _points.add(null)),
-                child: CustomPaint(painter: _SignaturePainter(_points), size: Size.infinite),
+                child: CustomPaint(
+                    painter: _SignaturePainter(_points), size: Size.infinite),
               ),
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => setState(_points.clear), child: const Text('Clear')),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => setState(_points.clear),
+              child: const Text('Clear')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(onPressed: _save, child: const Text('Use Signature')),
         ],
       );
@@ -411,12 +518,16 @@ class _SignaturePainter extends CustomPainter {
   const _SignaturePainter(this.points);
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black..strokeWidth = 2.4..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
     for (var i = 0; i < points.length - 1; i++) {
       final a = points[i], b = points[i + 1];
       if (a != null && b != null) canvas.drawLine(a, b, paint);
     }
   }
+
   @override
   bool shouldRepaint(covariant _SignaturePainter oldDelegate) => true;
 }

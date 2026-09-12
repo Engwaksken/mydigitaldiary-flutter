@@ -1,12 +1,119 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- =========================================================
+         NETWORK / API / FIREBASE
+         ========================================================= -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- =========================================================
+         NOTIFICATIONS
+         Android 13+
+         ========================================================= -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Restore scheduled reminders after restart/app update -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        Required only when the application schedules reminders
+        at an exact clock time.
+
+        Android 12+ treats this as special alarm access.
+        The application should gracefully fall back when exact
+        alarm access has not been granted.
+    -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
+    <!-- =========================================================
+         STEP TRACKING / PHYSICAL ACTIVITY
+         Android 10+
+         ========================================================= -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
+    <!--
+        Do NOT require a hardware step counter.
+        Phones without one can still install and use the app.
+        sensors_plus can provide the motion fallback.
+    -->
+    <uses-feature
+        android:name="android.hardware.sensor.stepcounter"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.sensor.stepdetector"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.sensor.accelerometer"
+        android:required="false" />
+
+    <!-- =========================================================
+         CAMERA / IMAGE PICKER / DOCUMENT SCANNER
+         ========================================================= -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Camera is optional; app must still open without one -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <!--
+        Android 13+ media permission.
+        image_picker/file_picker may use the Android photo picker
+        where available, so this should never be assumed granted.
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!--
+        Used only on older Android versions where required.
+        maxSdkVersion prevents requesting legacy storage access
+        on modern Android versions.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- =========================================================
+         MICROPHONE / RECORDING / SPEECH TO TEXT
+         ========================================================= -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
+    <!-- =========================================================
+         BLUETOOTH
+         Useful for speech/audio devices on newer Android phones.
+         ========================================================= -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- =========================================================
+         APPLICATION
+         ========================================================= -->
     <application
         android:label="My Digital Diary"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:supportsRtl="true">
+
+        <!-- =====================================================
+             MAIN FLUTTER ACTIVITY
+             ===================================================== -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -16,30 +123,93 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme" />
+
+            <!-- Flutter normal theme -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <!-- Launcher -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
 
-        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+        <!-- =====================================================
+             FLUTTER LOCAL NOTIFICATIONS
+             ===================================================== -->
+
+        <!-- Receives scheduled notifications -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+
+        <!-- Restores notifications following reboot/update -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+
+                <!-- Some manufacturers use these boot events -->
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
+
         </receiver>
 
-        <meta-data android:name="flutterEmbedding" android:value="2" />
+        <!-- =====================================================
+             FLUTTER EMBEDDING
+             ===================================================== -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
     </application>
 
+    <!-- =========================================================
+         EXTERNAL APPLICATION / INTENT QUERIES
+         ========================================================= -->
     <queries>
+
+        <!-- Flutter text-processing plugins -->
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
+
+        <!-- Web browser / external URL launcher -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+
+        <!-- Phone calls -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+
+        <!-- Email -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+
+        <!-- Speech recognition -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+
     </queries>
+
 </manifest>

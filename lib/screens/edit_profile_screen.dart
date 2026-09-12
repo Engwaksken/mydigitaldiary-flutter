@@ -57,7 +57,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-
   Future<void> _loadAvatar() async {
     if (!mounted) return;
     setState(() => _loadingAvatar = true);
@@ -78,7 +77,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
       if (e.statusCode != 404) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load profile picture: ${e.message}')),
+          SnackBar(
+              content: Text('Could not load profile picture: ${e.message}')),
         );
       }
     } catch (_) {
@@ -93,10 +93,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _profileError = null;
     });
     try {
-      final saved = await _service.updateProfile(name: _nameController.text.trim(), email: _emailController.text.trim());
+      final saved = await _service.updateProfile(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim());
       if (!mounted) return;
-      context.read<AuthService>().updateProfileFields(name: saved['name'], email: saved['email']);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated.')));
+      context
+          .read<AuthService>()
+          .updateProfileFields(name: saved['name'], email: saved['email']);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Profile updated.')));
     } on ApiException catch (e) {
       setState(() => _profileError = e.message);
     } finally {
@@ -150,18 +155,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final bytes = await File(picked.path).readAsBytes();
       if (bytes.isEmpty) {
-        throw ApiException(422, 'The selected profile picture is empty. Please choose another image.');
+        throw ApiException(422,
+            'The selected profile picture is empty. Please choose another image.');
       }
 
       // Keep uploads comfortably below the server limit even if a gallery app
       // returns an unexpectedly large file after resizing/compression.
       if (bytes.length > 5 * 1024 * 1024) {
-        throw ApiException(422, 'Profile picture is still too large. Please choose a smaller image.');
+        throw ApiException(422,
+            'Profile picture is still too large. Please choose a smaller image.');
       }
 
       final contentType = _avatarContentType(picked);
       final safeFileName = picked.name.trim().isEmpty
-          ? (contentType == 'image/png' ? 'avatar.png' : contentType == 'image/webp' ? 'avatar.webp' : 'avatar.jpg')
+          ? (contentType == 'image/png'
+              ? 'avatar.png'
+              : contentType == 'image/webp'
+                  ? 'avatar.webp'
+                  : 'avatar.jpg')
           : picked.name;
 
       final avatarUrl = await _service.updateAvatar(
@@ -192,7 +203,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } on SocketException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not upload the profile picture. Check your connection and try again.')),
+          const SnackBar(
+              content: Text(
+                  'Could not upload the profile picture. Check your connection and try again.')),
         );
       }
     } catch (e) {
@@ -221,7 +234,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 CircleAvatar(
                   radius: 44,
                   backgroundColor: const Color(0x1A00897B),
-                  backgroundImage: _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
+                  backgroundImage:
+                      _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                   child: _loadingAvatar
                       ? const SizedBox(
                           width: 22,
@@ -230,8 +244,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         )
                       : _avatarBytes == null
                           ? Text(
-                              (user?.name.isNotEmpty == true ? user!.name[0] : '?').toUpperCase(),
-                              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Color(0xFF00897B)),
+                              (user?.name.isNotEmpty == true
+                                      ? user!.name[0]
+                                      : '?')
+                                  .toUpperCase(),
+                              style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00897B)),
                             )
                           : null,
                 ),
@@ -244,8 +264,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       radius: 16,
                       backgroundColor: const Color(0xFF00897B),
                       child: _uploadingAvatar
-                          ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                          ? const SizedBox(
+                              height: 14,
+                              width: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.camera_alt,
+                              size: 16, color: Colors.white),
                     ),
                   ),
                 ),
@@ -263,24 +288,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Name'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Name is required'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? 'Enter a valid email'
+                      : null,
                 ),
                 if (_profileError != null) ...[
                   const SizedBox(height: 8),
-                  Text(_profileError!, style: const TextStyle(color: Colors.red)),
+                  Text(_profileError!,
+                      style: const TextStyle(color: Colors.red)),
                 ],
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _savingProfile ? null : _saveProfile,
                   child: _savingProfile
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Save Details'),
                 ),
               ],
@@ -292,41 +325,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Change Password', style: Theme.of(context).textTheme.titleMedium),
+                Text('Change Password',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _currentPasswordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Current Password'),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Current Password'),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _newPasswordController,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'New Password'),
-                  validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? 'At least 8 characters'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirm New Password'),
-                  validator: (v) => (v != _newPasswordController.text) ? 'Passwords do not match' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Confirm New Password'),
+                  validator: (v) => (v != _newPasswordController.text)
+                      ? 'Passwords do not match'
+                      : null,
                 ),
                 if (_passwordError != null) ...[
                   const SizedBox(height: 8),
-                  Text(_passwordError!, style: const TextStyle(color: Colors.red)),
+                  Text(_passwordError!,
+                      style: const TextStyle(color: Colors.red)),
                 ],
                 if (_passwordSuccess != null) ...[
                   const SizedBox(height: 8),
-                  Text(_passwordSuccess!, style: const TextStyle(color: Colors.green)),
+                  Text(_passwordSuccess!,
+                      style: const TextStyle(color: Colors.green)),
                 ],
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _savingPassword ? null : _changePassword,
                   child: _savingPassword
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Update Password'),
                 ),
               ],

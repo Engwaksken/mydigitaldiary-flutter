@@ -42,11 +42,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline. No saved expense list is available yet.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Offline. No saved expense list is available yet.')));
       }
     }
   }
@@ -56,9 +59,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       await _service.delete(expense.id, updatedAt: expense.updatedAt);
       if (!mounted) return;
       setState(() => _expenses.removeWhere((e) => e.id == expense.id));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Expense deleted.')));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -74,7 +80,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final ok = await showAppConfirmDialog(
       context,
       title: 'Delete selected expenses?',
-      message: 'You are about to permanently delete ${_selectedIds.length} selected expense${_selectedIds.length == 1 ? '' : 's'}.',
+      message:
+          'You are about to permanently delete ${_selectedIds.length} selected expense${_selectedIds.length == 1 ? '' : 's'}.',
       confirmText: 'Delete selected',
     );
     if (!ok) return;
@@ -86,9 +93,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         _expenses.removeWhere((e) => _selectedIds.contains(e.id));
         _selectedIds.clear();
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected expenses deleted.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected expenses deleted.')));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _bulkDeleting = false);
     }
@@ -114,21 +124,34 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIds.isEmpty ? 'Expenses' : '${_selectedIds.length} selected'),
-        leading: _selectedIds.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedIds.clear())),
+        title: Text(_selectedIds.isEmpty
+            ? 'Expenses'
+            : '${_selectedIds.length} selected'),
+        leading: _selectedIds.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _selectedIds.clear())),
         actions: [
           if (_selectedIds.isNotEmpty)
             IconButton(
               tooltip: 'Delete selected',
               onPressed: _bulkDeleting ? null : _bulkDeleteSelected,
-              icon: _bulkDeleting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.delete_outline),
+              icon: _bulkDeleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.delete_outline),
             ),
         ],
       ),
-      floatingActionButton: _selectedIds.isNotEmpty ? null : FloatingActionButton(
-        onPressed: () => _openForm(),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _selectedIds.isNotEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _openForm(),
+              child: const Icon(Icons.add),
+            ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
@@ -146,10 +169,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('${_expenses.length} ${_expenses.length == 1 ? 'item' : 'items'} · Total shown', style: const TextStyle(color: Colors.black54)),
                           Text(
-                            (BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(_total),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFE11D48)),
+                              '${_expenses.length} ${_expenses.length == 1 ? 'item' : 'items'} · Total shown',
+                              style: const TextStyle(color: Colors.black54)),
+                          Text(
+                            (BrandingService.cached ??
+                                    BrandingInfo(siteName: ''))
+                                .formatMoney(_total),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Color(0xFFE11D48)),
                           ),
                         ],
                       ),
@@ -157,7 +187,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   if (_expenses.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Text('No expenses yet. Tap + to log one.', textAlign: TextAlign.center),
+                      child: Text('No expenses yet. Tap + to log one.',
+                          textAlign: TextAlign.center),
                     )
                   else
                     ...List.generate(_expenses.length, (index) {
@@ -178,23 +209,33 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           return false;
                         },
                         child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 3),
                           elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
                             leading: _selectedIds.isNotEmpty
                                 ? Checkbox(
                                     value: _selectedIds.contains(expense.id),
                                     onChanged: (_) => setState(() {
-                                      if (_selectedIds.contains(expense.id)) { _selectedIds.remove(expense.id); } else { _selectedIds.add(expense.id); }
+                                      if (_selectedIds.contains(expense.id)) {
+                                        _selectedIds.remove(expense.id);
+                                      } else {
+                                        _selectedIds.add(expense.id);
+                                      }
                                     }),
                                   )
                                 : const CircleAvatar(
                                     backgroundColor: Color(0x1AE11D48),
-                                    child: Icon(Icons.receipt_long, color: Color(0xFFE11D48)),
+                                    child: Icon(Icons.receipt_long,
+                                        color: Color(0xFFE11D48)),
                                   ),
-                            title: Text(expense.category, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            title: Text(expense.category,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
@@ -205,7 +246,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 ),
                                 if (expense.offlinePending) ...[
                                   const SizedBox(height: 3),
-                                  const Text('Waiting to sync', style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w600)),
+                                  const Text('Waiting to sync',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w600)),
                                 ],
                                 if (expense.items.isNotEmpty) ...[
                                   const SizedBox(height: 3),
@@ -213,7 +258,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     'Items: ${expense.items.map((item) => item.description.trim()).where((name) => name.isNotEmpty).join(', ')}',
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
                                   ),
                                 ],
                               ],
@@ -222,22 +268,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  (BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(expense.amount),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  (BrandingService.cached ??
+                                          BrandingInfo(siteName: ''))
+                                      .formatMoney(expense.amount),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
                                 ),
-                                if (_selectedIds.isEmpty) IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  tooltip: 'Delete expense',
-                                  onPressed: () async {
-                                    if (await _confirmDelete(expense)) await _delete(expense);
-                                  },
-                                ),
+                                if (_selectedIds.isEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.red),
+                                    tooltip: 'Delete expense',
+                                    onPressed: () async {
+                                      if (await _confirmDelete(expense))
+                                        await _delete(expense);
+                                    },
+                                  ),
                               ],
                             ),
-                            onLongPress: () => setState(() => _selectedIds.add(expense.id)),
+                            onLongPress: () =>
+                                setState(() => _selectedIds.add(expense.id)),
                             onTap: () {
                               if (_selectedIds.isNotEmpty) {
-                                setState(() { if (_selectedIds.contains(expense.id)) { _selectedIds.remove(expense.id); } else { _selectedIds.add(expense.id); } });
+                                setState(() {
+                                  if (_selectedIds.contains(expense.id)) {
+                                    _selectedIds.remove(expense.id);
+                                  } else {
+                                    _selectedIds.add(expense.id);
+                                  }
+                                });
                               } else {
                                 _openForm(existing: expense);
                               }
@@ -284,10 +344,14 @@ class _ExpenseFormState extends State<_ExpenseForm> {
   @override
   void initState() {
     super.initState();
-    _categoryController = TextEditingController(text: widget.existing?.category ?? '');
-    _amountController = TextEditingController(text: widget.existing?.amount.toString() ?? '');
-    _paymentMethodController = TextEditingController(text: widget.existing?.paymentMethod ?? '');
-    _notesController = TextEditingController(text: widget.existing?.notes ?? '');
+    _categoryController =
+        TextEditingController(text: widget.existing?.category ?? '');
+    _amountController =
+        TextEditingController(text: widget.existing?.amount.toString() ?? '');
+    _paymentMethodController =
+        TextEditingController(text: widget.existing?.paymentMethod ?? '');
+    _notesController =
+        TextEditingController(text: widget.existing?.notes ?? '');
     _spentAt = widget.existing?.spentAt ?? DateTime.now();
     for (final item in widget.existing?.items ?? []) {
       _itemRows.add(_ItemRowControllers(
@@ -310,7 +374,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     super.dispose();
   }
 
-  void _addItemRow({String description = '', String quantity = '1', String unitPrice = ''}) {
+  void _addItemRow(
+      {String description = '', String quantity = '1', String unitPrice = ''}) {
     setState(() => _itemRows.add(_ItemRowControllers(
           description: TextEditingController(text: description),
           quantity: TextEditingController(text: quantity),
@@ -341,13 +406,16 @@ class _ExpenseFormState extends State<_ExpenseForm> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const ListTile(
-              title: Text('Scan / Upload Receipt', style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('The extracted values are filled into this form for review before saving.'),
+              title: Text('Scan / Upload Receipt',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                  'The extracted values are filled into this form for review before saving.'),
             ),
             ListTile(
               leading: const Icon(Icons.document_scanner_outlined),
               title: const Text('Scan document'),
-              subtitle: const Text('Auto-detect, crop, straighten and enhance the paper'),
+              subtitle: const Text(
+                  'Auto-detect, crop, straighten and enhance the paper'),
               onTap: () => Navigator.pop(ctx, 'scan'),
             ),
             ListTile(
@@ -386,7 +454,11 @@ class _ExpenseFormState extends State<_ExpenseForm> {
         if (picked == null) return;
         final bytes = await picked.readAsBytes();
         final lower = picked.name.toLowerCase();
-        final contentType = lower.endsWith('.png') ? 'image/png' : lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+        final contentType = lower.endsWith('.png')
+            ? 'image/png'
+            : lower.endsWith('.webp')
+                ? 'image/webp'
+                : 'image/jpeg';
         await _extractReceipt(bytes, picked.name, contentType);
         return;
       }
@@ -418,7 +490,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
         imageQuality: 95,
       );
       if (picked == null) return;
-      await _extractReceipt(await picked.readAsBytes(), picked.name, _contentTypeFor(picked.name));
+      await _extractReceipt(await picked.readAsBytes(), picked.name,
+          _contentTypeFor(picked.name));
       return;
     }
 
@@ -452,14 +525,17 @@ class _ExpenseFormState extends State<_ExpenseForm> {
 
       final rawPath = images.first;
       final uri = Uri.tryParse(rawPath);
-      final path = uri != null && uri.scheme == 'file' ? uri.toFilePath() : rawPath;
+      final path =
+          uri != null && uri.scheme == 'file' ? uri.toFilePath() : rawPath;
       final file = File(path);
       if (!await file.exists()) {
-        throw Exception('The scanned document could not be read from the device.');
+        throw Exception(
+            'The scanned document could not be read from the device.');
       }
 
       final bytes = await file.readAsBytes();
-      final name = 'scanned-document-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final name =
+          'scanned-document-${DateTime.now().millisecondsSinceEpoch}.jpg';
       await _extractReceipt(bytes, name, 'image/jpeg');
     } catch (e) {
       if (mounted) {
@@ -481,7 +557,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     return 'image/jpeg';
   }
 
-  Future<void> _extractReceipt(List<int> bytes, String name, String contentType) async {
+  Future<void> _extractReceipt(
+      List<int> bytes, String name, String contentType) async {
     setState(() {
       _extractingReceipt = true;
       _receiptStatus = 'Reading receipt and extracting expense details...';
@@ -489,11 +566,13 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     });
 
     try {
-      final data = await _service.extractReceipt(bytes: bytes, fileName: name, contentType: contentType);
+      final data = await _service.extractReceipt(
+          bytes: bytes, fileName: name, contentType: contentType);
       if (!mounted) return;
       _applyReceipt(data);
       setState(() {
-        _receiptStatus = 'Receipt extracted. Review the filled details and line items, then tap Save.';
+        _receiptStatus =
+            'Receipt extracted. Review the filled details and line items, then tap Save.';
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -506,7 +585,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
 
   void _applyReceipt(Map<String, dynamic> data) {
     final category = data['category']?.toString().trim();
-    if (category != null && category.isNotEmpty) _categoryController.text = category;
+    if (category != null && category.isNotEmpty)
+      _categoryController.text = category;
 
     final total = data['total'];
     if (total != null) _amountController.text = total.toString();
@@ -515,16 +595,20 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     if (date != null) _spentAt = date;
 
     final payment = data['payment_method']?.toString().trim();
-    if (payment != null && payment.isNotEmpty) _paymentMethodController.text = payment;
+    if (payment != null && payment.isNotEmpty)
+      _paymentMethodController.text = payment;
 
     if (_notesController.text.trim().isEmpty) {
       final notes = <String>[];
       final merchant = data['merchant']?.toString().trim();
       final receiptNumber = data['receipt_number']?.toString().trim();
       final extractedNotes = data['notes']?.toString().trim();
-      if (merchant != null && merchant.isNotEmpty) notes.add('Merchant: $merchant');
-      if (receiptNumber != null && receiptNumber.isNotEmpty) notes.add('Receipt #: $receiptNumber');
-      if (extractedNotes != null && extractedNotes.isNotEmpty) notes.add(extractedNotes);
+      if (merchant != null && merchant.isNotEmpty)
+        notes.add('Merchant: $merchant');
+      if (receiptNumber != null && receiptNumber.isNotEmpty)
+        notes.add('Receipt #: $receiptNumber');
+      if (extractedNotes != null && extractedNotes.isNotEmpty)
+        notes.add(extractedNotes);
       if (notes.isNotEmpty) _notesController.text = notes.join(' · ');
     }
 
@@ -538,9 +622,12 @@ class _ExpenseFormState extends State<_ExpenseForm> {
         if (raw is! Map) continue;
         final item = Map<String, dynamic>.from(raw);
         _itemRows.add(_ItemRowControllers(
-          description: TextEditingController(text: item['description']?.toString() ?? ''),
-          quantity: TextEditingController(text: item['quantity']?.toString() ?? '1'),
-          unitPrice: TextEditingController(text: item['unit_price']?.toString() ?? ''),
+          description: TextEditingController(
+              text: item['description']?.toString() ?? ''),
+          quantity:
+              TextEditingController(text: item['quantity']?.toString() ?? '1'),
+          unitPrice:
+              TextEditingController(text: item['unit_price']?.toString() ?? ''),
         ));
       }
     }
@@ -565,7 +652,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
 
     final category = _categoryController.text.trim();
     if (category.isEmpty) {
-      setState(() => _error = 'Category is required. Review the extracted category before saving.');
+      setState(() => _error =
+          'Category is required. Review the extracted category before saving.');
       return;
     }
 
@@ -583,7 +671,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
       final qty = double.tryParse(qtyText);
       final price = double.tryParse(priceText);
       if (description.isEmpty || qty == null || qty <= 0 || price == null) {
-        setState(() => _error = 'Review line item ${i + 1}: description, quantity greater than 0, and unit price are required.');
+        setState(() => _error =
+            'Review line item ${i + 1}: description, quantity greater than 0, and unit price are required.');
         return;
       }
 
@@ -597,12 +686,15 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     double amount;
     if (items.isNotEmpty) {
       amount = items.fold<double>(0, (sum, item) {
-        return sum + ((double.tryParse(item.quantity) ?? 0) * (double.tryParse(item.unitPrice) ?? 0));
+        return sum +
+            ((double.tryParse(item.quantity) ?? 0) *
+                (double.tryParse(item.unitPrice) ?? 0));
       });
     } else {
       final parsed = double.tryParse(_cleanNumber(_amountController.text));
       if (parsed == null || parsed < 0) {
-        setState(() => _error = 'Enter a valid amount, or add at least one valid line item.');
+        setState(() => _error =
+            'Enter a valid amount, or add at least one valid line item.');
         return;
       }
       amount = parsed;
@@ -618,8 +710,12 @@ class _ExpenseFormState extends State<_ExpenseForm> {
       category: category,
       amount: amount,
       spentAt: _spentAt,
-      paymentMethod: _paymentMethodController.text.trim().isEmpty ? null : _paymentMethodController.text.trim(),
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      paymentMethod: _paymentMethodController.text.trim().isEmpty
+          ? null
+          : _paymentMethodController.text.trim(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
       items: items,
       updatedAt: widget.existing?.updatedAt,
     );
@@ -629,7 +725,10 @@ class _ExpenseFormState extends State<_ExpenseForm> {
           ? await _service.update(widget.existing!.id, expense)
           : await _service.create(expense);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(saved.offlinePending ? 'Expense saved on this device. It will sync when you are online.' : 'Expense saved successfully.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(saved.offlinePending
+              ? 'Expense saved on this device. It will sync when you are online.'
+              : 'Expense saved successfully.')));
       widget.onSaved();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -666,18 +765,28 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
+                border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.25)),
                 borderRadius: BorderRadius.circular(12),
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.04),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.04),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.document_scanner_outlined, color: Theme.of(context).colorScheme.primary),
+                      Icon(Icons.document_scanner_outlined,
+                          color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
-                      const Expanded(child: Text('Scan / Upload Receipt', style: TextStyle(fontWeight: FontWeight.w700))),
+                      const Expanded(
+                          child: Text('Scan / Upload Receipt',
+                              style: TextStyle(fontWeight: FontWeight.w700))),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -689,13 +798,20 @@ class _ExpenseFormState extends State<_ExpenseForm> {
                   OutlinedButton.icon(
                     onPressed: _extractingReceipt ? null : _chooseReceiptSource,
                     icon: _extractingReceipt
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.camera_alt_outlined),
-                    label: Text(_extractingReceipt ? 'Reading document...' : 'Scan / Choose Receipt or Document'),
+                    label: Text(_extractingReceipt
+                        ? 'Reading document...'
+                        : 'Scan / Choose Receipt or Document'),
                   ),
                   if (_receiptStatus != null) ...[
                     const SizedBox(height: 6),
-                    Text(_receiptStatus!, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    Text(_receiptStatus!,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54)),
                   ],
                 ],
               ),
@@ -710,18 +826,23 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             if (_itemRows.isEmpty)
               TextField(
                 controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Amount',
-                  prefixText: '${(BrandingService.cached ?? BrandingInfo(siteName: '')).currencySymbol} ',
-                  helperText: 'Leave blank and add line items below instead, if this is a multi-item receipt.',
+                  prefixText:
+                      '${(BrandingService.cached ?? BrandingInfo(siteName: '')).currencySymbol} ',
+                  helperText:
+                      'Leave blank and add line items below instead, if this is a multi-item receipt.',
                 ),
               )
             else
               InputDecorator(
-                decoration: const InputDecoration(labelText: 'Amount (computed from line items)'),
+                decoration: const InputDecoration(
+                    labelText: 'Amount (computed from line items)'),
                 child: Text(
-                  (BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(_computedItemsTotal),
+                  (BrandingService.cached ?? BrandingInfo(siteName: ''))
+                      .formatMoney(_computedItemsTotal),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -729,33 +850,44 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Line Items (optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                TextButton.icon(onPressed: _addItemRow, icon: const Icon(Icons.add, size: 16), label: const Text('Add Item')),
+                const Text('Line Items (optional)',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                TextButton.icon(
+                    onPressed: _addItemRow,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Item')),
               ],
             ),
             ..._itemRows.asMap().entries.map((entry) {
               final index = entry.key;
               final row = entry.value;
-              final qty = double.tryParse(row.quantity.text.replaceAll(',', '')) ?? 0;
-              final price = double.tryParse(row.unitPrice.text.replaceAll(',', '')) ?? 0;
+              final qty =
+                  double.tryParse(row.quantity.text.replaceAll(',', '')) ?? 0;
+              final price =
+                  double.tryParse(row.unitPrice.text.replaceAll(',', '')) ?? 0;
               final lineTotal = qty * price;
-              Widget field(TextEditingController controller, String label, {int flex = 1, TextInputType? keyboardType}) {
+              Widget field(TextEditingController controller, String label,
+                  {int flex = 1, TextInputType? keyboardType}) {
                 return Expanded(
                   flex: flex,
                   child: TextField(
                     controller: controller,
                     keyboardType: keyboardType,
-                    decoration: InputDecoration(labelText: label, isDense: true),
+                    decoration:
+                        InputDecoration(labelText: label, isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                 );
               }
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final narrow = constraints.maxWidth < 430;
-                    const numeric = TextInputType.numberWithOptions(decimal: true);
+                    const numeric =
+                        TextInputType.numberWithOptions(decimal: true);
                     if (narrow) {
                       return Container(
                         padding: const EdgeInsets.all(10),
@@ -765,13 +897,29 @@ class _ExpenseFormState extends State<_ExpenseForm> {
                         ),
                         child: Column(
                           children: [
-                            Row(children: [field(row.description, 'Item', flex: 1), const SizedBox(width: 4), IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => _removeItemRow(index))]),
+                            Row(children: [
+                              field(row.description, 'Item', flex: 1),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () => _removeItemRow(index))
+                            ]),
                             const SizedBox(height: 10),
-                            Row(children: [field(row.quantity, 'Quantity', keyboardType: numeric), const SizedBox(width: 10), field(row.unitPrice, 'Unit Price', flex: 2, keyboardType: numeric)]),
+                            Row(children: [
+                              field(row.quantity, 'Quantity',
+                                  keyboardType: numeric),
+                              const SizedBox(width: 10),
+                              field(row.unitPrice, 'Unit Price',
+                                  flex: 2, keyboardType: numeric)
+                            ]),
                             const SizedBox(height: 8),
                             Align(
                               alignment: Alignment.centerRight,
-                              child: Text('Line total: ${(BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(lineTotal)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              child: Text(
+                                  'Line total: ${(BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(lineTotal)}',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
                             ),
                           ],
                         ),
@@ -784,8 +932,11 @@ class _ExpenseFormState extends State<_ExpenseForm> {
                         const SizedBox(width: 8),
                         field(row.quantity, 'Quantity', keyboardType: numeric),
                         const SizedBox(width: 8),
-                        field(row.unitPrice, 'Unit Price', flex: 2, keyboardType: numeric),
-                        IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => _removeItemRow(index)),
+                        field(row.unitPrice, 'Unit Price',
+                            flex: 2, keyboardType: numeric),
+                        IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () => _removeItemRow(index)),
                       ],
                     );
                   },
@@ -815,7 +966,11 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             ElevatedButton(
               onPressed: (_saving || _extractingReceipt) ? null : _save,
               child: _saving
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Save Expense'),
             ),
           ],
@@ -833,7 +988,10 @@ class _ItemRowControllers {
   final TextEditingController quantity;
   final TextEditingController unitPrice;
 
-  _ItemRowControllers({required this.description, required this.quantity, required this.unitPrice});
+  _ItemRowControllers(
+      {required this.description,
+      required this.quantity,
+      required this.unitPrice});
 
   void dispose() {
     description.dispose();

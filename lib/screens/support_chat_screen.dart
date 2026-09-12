@@ -270,7 +270,9 @@ class _SupportStatusBanner extends StatelessWidget {
           Icon(
             humanAssigned ? Icons.support_agent : Icons.chat_bubble_outline,
             size: 20,
-            color: humanAssigned ? const Color(0xFF047857) : const Color(0xFFB45309),
+            color: humanAssigned
+                ? const Color(0xFF047857)
+                : const Color(0xFFB45309),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -278,7 +280,9 @@ class _SupportStatusBanner extends StatelessWidget {
               text,
               style: TextStyle(
                 fontSize: 13,
-                color: humanAssigned ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                color: humanAssigned
+                    ? const Color(0xFF065F46)
+                    : const Color(0xFF92400E),
               ),
             ),
           ),
@@ -339,12 +343,15 @@ class _MessageList extends StatelessWidget {
             ? 'You'
             : message.isAssistant
                 ? 'My Digital Diary Support'
-                : (assigneeName?.isNotEmpty == true ? assigneeName! : 'Support');
+                : (assigneeName?.isNotEmpty == true
+                    ? assigneeName!
+                    : 'Support');
 
         return Align(
           alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
-            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .82),
+            constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * .82),
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             decoration: BoxDecoration(

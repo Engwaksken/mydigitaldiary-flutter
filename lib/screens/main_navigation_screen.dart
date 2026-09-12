@@ -7,6 +7,8 @@ import 'support_chat_screen.dart';
 import 'business_card_screen.dart';
 import '../services/reminder_alarm_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_layout.dart';
+import '../theme/app_theme.dart';
 
 /// Bottom navigation shell — Home / Signature / My Card / Profile / Chat,
 /// per the requested bottom nav. IndexedStack keeps every tab's state
@@ -47,7 +49,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     // 30s — frequent enough to feel prompt without hammering the
     // server; the web app's own polling interval is similar in spirit.
     _pollTimer = Timer.periodic(
-        const Duration(seconds: 30), (_) => _checkDueReminders());
+      const Duration(seconds: 30),
+      (_) => _checkDueReminders(),
+    );
     _checkDueReminders();
   }
 
@@ -58,8 +62,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Future<void> _checkDueReminders() async {
-    if (_visibleReminderOccurrence != null)
+    if (_visibleReminderOccurrence != null) {
       return; // never stack reminder banners
+    }
     try {
       final due = await _alarmService.dueNow();
       final notYetSeen = due
@@ -68,8 +73,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       if (notYetSeen.isEmpty || !mounted) return;
 
       final reminder = notYetSeen.first;
-      await NotificationService.instance
-          .showReminderAlarm(reminder.id, reminder.title, reminder.message);
+      await NotificationService.instance.showReminderAlarm(
+        reminder.id,
+        reminder.title,
+        reminder.message,
+      );
       _showAlarmBanner(reminder);
     } catch (_) {
       // Silent — a failed poll (offline, server hiccup) just means
@@ -93,20 +101,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             content: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.notifications_active,
-                    color: Colors.white, size: 20),
+                const Icon(
+                  Icons.notifications_active,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(reminder.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        reminder.title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       if ((reminder.message ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text(reminder.message!,
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(
+                          reminder.message!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ],
                   ),
@@ -124,50 +140,101 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         )
         .closed
         .whenComplete(() {
-      if (!mounted) return;
-      if (_visibleReminderOccurrence == reminder.occurrenceKey) {
-        setState(() => _visibleReminderOccurrence = null);
-      }
-    });
+          if (!mounted) return;
+          if (_visibleReminderOccurrence == reminder.occurrenceKey) {
+            setState(() => _visibleReminderOccurrence = null);
+          }
+        });
   }
 
   @override
   Widget build(BuildContext context) {
+    final expanded = AppLayout.isExpanded(context);
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _tabs),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF00897B),
-        unselectedItemColor: Colors.grey,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        iconSize: 22,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.draw_outlined),
-              activeIcon: Icon(Icons.draw),
-              label: 'Signature'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.badge_outlined),
-              activeIcon: Icon(Icons.badge),
-              label: 'My Card'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.support_agent_outlined),
-              activeIcon: Icon(Icons.support_agent),
-              label: 'Chat'),
+      body: Row(
+        children: [
+          if (expanded)
+            SafeArea(
+              child: NavigationRail(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (index) =>
+                    setState(() => _currentIndex = index),
+                labelType: NavigationRailLabelType.all,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                selectedIconTheme: const IconThemeData(color: AppColors.forest),
+                selectedLabelTextStyle: const TextStyle(
+                  color: AppColors.forest,
+                  fontWeight: FontWeight.w700,
+                ),
+                destinations: const [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: Text('Home'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.draw_outlined),
+                    selectedIcon: Icon(Icons.draw),
+                    label: Text('Signature'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.badge_outlined),
+                    selectedIcon: Icon(Icons.badge),
+                    label: Text('My Card'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: Text('Profile'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.support_agent_outlined),
+                    selectedIcon: Icon(Icons.support_agent),
+                    label: Text('Chat'),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(index: _currentIndex, children: _tabs),
+          ),
         ],
       ),
+      bottomNavigationBar: expanded
+          ? null
+          : NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) =>
+                  setState(() => _currentIndex = index),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.draw_outlined),
+                  selectedIcon: Icon(Icons.draw),
+                  label: 'Signature',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.badge_outlined),
+                  selectedIcon: Icon(Icons.badge),
+                  label: 'My Card',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.support_agent_outlined),
+                  selectedIcon: Icon(Icons.support_agent),
+                  label: 'Chat',
+                ),
+              ],
+            ),
     );
   }
 }
