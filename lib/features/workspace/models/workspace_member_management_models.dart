@@ -68,12 +68,10 @@ class WorkspaceMemberManagement {
         : <String, dynamic>{};
 
     return WorkspaceMemberManagement(
-      organizationId:
-          _asInt(organization['id'] ?? json['id']) ?? 0,
+      organizationId: _asInt(organization['id'] ?? json['id']) ?? 0,
       organizationName:
           (organization['name'] ?? json['name'] ?? 'Workspace').toString(),
-      planName:
-          (json['plan_name'] ?? 'Team subscription').toString(),
+      planName: (json['plan_name'] ?? 'Team subscription').toString(),
       seatLimit: _asInt(json['seat_limit']) ?? 0,
       seatsUsed: _asInt(json['seats_used']) ?? 0,
       remainingSeats: _asInt(json['remaining_seats']) ??
@@ -87,8 +85,7 @@ class WorkspaceMemberManagement {
     );
   }
 
-  bool get hasSeatAvailable =>
-      seatLimit <= 0 || remainingSeats > 0;
+  bool get hasSeatAvailable => seatLimit <= 0 || remainingSeats > 0;
 }
 
 List<T> _mapList<T>(

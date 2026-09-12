@@ -31,7 +31,8 @@ class PrivacyService {
         'confirm_delete': '1',
       }));
 
-  Future<void> cancelDeletion() => _api.post('privacy/account/cancel-deletion', {});
+  Future<void> cancelDeletion() =>
+      _api.post('privacy/account/cancel-deletion', {});
 
   String _d(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

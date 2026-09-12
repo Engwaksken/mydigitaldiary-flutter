@@ -8,19 +8,25 @@ class MeetingRecordingService {
     final response = await _api.get('meetings/$meetingId/recordings');
     final raw = response is Map ? response['data'] : null;
     if (raw is! List) return const [];
-    return raw.whereType<Map>().map((row) => MeetingRecording.fromJson(Map<String, dynamic>.from(row))).toList();
+    return raw
+        .whereType<Map>()
+        .map((row) => MeetingRecording.fromJson(Map<String, dynamic>.from(row)))
+        .toList();
   }
 
   Future<MeetingRecording> start(int meetingId) async {
-    final response = await _api.post('meetings/$meetingId/recordings', {'consent': true});
+    final response =
+        await _api.post('meetings/$meetingId/recordings', {'consent': true});
     final data = response is Map ? response['data'] : null;
     if (data is! Map) {
-      throw ApiException(500, 'The server returned an invalid recording response.');
+      throw ApiException(
+          500, 'The server returned an invalid recording response.');
     }
     return MeetingRecording.fromJson(Map<String, dynamic>.from(data));
   }
 
-  Future<void> updateStatus(int recordingId, String status, int durationSeconds) async {
+  Future<void> updateStatus(
+      int recordingId, String status, int durationSeconds) async {
     await _api.patch('meeting-recordings/$recordingId/status', {
       'status': status,
       'duration_seconds': durationSeconds,
@@ -44,7 +50,8 @@ class MeetingRecordingService {
     );
     final data = response is Map ? response['data'] : null;
     if (data is! Map) {
-      throw ApiException(500, 'The server returned an invalid recording response.');
+      throw ApiException(
+          500, 'The server returned an invalid recording response.');
     }
     return MeetingRecording.fromJson(Map<String, dynamic>.from(data));
   }
@@ -78,22 +85,27 @@ class MeetingRecordingService {
     }
   }
 
-  Future<MeetingRecording> transcribe(int recordingId, {String language = 'en-GB'}) async {
-    final response = await _api.post('meeting-recordings/$recordingId/transcribe', {
+  Future<MeetingRecording> transcribe(int recordingId,
+      {String language = 'en-GB'}) async {
+    final response =
+        await _api.post('meeting-recordings/$recordingId/transcribe', {
       'transcription_language': language,
     });
     final data = response is Map ? response['data'] : null;
     if (data is! Map) {
-      throw ApiException(500, 'The server returned an invalid recording response.');
+      throw ApiException(
+          500, 'The server returned an invalid recording response.');
     }
     return MeetingRecording.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<MeetingRecording> summarize(int recordingId) async {
-    final response = await _api.post('meeting-recordings/$recordingId/summarize', {});
+    final response =
+        await _api.post('meeting-recordings/$recordingId/summarize', {});
     final data = response is Map ? response['data'] : null;
     if (data is! Map) {
-      throw ApiException(500, 'The server returned an invalid recording response.');
+      throw ApiException(
+          500, 'The server returned an invalid recording response.');
     }
     return MeetingRecording.fromJson(Map<String, dynamic>.from(data));
   }

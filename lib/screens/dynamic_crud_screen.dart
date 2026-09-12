@@ -30,7 +30,8 @@ class DynamicCrudScreen extends StatefulWidget {
 }
 
 class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
-  late final DynamicCrudService _service = DynamicCrudService(widget.config.endpoint);
+  late final DynamicCrudService _service =
+      DynamicCrudService(widget.config.endpoint);
   List<DynamicItem> _items = [];
   bool _loading = true;
   bool _redirectingToDedicatedScreen = false;
@@ -90,25 +91,32 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline. No saved copy of this list is available yet.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Offline. No saved copy of this list is available yet.')));
       }
     }
   }
 
   Future<void> _delete(DynamicItem item) async {
     try {
-      await _service.delete(item.id, baseUpdatedAt: item['updated_at']?.toString());
+      await _service.delete(item.id,
+          baseUpdatedAt: item['updated_at']?.toString());
       if (!mounted) return;
       setState(() => _items.removeWhere((i) => i.id == item.id));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${widget.config.title} item deleted.')),
       );
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -117,7 +125,9 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     return showAppConfirmDialog(
       context,
       title: 'Delete ${widget.config.title} item?',
-      message: title.isEmpty ? 'This item will be permanently deleted.' : 'Delete “$title”? This action cannot be undone.',
+      message: title.isEmpty
+          ? 'This item will be permanently deleted.'
+          : 'Delete “$title”? This action cannot be undone.',
       confirmText: 'Delete',
     );
   }
@@ -126,9 +136,13 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     try {
       await _service.archive(item.id);
       setState(() => _items.removeWhere((i) => i.id == item.id));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Archived. Find it later under Archived.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Archived. Find it later under Archived.')));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -148,9 +162,12 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       // Same share_plus API-version uncertainty flagged elsewhere in
       // this app — if this doesn't compile, use
       // Share.shareXFiles([XFile(path)]) instead.
-      await SharePlus.instance.share(ShareParams(files: [XFile(path)], subject: '${widget.config.title} Report'));
+      await SharePlus.instance.share(ShareParams(
+          files: [XFile(path)], subject: '${widget.config.title} Report'));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _downloadingPdf = false);
     }
@@ -188,14 +205,19 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       // converting it could incorrectly shift it to the previous day
       // for negative-offset timezones.
       final looksDateOnly = asString.length <= 10;
-      return looksDateOnly ? DateFormat('yMMMd').format(parsed) : DateFormat('yMMMd, h:mm a').format(parsed.toLocal());
+      return looksDateOnly
+          ? DateFormat('yMMMd').format(parsed)
+          : DateFormat('yMMMd, h:mm a').format(parsed.toLocal());
     }
 
     // Enum-style values (e.g. 'in_progress', 'scripture_reading') come
     // back from the API as the raw stored slug — humanize for display
     // rather than showing the underscore verbatim.
     if (RegExp(r'^[a-z]+(_[a-z]+)*$').hasMatch(asString)) {
-      return asString.split('_').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
+      return asString
+          .split('_')
+          .map((w) => w[0].toUpperCase() + w.substring(1))
+          .join(' ');
     }
 
     return asString;
@@ -210,7 +232,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
   FieldConfig? _statusField() {
     for (final field in widget.config.fields) {
       if (field.name == 'status' && field.type == FieldType.select) {
-        final hasCompletedOption = field.options?.any((o) => o.value == 'completed') ?? false;
+        final hasCompletedOption =
+            field.options?.any((o) => o.value == 'completed') ?? false;
         if (hasCompletedOption) return field;
       }
     }
@@ -219,7 +242,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
 
   Widget _buildProgressBanner() {
     final total = _items.length;
-    final completed = _items.where((item) => item['status'] == 'completed').length;
+    final completed =
+        _items.where((item) => item['status'] == 'completed').length;
     final percent = total > 0 ? (completed / total * 100) : 0.0;
 
     return Container(
@@ -232,8 +256,11 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${percent.toStringAsFixed(0)}% Complete', style: TextStyle(fontWeight: FontWeight.bold, color: widget.config.color)),
-              Text('$completed of $total', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('${percent.toStringAsFixed(0)}% Complete',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: widget.config.color)),
+              Text('$completed of $total',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
           const SizedBox(height: 8),
@@ -267,7 +294,10 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           const SizedBox(width: 8),
           Text(
             '${_items.length} ${_items.length == 1 ? 'item' : 'items'}',
-            style: TextStyle(fontWeight: FontWeight.w600, color: widget.config.color, fontSize: 13),
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: widget.config.color,
+                fontSize: 13),
           ),
         ],
       ),
@@ -289,13 +319,51 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIds.isEmpty ? config.title : '${_selectedIds.length} selected'),
-        leading: _selectedIds.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedIds.clear())),
+        title: Text(_selectedIds.isEmpty
+            ? config.title
+            : '${_selectedIds.length} selected'),
+        leading: _selectedIds.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _selectedIds.clear())),
         actions: [
-          if (_selectedIds.isNotEmpty) IconButton(icon: _bulkDeleting ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)) : const Icon(Icons.delete_outline), tooltip: 'Delete selected', onPressed: _bulkDeleting ? null : () async { final ok = await showAppConfirmDialog(context, title: 'Delete selected items?', message: 'You are about to permanently delete ${_selectedIds.length} selected item${_selectedIds.length == 1 ? '' : 's'}.', confirmText: 'Delete selected'); if(ok){ setState(()=>_bulkDeleting=true); try{ await _service.bulkDelete(_selectedIds.toList()); _selectedIds.clear(); await _load(); } finally { if(mounted)setState(()=>_bulkDeleting=false); } } }),
+          if (_selectedIds.isNotEmpty)
+            IconButton(
+                icon: _bulkDeleting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.delete_outline),
+                tooltip: 'Delete selected',
+                onPressed: _bulkDeleting
+                    ? null
+                    : () async {
+                        final ok = await showAppConfirmDialog(context,
+                            title: 'Delete selected items?',
+                            message:
+                                'You are about to permanently delete ${_selectedIds.length} selected item${_selectedIds.length == 1 ? '' : 's'}.',
+                            confirmText: 'Delete selected');
+                        if (ok) {
+                          setState(() => _bulkDeleting = true);
+                          try {
+                            await _service.bulkDelete(_selectedIds.toList());
+                            _selectedIds.clear();
+                            await _load();
+                          } finally {
+                            if (mounted) setState(() => _bulkDeleting = false);
+                          }
+                        }
+                      }),
           IconButton(
             icon: _downloadingPdf
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'Download PDF Report',
             onPressed: _downloadingPdf ? null : _downloadPdfReport,
@@ -303,7 +371,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           IconButton(
             icon: const Icon(Icons.archive_outlined),
             tooltip: 'Archived',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ArchivedItemsScreen(config: config))),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => ArchivedItemsScreen(config: config))),
           ),
         ],
       ),
@@ -314,7 +383,10 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
       ),
       body: Column(
         children: [
-          if (_statusField() != null) _buildProgressBanner() else _buildItemCountBanner(),
+          if (_statusField() != null)
+            _buildProgressBanner()
+          else
+            _buildItemCountBanner(),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _load,
@@ -325,93 +397,157 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                           children: const [
                             Padding(
                               padding: EdgeInsets.all(32),
-                              child: Text('Nothing here yet. Tap + to add one.', textAlign: TextAlign.center),
+                              child: Text('Nothing here yet. Tap + to add one.',
+                                  textAlign: TextAlign.center),
                             ),
                           ],
                         )
                       : ListView.separated(
                           itemCount: _items.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
                           itemBuilder: (context, index) {
-                      final item = _items[index];
-                      final subtitleParts = <String>[];
-                      if (config.subtitleField != null && item[config.subtitleField!] != null) {
-                        subtitleParts.add(_formatValue(item[config.subtitleField!]));
-                      }
-                      if (config.dateField != null && item[config.dateField!] != null) {
-                        subtitleParts.add(_formatValue(item[config.dateField!]));
-                      }
+                            final item = _items[index];
+                            final subtitleParts = <String>[];
+                            if (config.subtitleField != null &&
+                                item[config.subtitleField!] != null) {
+                              subtitleParts.add(
+                                  _formatValue(item[config.subtitleField!]));
+                            }
+                            if (config.dateField != null &&
+                                item[config.dateField!] != null) {
+                              subtitleParts
+                                  .add(_formatValue(item[config.dateField!]));
+                            }
 
-                      return Dismissible(
-                        key: ValueKey(item.id),
-                        direction: DismissDirection.horizontal,
-                        confirmDismiss: (direction) async {
-                          if (direction == DismissDirection.startToEnd) {
-                            await _archive(item);
-                            return false;
-                          }
-                          if (await _confirmDelete(item)) {
-                            await _delete(item);
-                          }
-                          return false;
-                        },
-                        background: Container(
-                          color: Colors.blueGrey,
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 20),
-                          child: const Icon(Icons.archive_outlined, color: Colors.white),
-                        ),
-                        secondaryBackground: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            leading: _selectedIds.isNotEmpty ? Checkbox(value: _selectedIds.contains(item.id), onChanged: (_) => setState(() { if (_selectedIds.contains(item.id)) {_selectedIds.remove(item.id);} else {_selectedIds.add(item.id);} })) : CircleAvatar(backgroundColor: config.color.withValues(alpha: 0.12), child: Icon(config.icon, color: config.color)),
-                            title: Text(
-                              _formatValue(item[config.titleField]).isEmpty ? '(untitled)' : _formatValue(item[config.titleField]),
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: (item['_offline_pending'] == true)
-                                ? Text([if (subtitleParts.isNotEmpty) subtitleParts.join(' · '), 'Waiting to sync'].join(' · '), style: const TextStyle(color: Colors.orange))
-                                : (subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · '))),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (config.amountField != null && item[config.amountField!] != null)
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 100),
-                                    child: Text(
-                                      (BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(
-                                        double.tryParse(item[config.amountField!].toString()) ?? 0,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
+                            return Dismissible(
+                              key: ValueKey(item.id),
+                              direction: DismissDirection.horizontal,
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.startToEnd) {
+                                  await _archive(item);
+                                  return false;
+                                }
+                                if (await _confirmDelete(item)) {
+                                  await _delete(item);
+                                }
+                                return false;
+                              },
+                              background: Container(
+                                color: Colors.blueGrey,
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(left: 20),
+                                child: const Icon(Icons.archive_outlined,
+                                    color: Colors.white),
+                              ),
+                              secondaryBackground: Container(
+                                color: Colors.red,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                child: const Icon(Icons.delete,
+                                    color: Colors.white),
+                              ),
+                              child: Card(
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 0),
+                                elevation: 1,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 4),
+                                  leading: _selectedIds.isNotEmpty
+                                      ? Checkbox(
+                                          value: _selectedIds.contains(item.id),
+                                          onChanged: (_) => setState(() {
+                                                if (_selectedIds
+                                                    .contains(item.id)) {
+                                                  _selectedIds.remove(item.id);
+                                                } else {
+                                                  _selectedIds.add(item.id);
+                                                }
+                                              }))
+                                      : CircleAvatar(
+                                          backgroundColor: config.color
+                                              .withValues(alpha: 0.12),
+                                          child: Icon(config.icon,
+                                              color: config.color)),
+                                  title: Text(
+                                    _formatValue(item[config.titleField])
+                                            .isEmpty
+                                        ? '(untitled)'
+                                        : _formatValue(item[config.titleField]),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
                                   ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                  tooltip: 'Delete',
-                                  onPressed: () async {
-                                    if (await _confirmDelete(item)) await _delete(item);
+                                  subtitle: (item['_offline_pending'] == true)
+                                      ? Text(
+                                          [
+                                            if (subtitleParts.isNotEmpty)
+                                              subtitleParts.join(' · '),
+                                            'Waiting to sync'
+                                          ].join(' · '),
+                                          style: const TextStyle(
+                                              color: Colors.orange))
+                                      : (subtitleParts.isEmpty
+                                          ? null
+                                          : Text(subtitleParts.join(' · '))),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (config.amountField != null &&
+                                          item[config.amountField!] != null)
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                              maxWidth: 100),
+                                          child: Text(
+                                            (BrandingService.cached ??
+                                                    BrandingInfo(siteName: ''))
+                                                .formatMoney(
+                                              double.tryParse(
+                                                      item[config.amountField!]
+                                                          .toString()) ??
+                                                  0,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12),
+                                          ),
+                                        ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: Colors.red, size: 20),
+                                        tooltip: 'Delete',
+                                        onPressed: () async {
+                                          if (await _confirmDelete(item))
+                                            await _delete(item);
+                                        },
+                                      ),
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.black38),
+                                    ],
+                                  ),
+                                  onLongPress: () =>
+                                      setState(() => _selectedIds.add(item.id)),
+                                  onTap: () {
+                                    if (_selectedIds.isNotEmpty) {
+                                      setState(() {
+                                        if (_selectedIds.contains(item.id)) {
+                                          _selectedIds.remove(item.id);
+                                        } else {
+                                          _selectedIds.add(item.id);
+                                        }
+                                      });
+                                    } else {
+                                      _openForm(existing: item);
+                                    }
                                   },
                                 ),
-                                const Icon(Icons.chevron_right, color: Colors.black38),
-                              ],
-                            ),
-                            onLongPress: () => setState(() => _selectedIds.add(item.id)),
-                            onTap: () { if (_selectedIds.isNotEmpty) { setState(() { if (_selectedIds.contains(item.id)) {_selectedIds.remove(item.id);} else {_selectedIds.add(item.id);} }); } else { _openForm(existing: item); } },
-                          ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
             ),
           ),
         ],
@@ -425,14 +561,16 @@ class _DynamicForm extends StatefulWidget {
   final DynamicItem? existing;
   final VoidCallback onSaved;
 
-  const _DynamicForm({required this.config, this.existing, required this.onSaved});
+  const _DynamicForm(
+      {required this.config, this.existing, required this.onSaved});
 
   @override
   State<_DynamicForm> createState() => _DynamicFormState();
 }
 
 class _DynamicFormState extends State<_DynamicForm> {
-  late final DynamicCrudService _service = DynamicCrudService(widget.config.endpoint);
+  late final DynamicCrudService _service =
+      DynamicCrudService(widget.config.endpoint);
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, DateTime?> _dateValues = {};
   final Map<String, String?> _selectValues = {};
@@ -448,10 +586,14 @@ class _DynamicFormState extends State<_DynamicForm> {
       final existingValue = widget.existing?[field.name];
       switch (field.type) {
         case FieldType.date:
-          _dateValues[field.name] = existingValue != null ? DateTime.tryParse(existingValue.toString()) : null;
+          _dateValues[field.name] = existingValue != null
+              ? DateTime.tryParse(existingValue.toString())
+              : null;
           break;
         case FieldType.datetime:
-          _dateValues[field.name] = existingValue != null ? DateTime.tryParse(existingValue.toString())?.toLocal() : null;
+          _dateValues[field.name] = existingValue != null
+              ? DateTime.tryParse(existingValue.toString())?.toLocal()
+              : null;
           break;
         case FieldType.select:
           _selectValues[field.name] = existingValue?.toString();
@@ -460,7 +602,8 @@ class _DynamicFormState extends State<_DynamicForm> {
           }
           break;
         default:
-          _controllers[field.name] = TextEditingController(text: existingValue?.toString() ?? '');
+          _controllers[field.name] =
+              TextEditingController(text: existingValue?.toString() ?? '');
       }
     }
   }
@@ -475,7 +618,8 @@ class _DynamicFormState extends State<_DynamicForm> {
       if (!mounted) return;
       setState(() {
         _dynamicOptions[field.name] = items
-            .map((item) => FieldOption(item.id.toString(), (item[field.optionsLabelField] ?? '#${item.id}').toString()))
+            .map((item) => FieldOption(item.id.toString(),
+                (item[field.optionsLabelField] ?? '#${item.id}').toString()))
             .toList();
         _loadingOptions.remove(field.name);
       });
@@ -511,7 +655,8 @@ class _DynamicFormState extends State<_DynamicForm> {
             : TimeOfDay.now(),
       );
       if (time == null) return;
-      setState(() => _dateValues[field.name] = DateTime(date.year, date.month, date.day, time.hour, time.minute));
+      setState(() => _dateValues[field.name] =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute));
     } else {
       setState(() => _dateValues[field.name] = date);
     }
@@ -524,7 +669,8 @@ class _DynamicFormState extends State<_DynamicForm> {
       switch (field.type) {
         case FieldType.date:
           final value = _dateValues[field.name];
-          payload[field.name] = value != null ? DateFormat('yyyy-MM-dd').format(value) : null;
+          payload[field.name] =
+              value != null ? DateFormat('yyyy-MM-dd').format(value) : null;
           break;
         case FieldType.datetime:
           final value = _dateValues[field.name];
@@ -556,7 +702,8 @@ class _DynamicFormState extends State<_DynamicForm> {
       if (!field.required) continue;
       final isEmpty = switch (field.type) {
         FieldType.date || FieldType.datetime => _dateValues[field.name] == null,
-        FieldType.select => _selectValues[field.name] == null || _selectValues[field.name]!.isEmpty,
+        FieldType.select => _selectValues[field.name] == null ||
+            _selectValues[field.name]!.isEmpty,
         _ => (_controllers[field.name]?.text.trim() ?? '').isEmpty,
       };
       if (isEmpty) {
@@ -573,10 +720,13 @@ class _DynamicFormState extends State<_DynamicForm> {
     try {
       final payload = _buildPayload();
       final saved = widget.existing != null
-          ? await _service.update(widget.existing!.id, payload, baseUpdatedAt: widget.existing!['updated_at']?.toString())
+          ? await _service.update(widget.existing!.id, payload,
+              baseUpdatedAt: widget.existing!['updated_at']?.toString())
           : await _service.create(payload);
       if (mounted && saved['_offline_pending'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved on this device. It will sync when you reconnect.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Saved on this device. It will sync when you reconnect.')));
       }
       widget.onSaved();
     } on ApiException catch (e) {
@@ -593,7 +743,9 @@ class _DynamicFormState extends State<_DynamicForm> {
         final value = _dateValues[field.name];
         final formatted = value == null
             ? 'Not set'
-            : (field.type == FieldType.date ? DateFormat('yMMMd').format(value) : DateFormat('yMMMd, h:mm a').format(value));
+            : (field.type == FieldType.date
+                ? DateFormat('yMMMd').format(value)
+                : DateFormat('yMMMd, h:mm a').format(value));
         return ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(field.label),
@@ -605,15 +757,22 @@ class _DynamicFormState extends State<_DynamicForm> {
         if (_loadingOptions.contains(field.name)) {
           return InputDecorator(
             decoration: InputDecoration(labelText: field.label),
-            child: const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2)),
           );
         }
         final options = _dynamicOptions[field.name] ?? field.options ?? [];
         return DropdownButtonFormField<String>(
           initialValue: _selectValues[field.name],
           decoration: InputDecoration(labelText: field.label),
-          items: options.map((option) => DropdownMenuItem(value: option.value, child: Text(option.label))).toList(),
-          onChanged: (value) => setState(() => _selectValues[field.name] = value),
+          items: options
+              .map((option) => DropdownMenuItem(
+                  value: option.value, child: Text(option.label)))
+              .toList(),
+          onChanged: (value) =>
+              setState(() => _selectValues[field.name] = value),
         );
       case FieldType.textarea:
         return VoiceTextField(
@@ -626,7 +785,8 @@ class _DynamicFormState extends State<_DynamicForm> {
         return TextField(
           controller: _controllers[field.name],
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: field.label, hintText: field.hint),
+          decoration:
+              InputDecoration(labelText: field.label, hintText: field.hint),
         );
       case FieldType.text:
         return VoiceTextField(
@@ -652,7 +812,9 @@ class _DynamicFormState extends State<_DynamicForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              widget.existing != null ? 'Edit ${widget.config.title}' : 'New ${widget.config.title}',
+              widget.existing != null
+                  ? 'Edit ${widget.config.title}'
+                  : 'New ${widget.config.title}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -668,7 +830,11 @@ class _DynamicFormState extends State<_DynamicForm> {
             ElevatedButton(
               onPressed: _saving ? null : _save,
               child: _saving
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Save'),
             ),
           ],

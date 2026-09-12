@@ -27,8 +27,7 @@ class CurrencyProvider extends ChangeNotifier {
 
     try {
       try {
-        selectedCurrency =
-            await _storage.read(key: _key) ?? selectedCurrency;
+        selectedCurrency = await _storage.read(key: _key) ?? selectedCurrency;
       } on PlatformException catch (e) {
         /*
          * A broken/old Android encrypted-storage key must not prevent
@@ -132,8 +131,7 @@ class CurrencyProvider extends ChangeNotifier {
     final meta = config?.currencies[selectedCurrency];
 
     final symbol = meta?.symbol ?? selectedCurrency;
-    final decimals =
-        meta?.decimals ?? (selectedCurrency == 'UGX' ? 0 : 2);
+    final decimals = meta?.decimals ?? (selectedCurrency == 'UGX' ? 0 : 2);
 
     return '$symbol ${_formatNumber(value, decimals)}';
   }
@@ -155,8 +153,7 @@ class CurrencyProvider extends ChangeNotifier {
     }
 
     final prefix = negative ? '-' : '';
-    final fraction =
-        parts.length > 1 && decimals > 0 ? '.${parts[1]}' : '';
+    final fraction = parts.length > 1 && decimals > 0 ? '.${parts[1]}' : '';
 
     return '$prefix$buffer$fraction';
   }

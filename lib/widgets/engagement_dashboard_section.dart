@@ -21,9 +21,7 @@ class EngagementDashboardSection extends StatelessWidget {
 
   Map<String, dynamic> _map(String key) {
     final raw = data[key];
-    return raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
   @override
@@ -232,13 +230,11 @@ class EngagementReviewSheet extends StatelessWidget {
   });
 
   String _money(dynamic value) {
-    final n = value is num
-        ? value.toDouble()
-        : double.tryParse('$value') ?? 0;
+    final n = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
     return 'UGX ${n.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (m) => ',',
-    )}';
+          RegExp(r'\B(?=(\d{3})+(?!\d))'),
+          (m) => ',',
+        )}';
   }
 
   @override
@@ -247,8 +243,7 @@ class EngagementReviewSheet extends StatelessWidget {
         ? Map<String, dynamic>.from(review['streak'] as Map)
         : <String, dynamic>{};
 
-    final title =
-        period == 'week' ? 'My Week in Review' : 'My Month in Review';
+    final title = period == 'week' ? 'My Week in Review' : 'My Month in Review';
 
     final metrics = <(String, String)>[
       (
@@ -307,8 +302,7 @@ class EngagementReviewSheet extends StatelessWidget {
               itemCount: metrics.length,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 9,
                 crossAxisSpacing: 9,
@@ -321,8 +315,7 @@ class EngagementReviewSheet extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(14),
-                    border:
-                        Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

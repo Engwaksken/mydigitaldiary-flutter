@@ -32,9 +32,8 @@ class EngagementService {
         'tasks_total': plan.total,
         'tasks_completed': plan.completed,
         'tasks_pending': plan.pending,
-        'completion_percent': plan.total == 0
-            ? 0
-            : ((plan.completed / plan.total) * 100).round(),
+        'completion_percent':
+            plan.total == 0 ? 0 : ((plan.completed / plan.total) * 100).round(),
       };
 
       final start = engagement['start_day'] is Map
@@ -207,8 +206,7 @@ class EngagementService {
       now.day,
     );
 
-    final withinRange =
-        !today.isBefore(from) && !today.isAfter(to);
+    final withinRange = !today.isBefore(from) && !today.isAfter(to);
 
     final historyHasToday = history.any(
       (day) =>
@@ -403,11 +401,7 @@ class EngagementService {
     if (value is num) return value.toDouble();
 
     return double.tryParse(
-          value
-                  ?.toString()
-                  .replaceAll(',', '')
-                  .replaceAll('UGX', '')
-                  .trim() ??
+          value?.toString().replaceAll(',', '').replaceAll('UGX', '').trim() ??
               '',
         ) ??
         0;
@@ -444,8 +438,7 @@ class EngagementService {
     );
   }
 
-  String _date(DateTime date) =>
-      '${date.year.toString().padLeft(4, '0')}-'
+  String _date(DateTime date) => '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
 

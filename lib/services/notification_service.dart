@@ -61,8 +61,8 @@ class NotificationService {
     // Android 13+ requires runtime notification permission. Older Android
     // versions simply return null/no-op here.
     try {
-      final android = _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final android = _localNotifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
       await android?.requestNotificationsPermission();
       await android?.requestExactAlarmsPermission();
       await android?.createNotificationChannel(
@@ -140,7 +140,8 @@ class NotificationService {
 
   Future<void> showReminderAlarm(int id, String title, String? body) async {
     await initializeLocalNotifications();
-    await _localNotifications.show(id, title, body, _reminderDetails, payload: 'reminder:$id');
+    await _localNotifications.show(id, title, body, _reminderDetails,
+        payload: 'reminder:$id');
   }
 
   /// Rebuilds the local schedules from reminders returned by the API.
@@ -296,9 +297,10 @@ class NotificationService {
   DateTime _advance(DateTime value, Reminder reminder) {
     switch (reminder.frequency) {
       case 'every_n_minutes':
-        final minutes = reminder.intervalMinutes != null && reminder.intervalMinutes! > 0
-            ? reminder.intervalMinutes!
-            : 1;
+        final minutes =
+            reminder.intervalMinutes != null && reminder.intervalMinutes! > 0
+                ? reminder.intervalMinutes!
+                : 1;
         return value.add(Duration(minutes: minutes));
       case 'hourly':
         return value.add(const Duration(hours: 1));
@@ -360,7 +362,8 @@ class NotificationService {
     final reminderId = int.tryParse(data['reminder_id']?.toString() ?? '');
     if (reminderId != null) {
       try {
-        await ApiClient.instance.post('notifications/reminder/$reminderId/read', {});
+        await ApiClient.instance
+            .post('notifications/reminder/$reminderId/read', {});
       } catch (_) {}
     }
   }

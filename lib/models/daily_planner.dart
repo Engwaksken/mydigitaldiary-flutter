@@ -250,9 +250,7 @@ class DailyPlannerTaskDraft {
       'start_time': _blankToNull(startTime),
       'end_time': _blankToNull(endTime),
       'repeat_type': repeatType,
-      'repeat_days': repeatType == 'specific_days'
-          ? repeatDays
-          : <String>[],
+      'repeat_days': repeatType == 'specific_days' ? repeatDays : <String>[],
       'repeat_interval': repeatInterval,
       'repeat_starts_on':
           repeatType == 'once' ? null : (repeatStartsOn ?? planDate),
@@ -339,9 +337,7 @@ String _fallbackRepeatLabel(
     case 'monthly':
       return 'Every month';
     case 'specific_days':
-      final values = days
-          .map((day) => shortDays[day] ?? day)
-          .toList();
+      final values = days.map((day) => shortDays[day] ?? day).toList();
       return values.isEmpty ? 'Specific days' : values.join(' • ');
     default:
       return 'Once';

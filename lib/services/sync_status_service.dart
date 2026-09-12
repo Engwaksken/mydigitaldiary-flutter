@@ -33,8 +33,10 @@ class SyncStatusService {
     final conflicts = await _changes.conflictCount();
     try {
       final raw = await _api.get('sync/status');
-      final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-      final serverLast = DateTime.tryParse(map['last_mobile_write_at']?.toString() ?? '');
+      final map =
+          raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+      final serverLast =
+          DateTime.tryParse(map['last_mobile_write_at']?.toString() ?? '');
       return SyncSnapshot(
         online: true,
         pendingUploads: pendingUploads,

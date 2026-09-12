@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../services/social_media_planner_service.dart';
 
 class SocialMediaAccountsScreen extends StatefulWidget {
@@ -10,13 +11,12 @@ class SocialMediaAccountsScreen extends StatefulWidget {
       _SocialMediaAccountsScreenState();
 }
 
-class _SocialMediaAccountsScreenState
-    extends State<SocialMediaAccountsScreen> {
-  final _service = const SocialMediaPlannerService();
+class _SocialMediaAccountsScreenState extends State<SocialMediaAccountsScreen> {
+  final SocialMediaPlannerService _service = const SocialMediaPlannerService();
 
-  final _whatsApp = TextEditingController();
-  final _channelName = TextEditingController();
-  final _channelUrl = TextEditingController();
+  final TextEditingController _whatsApp = TextEditingController();
+  final TextEditingController _channelName = TextEditingController();
+  final TextEditingController _channelUrl = TextEditingController();
 
   List<Map<String, dynamic>> _accounts = <Map<String, dynamic>>[];
 
@@ -35,6 +35,84 @@ class _SocialMediaAccountsScreenState
     _channelName.dispose();
     _channelUrl.dispose();
     super.dispose();
+  }
+
+  bool _truthy(dynamic value) {
+    return value == true || value == 1 || value?.toString() == '1';
+  }
+
+  int? _accountId(Map<String, dynamic> account) {
+    final raw = account['id'];
+
+    if (raw is int) {
+      return raw;
+    }
+
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  String _platformLabel(dynamic value) {
+    final platform = value?.toString().trim().toLowerCase() ?? '';
+
+    switch (platform) {
+      case 'x':
+      case 'twitter':
+        return 'X';
+      case 'facebook':
+        return 'Facebook';
+      case 'instagram':
+        return 'Instagram';
+      case 'tiktok':
+        return 'TikTok';
+      case 'linkedin':
+        return 'LinkedIn';
+      case 'youtube':
+        return 'YouTube';
+      default:
+        if (platform.isEmpty) {
+          return 'Social Media';
+        }
+
+        return platform[0].toUpperCase() + platform.substring(1);
+    }
+  }
+
+  IconData _platformIcon(dynamic value) {
+    final platform = value?.toString().trim().toLowerCase() ?? '';
+
+    switch (platform) {
+      case 'x':
+      case 'twitter':
+        return Icons.close_rounded;
+      case 'facebook':
+        return Icons.facebook_rounded;
+      case 'youtube':
+        return Icons.play_circle_outline_rounded;
+      case 'linkedin':
+        return Icons.work_outline_rounded;
+      case 'tiktok':
+        return Icons.music_note_rounded;
+      case 'instagram':
+        return Icons.photo_camera_outlined;
+      default:
+        return Icons.alternate_email_rounded;
+    }
+  }
+
+  void _showMessage(
+    String message, {
+    bool error = false,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -57,39 +135,40 @@ class _SocialMediaAccountsScreenState
           ? rawAccounts
               .whereType<Map>()
               .map(
-                (item) => Map<String, dynamic>.from(item),
+                (account) => Map<String, dynamic>.from(account),
               )
-              .toList()
+              .toList(growable: false)
           : <Map<String, dynamic>>[];
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
-        _whatsApp.text =
-            (whatsapp['number'] ?? '').toString();
-
-        _channelName.text =
-            (whatsapp['channel_name'] ?? '').toString();
-
-        _channelUrl.text =
-            (whatsapp['channel_url'] ?? '').toString();
-
+        _whatsApp.text = (whatsapp['number'] ?? '').toString();
+        _channelName.text = (whatsapp['channel_name'] ?? '').toString();
+        _channelUrl.text = (whatsapp['channel_url'] ?? '').toString();
         _accounts = accounts;
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
 
       setState(() => _loading = false);
 
       _showMessage(
-        'Could not load social media settings: $e',
+        'Could not load social media settings: $error',
+        error: true,
       );
     }
   }
 
   Future<void> _saveWhatsApp() async {
-    if (_savingWhatsApp) return;
+    if (_savingWhatsApp) {
+      return;
+    }
 
     setState(() => _savingWhatsApp = true);
 
@@ -100,20 +179,45 @@ class _SocialMediaAccountsScreenState
         channelUrl: _channelUrl.text.trim(),
       );
 
-      if (!mounted) return;
-
       _showMessage('WhatsApp settings saved.');
-    } catch (e) {
-      if (!mounted) return;
-
+    } catch (error) {
       _showMessage(
-        'Could not save WhatsApp settings: $e',
+        'Could not save WhatsApp settings: $error',
+        error: true,
       );
     } finally {
       if (mounted) {
         setState(() => _savingWhatsApp = false);
       }
     }
+  }
+
+  Future<void> _saveAutomaticPublishing({
+    required int accountId,
+    required bool enabled,
+    required String externalAccountId,
+    required String accessToken,
+  }) async {
+    final body = <String, dynamic>{
+      'auto_publish_enabled': enabled,
+      'external_account_id':
+          externalAccountId.trim().isEmpty ? null : externalAccountId.trim(),
+    };
+
+    final token = accessToken.trim();
+
+    if (token.isNotEmpty) {
+      body['access_token'] = token;
+    }
+
+    // Call ApiClient directly here so this screen remains compatible
+    // with older SocialMediaPlannerService versions that do not yet
+    // declare an accessToken named parameter.
+    await ApiClient.instance.put(
+      'profile/social-media/accounts/$accountId/'
+      'automatic-publishing',
+      body,
+    );
   }
 
   Future<void> _configureAutomaticPublishing(
@@ -124,17 +228,17 @@ class _SocialMediaAccountsScreenState
     if (id == null) {
       _showMessage(
         'This social media account has an invalid ID.',
+        error: true,
       );
       return;
     }
 
-    bool enabled = _asBool(
+    bool enabled = _truthy(
       account['auto_publish_enabled'],
     );
 
     final externalAccountId = TextEditingController(
-      text: (account['external_account_id'] ?? '')
-          .toString(),
+      text: (account['external_account_id'] ?? '').toString(),
     );
 
     final accessToken = TextEditingController();
@@ -143,159 +247,102 @@ class _SocialMediaAccountsScreenState
       final saved = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
-        useSafeArea: true,
         showDragHandle: true,
         builder: (sheetContext) {
           return StatefulBuilder(
             builder: (context, setLocal) {
-              final platform =
-                  _platformLabel(account['platform']);
-
-              final connected =
-                  _asBool(account['is_connected']);
-
-              return SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  18,
-                  4,
-                  18,
-                  MediaQuery.viewInsetsOf(context)
-                          .bottom +
-                      24,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Automatic Posting · $platform',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+              return SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    18,
+                    4,
+                    18,
+                    MediaQuery.viewInsetsOf(context).bottom + 20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Automatic Posting · '
+                        '${_platformLabel(account['platform'])}',
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Authorise this account for automatic publishing. '
-                      'Access tokens are sent securely to Laravel and should '
-                      'be stored encrypted. Saved tokens are never shown again.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: Color(0xFF64748B),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Automatic posting requires an authorised '
+                        'provider account. Tokens are sent securely '
+                        'to Laravel and are not displayed again.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: connected
-                            ? const Color(0xFFECFDF5)
-                            : const Color(0xFFFFFBEB),
-                        borderRadius:
-                            BorderRadius.circular(12),
+                      const SizedBox(height: 14),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: enabled,
+                        title: const Text(
+                          'Enable automatic posting',
+                        ),
+                        subtitle: const Text(
+                          'Scheduled posts can publish '
+                          'automatically when this account has '
+                          'authorised provider access.',
+                        ),
+                        onChanged: (value) {
+                          setLocal(() {
+                            enabled = value;
+                          });
+                        },
                       ),
-                      child: Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            connected
-                                ? Icons.verified_outlined
-                                : Icons.info_outline,
-                            size: 20,
-                            color: connected
-                                ? const Color(0xFF047857)
-                                : const Color(0xFFB45309),
-                          ),
-                          const SizedBox(width: 9),
-                          Expanded(
-                            child: Text(
-                              connected
-                                  ? 'This account is already connected. You can update its publishing settings or replace its OAuth token.'
-                                  : 'This account is not yet fully authorised for automatic publishing.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                height: 1.45,
-                                color: connected
-                                    ? const Color(0xFF065F46)
-                                    : const Color(0xFF92400E),
-                              ),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: externalAccountId,
+                        decoration: const InputDecoration(
+                          labelText: 'Provider account ID (optional)',
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: enabled,
-                      title: const Text(
-                        'Enable automatic posting',
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: accessToken,
+                        obscureText: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          labelText: _truthy(account['is_connected'])
+                              ? 'Replace OAuth access token '
+                                  '(optional)'
+                              : 'OAuth access token',
+                          helperText: _platformLabel(account['platform']) == 'X'
+                              ? 'For X automatic posting, use '
+                                  'a user-context token with '
+                                  'write permission.'
+                              : 'Leave blank to keep the '
+                                  'currently saved token.',
+                        ),
                       ),
-                      subtitle: const Text(
-                        'Scheduled posts can publish automatically when the platform account has authorised publishing access.',
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(
+                            sheetContext,
+                            true,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.cloud_upload_outlined,
+                        ),
+                        label: const Text(
+                          'Save Automatic Posting',
+                        ),
                       ),
-                      onChanged: (value) {
-                        setLocal(() => enabled = value);
-                      },
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    TextField(
-                      controller: externalAccountId,
-                      decoration: InputDecoration(
-                        labelText:
-                            _externalIdLabel(account['platform']),
-                        hintText:
-                            'Provider account/page/channel ID',
-                        border:
-                            const OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: accessToken,
-                      obscureText: true,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      decoration: InputDecoration(
-                        labelText: connected
-                            ? 'Replace OAuth access token (optional)'
-                            : 'OAuth access token',
-                        helperText:
-                            _tokenHelper(account['platform']),
-                        helperMaxLines: 3,
-                        border:
-                            const OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    FilledButton.icon(
-                      onPressed: () =>
-                          Navigator.pop(context, true),
-                      icon:
-                          const Icon(Icons.schedule_send),
-                      label:
-                          const Text('Save Automatic Posting'),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    TextButton(
-                      onPressed: () =>
-                          Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -303,20 +350,16 @@ class _SocialMediaAccountsScreenState
         },
       );
 
-      if (saved != true) return;
+      if (saved != true) {
+        return;
+      }
 
-      await _service.updateAutomaticPublishing(
+      await _saveAutomaticPublishing(
         accountId: id,
         enabled: enabled,
-        externalAccountId:
-            externalAccountId.text.trim(),
-        accessToken:
-            accessToken.text.trim().isEmpty
-                ? null
-                : accessToken.text.trim(),
+        externalAccountId: externalAccountId.text,
+        accessToken: accessToken.text,
       );
-
-      if (!mounted) return;
 
       _showMessage(
         enabled
@@ -325,11 +368,10 @@ class _SocialMediaAccountsScreenState
       );
 
       await _load();
-    } catch (e) {
-      if (!mounted) return;
-
+    } catch (error) {
       _showMessage(
-        'Could not update automatic posting: $e',
+        'Could not update automatic posting: $error',
+        error: true,
       );
     } finally {
       externalAccountId.dispose();
@@ -347,136 +389,106 @@ class _SocialMediaAccountsScreenState
       final saved = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
-        useSafeArea: true,
         showDragHandle: true,
         builder: (sheetContext) {
           return StatefulBuilder(
             builder: (context, setLocal) {
-              return SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  18,
-                  4,
-                  18,
-                  MediaQuery.viewInsetsOf(context)
-                          .bottom +
-                      24,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Add Social Media Account',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+              return SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    18,
+                    4,
+                    18,
+                    MediaQuery.viewInsetsOf(context).bottom + 20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Add Social Media Account',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Add an account identity first. You can configure automatic publishing after saving it.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: platform,
+                        decoration: const InputDecoration(
+                          labelText: 'Platform',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'instagram',
+                            child: Text('Instagram'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'facebook',
+                            child: Text('Facebook'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'x',
+                            child: Text('X'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'tiktok',
+                            child: Text('TikTok'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'linkedin',
+                            child: Text('LinkedIn'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'youtube',
+                            child: Text('YouTube'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+
+                          setLocal(() {
+                            platform = value;
+                          });
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    DropdownButtonFormField<String>(
-                      initialValue: platform,
-                      decoration: const InputDecoration(
-                        labelText: 'Platform',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: name,
+                        decoration: const InputDecoration(
+                          labelText: 'Account name',
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'instagram',
-                          child: Text('Instagram'),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: username,
+                        decoration: const InputDecoration(
+                          labelText: 'Username / handle',
                         ),
-                        DropdownMenuItem(
-                          value: 'facebook',
-                          child: Text('Facebook'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'x',
-                          child: Text('X (Twitter)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'tiktok',
-                          child: Text('TikTok'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'linkedin',
-                          child: Text('LinkedIn'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'youtube',
-                          child: Text('YouTube'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setLocal(
-                            () => platform = value,
-                          );
-                        }
-                      },
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: name,
-                      decoration: const InputDecoration(
-                        labelText: 'Account name',
-                        border: OutlineInputBorder(),
                       ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: username,
-                      decoration: InputDecoration(
-                        labelText:
-                            _usernameLabel(platform),
-                        border:
-                            const OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        if (name.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Enter the account name.',
-                                ),
-                              ),
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (name.text.trim().isEmpty) {
+                            _showMessage(
+                              'Enter the account name.',
+                              error: true,
                             );
-                          return;
-                        }
+                            return;
+                          }
 
-                        Navigator.pop(context, true);
-                      },
-                      icon: const Icon(Icons.add),
-                      label:
-                          const Text('Add Account'),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    TextButton(
-                      onPressed: () =>
-                          Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
+                          Navigator.pop(
+                            sheetContext,
+                            true,
+                          );
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Account'),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -484,7 +496,9 @@ class _SocialMediaAccountsScreenState
         },
       );
 
-      if (saved != true) return;
+      if (saved != true) {
+        return;
+      }
 
       await _service.addAccount(
         platform: platform,
@@ -492,16 +506,12 @@ class _SocialMediaAccountsScreenState
         username: username.text.trim(),
       );
 
-      if (!mounted) return;
-
       _showMessage('Social media account added.');
-
       await _load();
-    } catch (e) {
-      if (!mounted) return;
-
+    } catch (error) {
       _showMessage(
-        'Could not add account: $e',
+        'Could not add account: $error',
+        error: true,
       );
     } finally {
       name.dispose();
@@ -515,35 +525,37 @@ class _SocialMediaAccountsScreenState
     final id = _accountId(account);
 
     if (id == null) {
-      _showMessage(
-        'This social media account has an invalid ID.',
-      );
       return;
     }
 
-    final accountName =
-        (account['account_name'] ?? 'This account')
-            .toString();
-
-    final ok = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title:
-              const Text('Remove social media account?'),
+          title: const Text(
+            'Remove social media account?',
+          ),
           content: Text(
-            '$accountName will be removed from your profile. '
-            'Scheduled posts using this account may require another publishing destination.',
+            '${account['account_name'] ?? 'This account'} '
+            'will be removed from your profile.',
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, false),
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.pop(context, true),
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
               child: const Text('Remove'),
             ),
           ],
@@ -551,363 +563,90 @@ class _SocialMediaAccountsScreenState
       },
     );
 
-    if (ok != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     try {
       await _service.removeAccount(id);
-
-      if (!mounted) return;
-
       _showMessage('Social media account removed.');
-
       await _load();
-    } catch (e) {
-      if (!mounted) return;
-
+    } catch (error) {
       _showMessage(
-        'Could not remove account: $e',
+        'Could not remove account: $error',
+        error: true,
       );
     }
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-  }
-
-  int? _accountId(Map<String, dynamic> account) {
-    final raw = account['id'];
-
-    if (raw is int) return raw;
-
-    return int.tryParse(raw?.toString() ?? '');
-  }
-
-  bool _asBool(dynamic value) {
-    if (value is bool) return value;
-    if (value is num) return value != 0;
-
-    final text =
-        value?.toString().trim().toLowerCase();
-
-    return text == '1' ||
-        text == 'true' ||
-        text == 'yes' ||
-        text == 'enabled';
-  }
-
-  static String _platformLabel(dynamic platform) {
-    switch (
-        platform?.toString().trim().toLowerCase()) {
-      case 'instagram':
-        return 'Instagram';
-      case 'facebook':
-        return 'Facebook';
-      case 'x':
-      case 'twitter':
-        return 'X (Twitter)';
-      case 'tiktok':
-        return 'TikTok';
-      case 'linkedin':
-        return 'LinkedIn';
-      case 'youtube':
-        return 'YouTube';
-      default:
-        return platform?.toString().trim().isNotEmpty ==
-                true
-            ? platform.toString()
-            : 'Social Media';
-    }
-  }
-
-  static String _usernameLabel(String platform) {
-    switch (platform) {
-      case 'youtube':
-        return 'Channel name / handle';
-      case 'facebook':
-        return 'Page username / handle';
-      case 'linkedin':
-        return 'Page / profile handle';
-      default:
-        return 'Username / handle';
-    }
-  }
-
-  String _externalIdLabel(dynamic platform) {
-    switch (
-        platform?.toString().trim().toLowerCase()) {
-      case 'facebook':
-        return 'Facebook Page ID (optional)';
-      case 'instagram':
-        return 'Instagram Business Account ID (optional)';
-      case 'x':
-      case 'twitter':
-        return 'X User ID (optional)';
-      case 'linkedin':
-        return 'LinkedIn organisation/person ID (optional)';
-      case 'youtube':
-        return 'YouTube Channel ID (optional)';
-      default:
-        return 'Provider account ID (optional)';
-    }
-  }
-
-  String _tokenHelper(dynamic platform) {
-    switch (
-        platform?.toString().trim().toLowerCase()) {
-      case 'x':
-      case 'twitter':
-        return 'Use a user-context OAuth token that has permission to create posts.';
-      case 'instagram':
-        return 'Use an authorised token for the connected Instagram professional account.';
-      case 'facebook':
-        return 'Use an authorised token with access to the selected Facebook Page.';
-      case 'linkedin':
-        return 'Use an authorised LinkedIn token with the required posting permission.';
-      case 'youtube':
-        return 'Use an authorised Google/YouTube OAuth token with channel publishing permission.';
-      default:
-        return 'Enter a valid OAuth access token issued for this account.';
-    }
-  }
-
-  IconData _platformIcon(dynamic platform) {
-    switch (
-        platform?.toString().trim().toLowerCase()) {
-      case 'facebook':
-        return Icons.facebook;
-      case 'youtube':
-        return Icons.play_circle_outline;
-      case 'linkedin':
-        return Icons.business_center_outlined;
-      case 'tiktok':
-        return Icons.music_note_outlined;
-      case 'instagram':
-        return Icons.camera_alt_outlined;
-      case 'x':
-      case 'twitter':
-        return Icons.alternate_email;
-      default:
-        return Icons.public;
-    }
-  }
-
-  Widget _statusChip({
-    required String label,
-    required bool active,
-    required IconData icon,
-  }) {
-    final background = active
-        ? const Color(0xFFECFDF5)
-        : const Color(0xFFF8FAFC);
-
-    final foreground = active
-        ? const Color(0xFF047857)
-        : const Color(0xFF64748B);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: foreground,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: foreground,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _accountCard(
-    Map<String, dynamic> account,
-  ) {
-    final connected = _asBool(
-      account['is_connected'],
-    );
-
-    final automatic = _asBool(
-      account['auto_publish_enabled'],
-    );
-
-    final platform =
-        _platformLabel(account['platform']);
-
-    final accountName =
-        (account['account_name'] ?? '').toString();
-
-    final username =
-        (account['username'] ?? '').toString().trim();
-
+  Widget _whatsAppCard() {
     return Card(
-      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          14,
-          14,
-          8,
-          12,
-        ),
+        padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+            const Row(
               children: [
-                CircleAvatar(
-                  child: Icon(
-                    _platformIcon(
-                      account['platform'],
-                    ),
+                Icon(Icons.chat_outlined),
+                SizedBox(width: 8),
+                Text(
+                  'WhatsApp',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        accountName.isEmpty
-                            ? platform
-                            : accountName,
-                        maxLines: 2,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight:
-                              FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        username.isEmpty
-                            ? platform
-                            : '$platform · $username',
-                        maxLines: 2,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: 'Account actions',
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'automatic':
-                        _configureAutomaticPublishing(
-                          account,
-                        );
-                        break;
-                      case 'remove':
-                        _remove(account);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'automatic',
-                      child: ListTile(
-                        dense: true,
-                        contentPadding:
-                            EdgeInsets.zero,
-                        leading: Icon(
-                          Icons.schedule_send_outlined,
-                        ),
-                        title: Text(
-                          'Automatic Posting',
-                        ),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'remove',
-                      child: ListTile(
-                        dense: true,
-                        contentPadding:
-                            EdgeInsets.zero,
-                        leading: Icon(
-                          Icons.delete_outline,
-                        ),
-                        title:
-                            Text('Remove Account'),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                _statusChip(
-                  label: connected
-                      ? 'Connected'
-                      : 'Not connected',
-                  active: connected,
-                  icon: connected
-                      ? Icons.verified_outlined
-                      : Icons.link_off_outlined,
-                ),
-                _statusChip(
-                  label: automatic
-                      ? 'Auto posting on'
-                      : 'Auto posting off',
-                  active: automatic,
-                  icon:
-                      Icons.schedule_send_outlined,
-                ),
-              ],
+            const SizedBox(height: 4),
+            const Text(
+              'Set the number used for Status sharing and '
+              'your WhatsApp Channel details.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _whatsApp,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp number',
+                hintText: '+2567XXXXXXXX',
+              ),
             ),
             const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    _configureAutomaticPublishing(
-                  account,
-                ),
-                icon: const Icon(
-                  Icons.settings_outlined,
-                ),
-                label: Text(
-                  automatic
-                      ? 'Manage Automatic Posting'
-                      : 'Set Up Automatic Posting',
-                ),
+            TextField(
+              controller: _channelName,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp Channel name',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _channelUrl,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp Channel link',
+                hintText: 'https://whatsapp.com/channel/...',
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: _savingWhatsApp ? null : _saveWhatsApp,
+              icon: _savingWhatsApp
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: const Text(
+                'Save WhatsApp Settings',
               ),
             ),
           ],
@@ -916,20 +655,151 @@ class _SocialMediaAccountsScreenState
     );
   }
 
+  Widget _accountCard(
+    Map<String, dynamic> account,
+  ) {
+    final automatic = _truthy(account['auto_publish_enabled']);
+    final connected = _truthy(account['is_connected']);
+
+    final username = (account['username'] ?? '').toString().trim();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 4,
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            child: Icon(
+              _platformIcon(account['platform']),
+            ),
+          ),
+          title: Text(
+            '${_platformLabel(account['platform'])} · '
+            '${account['account_name'] ?? ''}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3),
+              Text(
+                username.isEmpty ? 'No username saved' : username,
+              ),
+              const SizedBox(height: 5),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _statusChip(
+                    connected ? 'Connected' : 'Not connected',
+                    connected ? Icons.link_rounded : Icons.link_off_rounded,
+                  ),
+                  _statusChip(
+                    automatic ? 'Auto posting on' : 'Auto posting off',
+                    automatic
+                        ? Icons.auto_awesome_rounded
+                        : Icons.schedule_send_outlined,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          isThreeLine: true,
+          trailing: PopupMenuButton<String>(
+            tooltip: 'Account actions',
+            onSelected: (value) {
+              if (value == 'automatic') {
+                _configureAutomaticPublishing(
+                  account,
+                );
+              } else if (value == 'remove') {
+                _remove(account);
+              }
+            },
+            itemBuilder: (context) {
+              return const [
+                PopupMenuItem(
+                  value: 'automatic',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.schedule_send_outlined,
+                    ),
+                    title: Text(
+                      'Automatic Posting',
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'remove',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_outline_rounded,
+                    ),
+                    title: Text('Remove'),
+                  ),
+                ),
+              ];
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(
+    String label,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: const Color(0xFF475569),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF475569),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final keyboardOpen =
-        MediaQuery.viewInsetsOf(context).bottom > 0;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('Social Media Settings'),
+        title: const Text(
+          'Social Media Settings',
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
             onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
@@ -943,12 +813,11 @@ class _SocialMediaAccountsScreenState
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          physics:
-              const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(
+            16,
             12,
-            12,
-            12,
+            16,
             100,
           ),
           children: [
@@ -956,194 +825,39 @@ class _SocialMediaAccountsScreenState
               const LinearProgressIndicator(
                 minHeight: 2,
               ),
-
-            const SizedBox(height: 10),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.chat_outlined),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'WhatsApp',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight:
-                                  FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Set the number used for Status sharing and your WhatsApp Channel details.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    TextField(
-                      controller: _whatsApp,
-                      keyboardType:
-                          TextInputType.phone,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'WhatsApp number',
-                        hintText:
-                            '+2567XXXXXXXX',
-                        border:
-                            OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: _channelName,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'WhatsApp Channel name',
-                        border:
-                            OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: _channelUrl,
-                      keyboardType:
-                          TextInputType.url,
-                      decoration:
-                          const InputDecoration(
-                        labelText:
-                            'WhatsApp Channel link',
-                        hintText:
-                            'https://whatsapp.com/channel/...',
-                        border:
-                            OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    FilledButton.icon(
-                      onPressed:
-                          _savingWhatsApp
-                              ? null
-                              : _saveWhatsApp,
-                      icon: _savingWhatsApp
-                          ? const SizedBox(
-                              width: 17,
-                              height: 17,
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.save_outlined,
-                            ),
-                      label: Text(
-                        _savingWhatsApp
-                            ? 'Saving...'
-                            : 'Save WhatsApp Settings',
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 12),
+            _whatsAppCard(),
+            const SizedBox(height: 18),
+            const Text(
+              'Social Media Accounts',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Social Media Accounts',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight:
-                              FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(height: 3),
-                      Text(
-                        'Manage account identities and automatic publishing.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Add account',
-                  onPressed: _addAccount,
-                  icon:
-                      const Icon(Icons.add_circle_outline),
-                ),
-              ],
+            const SizedBox(height: 4),
+            const Text(
+              'Manage Instagram, Facebook, X, TikTok, '
+              'LinkedIn and YouTube accounts. Use the '
+              'account menu to configure automatic posting.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+              ),
             ),
-
-            const SizedBox(height: 10),
-
+            const SizedBox(height: 8),
             if (!_loading && _accounts.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.alternate_email_rounded,
-                        size: 38,
-                      ),
-                      const SizedBox(height: 9),
-                      const Text(
-                        'No social media accounts saved',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight:
-                              FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Add Instagram, Facebook, X, TikTok, LinkedIn or YouTube, then configure automatic posting where supported.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      FilledButton.icon(
-                        onPressed: _addAccount,
-                        icon:
-                            const Icon(Icons.add),
-                        label: const Text(
-                          'Add Account',
-                        ),
-                      ),
-                    ],
+              const Card(
+                child: ListTile(
+                  leading: Icon(
+                    Icons.alternate_email_rounded,
+                  ),
+                  title: Text(
+                    'No social media accounts saved',
+                  ),
+                  subtitle: Text(
+                    'Tap Add Account to add your '
+                    'first account.',
                   ),
                 ),
               )

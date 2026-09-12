@@ -4,21 +4,26 @@ class GrowthStrategyService {
   const GrowthStrategyService();
 
   Future<Map<String, dynamic>> dashboard() async {
-    final response = await ApiClient.instance.get('growth/dashboard', cacheable: false);
+    final response =
+        await ApiClient.instance.get('growth/dashboard', cacheable: false);
     return _unwrap(response);
   }
 
   Future<Map<String, dynamic>> joinChallenge() async {
-    final response = await ApiClient.instance.post('growth/challenge/join', <String, dynamic>{});
+    final response = await ApiClient.instance
+        .post('growth/challenge/join', <String, dynamic>{});
     return _unwrap(response);
   }
 
-  Future<Map<String, dynamic>> createReferral({String channel = 'mobile'}) async {
-    final response = await ApiClient.instance.post('growth/referral', <String, dynamic>{'channel': channel});
+  Future<Map<String, dynamic>> createReferral(
+      {String channel = 'mobile'}) async {
+    final response = await ApiClient.instance
+        .post('growth/referral', <String, dynamic>{'channel': channel});
     return _unwrap(response);
   }
 
-  Future<void> track(String eventName, {String source = 'mobile', Map<String, dynamic>? meta}) async {
+  Future<void> track(String eventName,
+      {String source = 'mobile', Map<String, dynamic>? meta}) async {
     await ApiClient.instance.post('growth/track', <String, dynamic>{
       'event_name': eventName,
       'source': source,

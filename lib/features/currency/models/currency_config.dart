@@ -37,7 +37,8 @@ class CurrencyConfig {
   final Map<String, CurrencyMeta> currencies;
 
   factory CurrencyConfig.fromJson(Map<String, dynamic> json) {
-    final raw = (json['currencies'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final raw =
+        (json['currencies'] as Map?)?.cast<String, dynamic>() ?? const {};
     return CurrencyConfig(
       baseCurrency: (json['base_currency'] ?? 'UGX').toString(),
       displayCurrency: (json['display_currency'] ?? 'UGX').toString(),

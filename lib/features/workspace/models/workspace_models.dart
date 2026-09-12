@@ -1,4 +1,3 @@
-
 class WorkspaceMember {
   final int? membershipId;
   final int userId;
@@ -118,7 +117,8 @@ class WorkspaceActivity {
     return WorkspaceActivity(
       id: _asInt(json['id']) ?? 0,
       event: (json['event'] ?? 'activity').toString(),
-      actorName: actor is Map ? (actor['name'] ?? 'System').toString() : 'System',
+      actorName:
+          actor is Map ? (actor['name'] ?? 'System').toString() : 'System',
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
     );
   }
@@ -178,8 +178,7 @@ class WorkspaceOverview {
     return WorkspaceOverview(
       enabled: json['enabled'] == true,
       organizationId: _asInt(org['id']),
-      organizationName:
-          (org['name'] ?? 'Shared Workspace').toString(),
+      organizationName: (org['name'] ?? 'Shared Workspace').toString(),
       role: (json['role'] ?? 'member').toString(),
       canManageMembers: json['can_manage_members'] == true,
       membersCount: _asInt(json['members_count']) ?? 0,

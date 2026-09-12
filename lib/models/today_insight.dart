@@ -38,11 +38,9 @@ class TodayInsight {
       title: json['title']?.toString() ?? '',
       message: json['message']?.toString() ?? '',
       action: json['action']?.toString() ?? 'Open planner',
-      destination:
-          json['destination']?.toString() ?? 'daily-planner',
+      destination: json['destination']?.toString() ?? 'daily-planner',
       tone: json['tone']?.toString() ?? 'teal',
-      generatedBy:
-          json['generated_by']?.toString() ?? 'server',
+      generatedBy: json['generated_by']?.toString() ?? 'server',
       provider: json['provider']?.toString(),
       providerName: json['provider_name']?.toString(),
       model: json['model']?.toString(),

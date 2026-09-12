@@ -21,7 +21,8 @@ class ProfileService {
   }) async {
     final response = await _api.post('profile/appearance', {
       if (themeColor != null) 'theme_color': themeColor,
-      if (themeColorSecondary != null) 'theme_color_secondary': themeColorSecondary,
+      if (themeColorSecondary != null)
+        'theme_color_secondary': themeColorSecondary,
       if (fontFamily != null) 'font_family': fontFamily,
       if (fontSize != null) 'font_size': fontSize,
     });
@@ -30,7 +31,8 @@ class ProfileService {
 
   /// Mirrors ProfileController::update() on the Laravel side — email
   /// changes reset verification status server-side, same as web.
-  Future<Map<String, dynamic>> updateProfile({required String name, required String email}) async {
+  Future<Map<String, dynamic>> updateProfile(
+      {required String name, required String email}) async {
     final response = await _api.put('profile', {'name': name, 'email': email});
     return Map<String, dynamic>.from(response['data']);
   }
@@ -63,7 +65,6 @@ class ProfileService {
     return data is Map ? data['avatar_url']?.toString() : null;
   }
 
-
   Future<Map<String, dynamic>> currencyPreference() async {
     final response = await _api.get('profile/currency');
     return Map<String, dynamic>.from(response['data'] ?? const {});
@@ -75,5 +76,4 @@ class ProfileService {
     });
     return Map<String, dynamic>.from(response['data'] ?? const {});
   }
-
 }

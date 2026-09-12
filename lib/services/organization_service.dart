@@ -11,13 +11,16 @@ class OrganizationService {
   }
 
   Future<String> invite(String email, String role) async {
-    final response = await _api.post('organization/invite', {'email': email, 'role': role});
+    final response =
+        await _api.post('organization/invite', {'email': email, 'role': role});
     return response['message'] as String;
   }
 
-  Future<void> activate(int memberId) => _api.post('organization/members/$memberId/activate', {});
+  Future<void> activate(int memberId) =>
+      _api.post('organization/members/$memberId/activate', {});
 
-  Future<void> deactivate(int memberId) => _api.post('organization/members/$memberId/deactivate', {});
+  Future<void> deactivate(int memberId) =>
+      _api.post('organization/members/$memberId/deactivate', {});
 
   Future<String> replace(int memberId, String newEmail, String newRole) async {
     final response = await _api.post('organization/members/$memberId/replace', {
@@ -27,5 +30,6 @@ class OrganizationService {
     return response['message'] as String;
   }
 
-  Future<void> removeMember(int memberId) => _api.delete('organization/members/$memberId');
+  Future<void> removeMember(int memberId) =>
+      _api.delete('organization/members/$memberId');
 }

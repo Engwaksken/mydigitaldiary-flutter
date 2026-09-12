@@ -43,16 +43,20 @@ class SupportConversationData {
     final root = _map(response);
     final raw = root['data'] is Map ? _map(root['data']) : root;
     final assignedId = raw['assigned_to_user_id'];
-    final assignee = raw['assignee'] is Map ? _map(raw['assignee']) : const <String, dynamic>{};
+    final assignee = raw['assignee'] is Map
+        ? _map(raw['assignee'])
+        : const <String, dynamic>{};
     final items = raw['messages'] is List ? raw['messages'] as List : const [];
 
     return SupportConversationData(
       id: _toInt(raw['id']),
-      humanAssigned: assignedId != null || (raw['status']?.toString() == 'human'),
+      humanAssigned:
+          assignedId != null || (raw['status']?.toString() == 'human'),
       assigneeName: (assignee['name'] ?? raw['assignee_name'])?.toString(),
       messages: items
           .whereType<Map>()
-          .map((item) => SupportChatMessage.fromJson(Map<String, dynamic>.from(item)))
+          .map((item) =>
+              SupportChatMessage.fromJson(Map<String, dynamic>.from(item)))
           .toList(),
     );
   }
@@ -88,8 +92,10 @@ String cleanChatText(String input) {
   text = text.replaceAll('**', '');
   text = text.replaceAll('__', '');
   text = text.replaceAll('`', '');
-  text = text.replaceAllMapped(RegExp(r'(?<!\*)\*([^\n*]+)\*(?!\*)'), (m) => m.group(1) ?? '');
-  text = text.replaceAllMapped(RegExp(r'(?<!_)_([^\n_]+)_(?!_)'), (m) => m.group(1) ?? '');
+  text = text.replaceAllMapped(
+      RegExp(r'(?<!\*)\*([^\n*]+)\*(?!\*)'), (m) => m.group(1) ?? '');
+  text = text.replaceAllMapped(
+      RegExp(r'(?<!_)_([^\n_]+)_(?!_)'), (m) => m.group(1) ?? '');
 
   // Markdown links -> readable label + URL.
   text = text.replaceAllMapped(

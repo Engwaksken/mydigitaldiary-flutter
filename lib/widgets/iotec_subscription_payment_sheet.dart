@@ -112,9 +112,7 @@ class _IoTecSubscriptionPaymentSheetState
 
       if (!start.success || start.transactionId == null) {
         throw Exception(
-          start.message.isEmpty
-              ? 'Could not start payment.'
-              : start.message,
+          start.message.isEmpty ? 'Could not start payment.' : start.message,
         );
       }
 
@@ -249,8 +247,7 @@ class _IoTecSubscriptionPaymentSheetState
     if (result.isFinalFailure) {
       setState(() {
         _submitting = false;
-        _error = result.statusMessage ??
-            'The payment was not successful.';
+        _error = result.statusMessage ?? 'The payment was not successful.';
       });
 
       return;
@@ -258,8 +255,7 @@ class _IoTecSubscriptionPaymentSheetState
 
     setState(() {
       _submitting = false;
-      _error =
-          'Payment is still pending. You can check the status again.';
+      _error = 'Payment is still pending. You can check the status again.';
     });
   }
 
@@ -299,8 +295,7 @@ class _IoTecSubscriptionPaymentSheetState
                           ),
                         ),
                         IconButton(
-                          onPressed: () =>
-                              Navigator.of(context).pop(),
+                          onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(Icons.close),
                         ),
                       ],
@@ -310,17 +305,12 @@ class _IoTecSubscriptionPaymentSheetState
                       'Choose Mobile Money or Visa / MasterCard. '
                       'Your subscription activates automatically after '
                       'ioTec confirms payment.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                     const SizedBox(height: 20),
-
                     RadioGroup<IoTecPaymentMethod>(
                       groupValue: _method,
                       onChanged: (value) {
@@ -366,7 +356,6 @@ class _IoTecSubscriptionPaymentSheetState
                         ],
                       ),
                     ),
-
                     if (_method == IoTecPaymentMethod.mobileMoney &&
                         options?.supportsMobileMoney == true) ...[
                       const SizedBox(height: 12),
@@ -377,13 +366,11 @@ class _IoTecSubscriptionPaymentSheetState
                         decoration: const InputDecoration(
                           labelText: 'Mobile Money number',
                           hintText: '2567XXXXXXXX',
-                          prefixIcon:
-                              Icon(Icons.phone_android_rounded),
+                          prefixIcon: Icon(Icons.phone_android_rounded),
                           border: OutlineInputBorder(),
                         ),
                       ),
                     ],
-
                     if (_error != null) ...[
                       const SizedBox(height: 12),
                       Text(
@@ -394,9 +381,7 @@ class _IoTecSubscriptionPaymentSheetState
                         ),
                       ),
                     ],
-
                     const SizedBox(height: 20),
-
                     FilledButton.icon(
                       onPressed: _submitting ? null : _submit,
                       icon: _submitting
@@ -419,9 +404,7 @@ class _IoTecSubscriptionPaymentSheetState
                                 : 'Pay with Mobile Money',
                       ),
                     ),
-
-                    if (_pendingTransactionId != null &&
-                        !_submitting) ...[
+                    if (_pendingTransactionId != null && !_submitting) ...[
                       const SizedBox(height: 8),
                       TextButton.icon(
                         onPressed: _checkPendingTransaction,

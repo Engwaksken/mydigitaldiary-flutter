@@ -42,12 +42,18 @@ class AnnualPlan {
       year: _annualInt(json['plan_year'], DateTime.now().year),
       period: json['period']?.toString() ?? 'annually',
       month: json['plan_month'] == null ? null : _annualInt(json['plan_month']),
-      targetDate: json['target_date'] == null ? null : DateTime.tryParse(json['target_date'].toString()),
-      reminderAt: json['reminder_at'] == null ? null : DateTime.tryParse(json['reminder_at'].toString()),
+      targetDate: json['target_date'] == null
+          ? null
+          : DateTime.tryParse(json['target_date'].toString()),
+      reminderAt: json['reminder_at'] == null
+          ? null
+          : DateTime.tryParse(json['reminder_at'].toString()),
       progressPercent: progress.clamp(0, 100).toInt(),
       status: status,
       isCompleted: status == 'completed' || progress >= 100,
-      personalGoalId: json['personal_goal_id'] == null ? null : _annualInt(json['personal_goal_id']),
+      personalGoalId: json['personal_goal_id'] == null
+          ? null
+          : _annualInt(json['personal_goal_id']),
     );
   }
 }
@@ -89,15 +95,22 @@ class AnnualPlanSummary {
     final rows = (json['plans'] as List? ?? const [])
         .map((e) => AnnualPlan.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
-    final p = Map<String, dynamic>.from((json['pagination'] as Map?) ?? const {});
+    final p =
+        Map<String, dynamic>.from((json['pagination'] as Map?) ?? const {});
     return AnnualPlanSummary(
       year: _annualInt(json['year'], DateTime.now().year),
       total: _annualInt(json['total'], rows.length),
-      completed: _annualInt(json['completed'], rows.where((e) => e.isCompleted).length),
-      monthly: _annualInt(json['monthly'], rows.where((e) => e.period == 'monthly').length),
-      withReminder: _annualInt(json['with_reminder'], rows.where((e) => e.reminderAt != null).length),
-      overallProgress: _annualInt(json['overall_progress']).clamp(0, 100).toInt(),
-      availableYears: (json['available_years'] as List? ?? const []).map((e) => _annualInt(e)).toList(),
+      completed: _annualInt(
+          json['completed'], rows.where((e) => e.isCompleted).length),
+      monthly: _annualInt(
+          json['monthly'], rows.where((e) => e.period == 'monthly').length),
+      withReminder: _annualInt(json['with_reminder'],
+          rows.where((e) => e.reminderAt != null).length),
+      overallProgress:
+          _annualInt(json['overall_progress']).clamp(0, 100).toInt(),
+      availableYears: (json['available_years'] as List? ?? const [])
+          .map((e) => _annualInt(e))
+          .toList(),
       plans: rows,
       currentPage: _annualInt(p['current_page'], 1),
       lastPage: _annualInt(p['last_page'], 1),

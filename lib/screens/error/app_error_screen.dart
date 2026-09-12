@@ -11,8 +11,7 @@ class AppErrorScreen extends StatelessWidget {
   const AppErrorScreen({
     super.key,
     this.title = 'Something went wrong',
-    this.message =
-        'We could not complete this action. Please try again.',
+    this.message = 'We could not complete this action. Please try again.',
     this.onRetry,
     this.onBack,
     this.onHome,

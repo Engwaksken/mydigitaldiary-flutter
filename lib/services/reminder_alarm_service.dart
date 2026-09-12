@@ -6,13 +6,16 @@ class DueReminder {
   final String? message;
   final DateTime? nextRunAt;
 
-  DueReminder({required this.id, required this.title, this.message, this.nextRunAt});
+  DueReminder(
+      {required this.id, required this.title, this.message, this.nextRunAt});
 
   factory DueReminder.fromJson(Map<String, dynamic> json) => DueReminder(
         id: json['id'],
         title: json['title'] ?? '',
         message: json['message'],
-        nextRunAt: json['next_run_at'] != null ? DateTime.tryParse(json['next_run_at'].toString())?.toLocal() : null,
+        nextRunAt: json['next_run_at'] != null
+            ? DateTime.tryParse(json['next_run_at'].toString())?.toLocal()
+            : null,
       );
 
   String get occurrenceKey {

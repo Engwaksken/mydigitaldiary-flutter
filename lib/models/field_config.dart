@@ -54,7 +54,8 @@ class ModuleConfig {
   final List<FieldConfig> fields;
   final String titleField;
   final String? subtitleField;
-  final String? amountField; // shown bold on the trailing edge, e.g. money fields
+  final String?
+      amountField; // shown bold on the trailing edge, e.g. money fields
   final String? dateField;
 
   const ModuleConfig({

@@ -43,7 +43,8 @@ class AppUser {
       hasActiveAccess: json['has_active_access'] as bool? ?? false,
       emailVerified: json['email_verified'] as bool? ?? false,
       alarmsMuted: json['alarms_muted'] as bool? ?? false,
-      themeColorSecondary: json['theme_color_secondary'] as String? ?? '#73BEB6',
+      themeColorSecondary:
+          json['theme_color_secondary'] as String? ?? '#73BEB6',
       fontFamily: json['font_family'] as String? ?? 'Lato',
       fontSize: json['font_size'] as int? ?? 100,
     );

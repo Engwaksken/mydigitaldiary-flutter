@@ -4,9 +4,14 @@ class OrganizationMemberInfo {
   final String role;
   final String status;
 
-  OrganizationMemberInfo({required this.id, required this.email, required this.role, required this.status});
+  OrganizationMemberInfo(
+      {required this.id,
+      required this.email,
+      required this.role,
+      required this.status});
 
-  factory OrganizationMemberInfo.fromJson(Map<String, dynamic> json) => OrganizationMemberInfo(
+  factory OrganizationMemberInfo.fromJson(Map<String, dynamic> json) =>
+      OrganizationMemberInfo(
         id: json['id'],
         email: json['email'] ?? '',
         role: json['role'] ?? 'staff',
@@ -37,7 +42,8 @@ class OrganizationInfo {
 
   bool get isFamilyTeam => planCategory == 'family_team';
 
-  factory OrganizationInfo.fromJson(Map<String, dynamic> json) => OrganizationInfo(
+  factory OrganizationInfo.fromJson(Map<String, dynamic> json) =>
+      OrganizationInfo(
         id: json['id'],
         name: json['name'] ?? '',
         planName: json['plan_name'],
@@ -46,7 +52,9 @@ class OrganizationInfo {
         seatLimit: json['seat_limit'] ?? 0,
         remainingSeats: json['remaining_seats'] ?? 0,
         members: json['members'] != null
-            ? List<Map<String, dynamic>>.from(json['members']).map(OrganizationMemberInfo.fromJson).toList()
+            ? List<Map<String, dynamic>>.from(json['members'])
+                .map(OrganizationMemberInfo.fromJson)
+                .toList()
             : [],
       );
 }

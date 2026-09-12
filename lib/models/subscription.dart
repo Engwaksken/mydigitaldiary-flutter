@@ -35,7 +35,8 @@ class SubscriptionPlanInfo {
     this.additionalMemberPrice,
   });
 
-  factory SubscriptionPlanInfo.fromJson(Map<String, dynamic> json) => SubscriptionPlanInfo(
+  factory SubscriptionPlanInfo.fromJson(Map<String, dynamic> json) =>
+      SubscriptionPlanInfo(
         id: json['id'],
         name: json['name'] ?? '',
         category: json['category'] ?? 'individual',
@@ -51,7 +52,8 @@ class SubscriptionPlanInfo {
         isBestValue: json['is_best_value'] ?? false,
         includedMembers: json['included_members'] ?? 1,
         pricePerMember: (json['price_per_member'] as num?)?.toDouble(),
-        additionalMemberPrice: (json['additional_member_price'] as num?)?.toDouble(),
+        additionalMemberPrice:
+            (json['additional_member_price'] as num?)?.toDouble(),
       );
 
   bool get isIndividual => category == 'individual';
@@ -62,7 +64,8 @@ class SubscriptionPlanInfo {
         _ => 'Individual',
       };
 
-  String formattedPrice() => '$currencySymbol ${price.toStringAsFixed(price == price.roundToDouble() ? 0 : 2)}';
+  String formattedPrice() =>
+      '$currencySymbol ${price.toStringAsFixed(price == price.roundToDouble() ? 0 : 2)}';
 }
 
 class PaymentGatewayInfo {
@@ -100,7 +103,8 @@ class PaymentGatewayInfo {
   bool get isMobileMoney =>
       type.toLowerCase() == 'mobile_money' || collectsAutomatically;
 
-  factory PaymentGatewayInfo.fromJson(Map<String, dynamic> json) => PaymentGatewayInfo(
+  factory PaymentGatewayInfo.fromJson(Map<String, dynamic> json) =>
+      PaymentGatewayInfo(
         id: json['id'],
         type: json['type'] ?? '',
         name: json['name'] ?? '',

@@ -44,8 +44,8 @@ class DailyPlanItem {
         id: _dailyInt(json['id']),
         title: json['title']?.toString() ?? '',
         description: json['description']?.toString(),
-      achievements: json['achievements']?.toString(),
-      challenges: json['challenges']?.toString(),
+        achievements: json['achievements']?.toString(),
+        challenges: json['challenges']?.toString(),
         priority: json['priority']?.toString() ?? 'medium',
         startTime: json['start_time']?.toString(),
         endTime: json['end_time']?.toString(),
@@ -53,9 +53,13 @@ class DailyPlanItem {
         completedAt: json['completed_at'] != null
             ? DateTime.tryParse(json['completed_at'].toString())?.toLocal()
             : null,
-        updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString())?.toLocal() : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.tryParse(json['updated_at'].toString())?.toLocal()
+            : null,
         offlinePending: json['_offline_pending'] == true,
-        personalGoalId: json['personal_goal_id'] == null ? null : _dailyInt(json['personal_goal_id']),
+        personalGoalId: json['personal_goal_id'] == null
+            ? null
+            : _dailyInt(json['personal_goal_id']),
       );
 }
 
@@ -94,9 +98,8 @@ class DailyPlan {
 
   factory DailyPlan.fromJson(Map<String, dynamic> json) {
     final planRaw = json['plan'];
-    final plan = planRaw is Map
-        ? planRaw.cast<String, dynamic>()
-        : <String, dynamic>{};
+    final plan =
+        planRaw is Map ? planRaw.cast<String, dynamic>() : <String, dynamic>{};
     final rawItems = (json['items'] ?? plan['items'] ?? const []) as List;
     final rows = rawItems
         .whereType<Map>()
@@ -106,17 +109,25 @@ class DailyPlan {
 
     return DailyPlan(
       id: _dailyInt(plan['id']),
-      date: DateTime.tryParse(dateValue?.toString() ?? '')?.toLocal() ?? DateTime.now(),
+      date: DateTime.tryParse(dateValue?.toString() ?? '')?.toLocal() ??
+          DateTime.now(),
       title: plan['title']?.toString() ?? 'My Daily Plan',
       notes: plan['notes']?.toString(),
       achievements: plan['achievements']?.toString(),
       challenges: plan['challenges']?.toString(),
       total: _dailyInt(json['total'], rows.length),
-      completed: _dailyInt(json['completed'], rows.where((e) => _dailyBool(e['is_completed'])).length),
+      completed: _dailyInt(json['completed'],
+          rows.where((e) => _dailyBool(e['is_completed'])).length),
       progress: _dailyInt(json['progress']),
-      timed: _dailyInt(json['timed'], rows.where((e) => (e['start_time']?.toString().isNotEmpty ?? false)).length),
+      timed: _dailyInt(
+          json['timed'],
+          rows
+              .where((e) => (e['start_time']?.toString().isNotEmpty ?? false))
+              .length),
       items: rows.map(DailyPlanItem.fromJson).toList(),
-      updatedAt: plan['updated_at'] != null ? DateTime.tryParse(plan['updated_at'].toString())?.toLocal() : null,
+      updatedAt: plan['updated_at'] != null
+          ? DateTime.tryParse(plan['updated_at'].toString())?.toLocal()
+          : null,
       offlinePending: plan['_offline_pending'] == true,
     );
   }
@@ -145,13 +156,14 @@ class DailyPlanHistoryItem {
     required this.progress,
   });
 
-  factory DailyPlanHistoryItem.fromJson(Map<String, dynamic> json) => DailyPlanHistoryItem(
+  factory DailyPlanHistoryItem.fromJson(Map<String, dynamic> json) =>
+      DailyPlanHistoryItem(
         id: _dailyInt(json['id']),
         date: DateTime.parse(json['plan_date'].toString()).toLocal(),
         title: json['title']?.toString() ?? 'My Daily Plan',
         notes: json['notes']?.toString(),
-      achievements: json['achievements']?.toString(),
-      challenges: json['challenges']?.toString(),
+        achievements: json['achievements']?.toString(),
+        challenges: json['challenges']?.toString(),
         total: (json['total'] as num?)?.toInt() ?? 0,
         completed: (json['completed'] as num?)?.toInt() ?? 0,
         progress: _dailyInt(json['progress']),

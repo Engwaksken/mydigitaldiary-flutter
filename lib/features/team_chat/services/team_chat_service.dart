@@ -6,8 +6,7 @@ import '../models/team_chat_models.dart';
 class TeamChatService {
   final ApiClient _api;
 
-  TeamChatService({ApiClient? api})
-      : _api = api ?? ApiClient.instance;
+  TeamChatService({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
   Future<List<TeamConversation>> conversations() async {
     final response = await _api.get(

@@ -38,6 +38,6 @@ class SavedSignature {
 
   SavedSignature({required this.id, required this.label, required this.url});
 
-  factory SavedSignature.fromJson(Map<String, dynamic> json) =>
-      SavedSignature(id: json['id'], label: json['label'] ?? '', url: json['url'] ?? '');
+  factory SavedSignature.fromJson(Map<String, dynamic> json) => SavedSignature(
+      id: json['id'], label: json['label'] ?? '', url: json['url'] ?? '');
 }

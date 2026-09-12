@@ -99,8 +99,10 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     _baseText = widget.controller.text;
     final started = await _SharedSpeech.instance.listen(
       onResult: (result) {
-        final separator = _baseText.isEmpty || _baseText.endsWith(' ') ? '' : ' ';
-        widget.controller.text = '$_baseText$separator${result.recognizedWords}';
+        final separator =
+            _baseText.isEmpty || _baseText.endsWith(' ') ? '' : ' ';
+        widget.controller.text =
+            '$_baseText$separator${result.recognizedWords}';
       },
     );
     _SharedSpeech.isListening = started;
@@ -123,7 +125,10 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
         // a button that would just silently fail when tapped.
         suffixIcon: _available
             ? IconButton(
-                icon: Icon(_listening ? Icons.mic : Icons.mic_none, color: _listening ? Theme.of(context).colorScheme.primary : null),
+                icon: Icon(_listening ? Icons.mic : Icons.mic_none,
+                    color: _listening
+                        ? Theme.of(context).colorScheme.primary
+                        : null),
                 tooltip: _listening ? 'Stop dictation' : 'Start dictation',
                 onPressed: _toggleListening,
               )

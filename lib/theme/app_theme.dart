@@ -9,8 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   static const forest = Color(0xFF00897B); // --brand-1
   static const sage = Color(0xFF73BEB6); // --brand-2
-  static const tan = Color(0xFFBB8A52); // reserved accent, not used structurally on web either
-  static const gold = Color(0xFFFFBA00); // focus/highlight accent — use sparingly (~10% rule), not as a default field/button color
+  static const tan =
+      Color(0xFFBB8A52); // reserved accent, not used structurally on web either
+  static const gold = Color(
+      0xFFFFBA00); // focus/highlight accent — use sparingly (~10% rule), not as a default field/button color
 
   // Semantic colors — match the web app's Tailwind rose/emerald/amber
   // usage for danger/success/warning, not the brand colors. Screens
@@ -69,7 +71,8 @@ class AppTheme {
         ({required TextStyle textStyle}) => textStyle;
     if (effectiveFontFamily != 'System') {
       try {
-        applyFont = ({required TextStyle textStyle}) => GoogleFonts.getFont(effectiveFontFamily, textStyle: textStyle);
+        applyFont = ({required TextStyle textStyle}) =>
+            GoogleFonts.getFont(effectiveFontFamily, textStyle: textStyle);
       } catch (_) {
         // Unrecognized family name — falls back to the system font
         // rather than crashing the whole app over a cosmetic setting.
@@ -96,22 +99,56 @@ class AppTheme {
       // including bright ones like the sticky-notes Yellow.
       scaffoldBackgroundColor: const Color(0xFFF3F5F7),
       textTheme: TextTheme(
-        headlineSmall: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: s(24))),
-        titleLarge: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: s(22))),
-        titleMedium: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: s(16))),
-        titleSmall: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: s(14))),
-        bodyLarge: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontSize: s(16))),
-        bodyMedium: applyFont(textStyle: TextStyle(color: AppColors.textSecondary, fontSize: s(14))),
-        bodySmall: applyFont(textStyle: TextStyle(color: AppColors.textTertiary, fontSize: s(12))),
+        headlineSmall: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: s(24))),
+        titleLarge: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: s(22))),
+        titleMedium: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: s(16))),
+        titleSmall: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: s(14))),
+        bodyLarge: applyFont(
+            textStyle:
+                TextStyle(color: AppColors.textPrimary, fontSize: s(16))),
+        bodyMedium: applyFont(
+            textStyle:
+                TextStyle(color: AppColors.textSecondary, fontSize: s(14))),
+        bodySmall: applyFont(
+            textStyle:
+                TextStyle(color: AppColors.textTertiary, fontSize: s(12))),
         // These three were previously left unset entirely, silently
         // falling back to Material 3's auto-derived colorScheme.onSurface
         // — fine with the default seed color, but capable of mismatching
         // badly against this app's manually-fixed scaffoldBackgroundColor
         // once an unusual seed color (e.g. a bright sticky-notes Yellow)
         // is in play. Explicit, guaranteed-readable colors instead.
-        labelLarge: applyFont(textStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: s(14))),
-        labelMedium: applyFont(textStyle: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500, fontSize: s(12))),
-        labelSmall: applyFont(textStyle: TextStyle(color: AppColors.textTertiary, fontWeight: FontWeight.w500, fontSize: s(11))),
+        labelLarge: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: s(14))),
+        labelMedium: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+                fontSize: s(12))),
+        labelSmall: applyFont(
+            textStyle: TextStyle(
+                color: AppColors.textTertiary,
+                fontWeight: FontWeight.w500,
+                fontSize: s(11))),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFFF3F5F7),
@@ -126,7 +163,8 @@ class AppTheme {
           foregroundColor: Colors.white,
           disabledBackgroundColor: primary.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -135,15 +173,18 @@ class AppTheme {
           foregroundColor: primary,
           side: BorderSide(color: primary),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.fieldFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        floatingLabelStyle: TextStyle(color: secondary, fontWeight: FontWeight.w600),
+        floatingLabelStyle:
+            TextStyle(color: secondary, fontWeight: FontWeight.w600),
         hintStyle: const TextStyle(color: AppColors.textTertiary),
         prefixIconColor: AppColors.textTertiary,
         suffixIconColor: AppColors.textTertiary,
@@ -175,7 +216,8 @@ class AppTheme {
         color: Colors.white.withValues(alpha: 0.94),
         margin: EdgeInsets.zero,
       ),
-      dividerTheme: const DividerThemeData(color: Color(0xFFE2E8F0)), // slate-200
+      dividerTheme:
+          const DividerThemeData(color: Color(0xFFE2E8F0)), // slate-200
     );
   }
 }

@@ -8,13 +8,19 @@ class ExpenseItem {
   final String unitPrice;
   final double? totalPrice;
 
-  ExpenseItem({required this.description, required this.quantity, required this.unitPrice, this.totalPrice});
+  ExpenseItem(
+      {required this.description,
+      required this.quantity,
+      required this.unitPrice,
+      this.totalPrice});
 
   factory ExpenseItem.fromJson(Map<String, dynamic> json) => ExpenseItem(
         description: json['description'] ?? '',
         quantity: json['quantity']?.toString() ?? '',
         unitPrice: json['unit_price']?.toString() ?? '',
-        totalPrice: json['total_price'] != null ? double.tryParse(json['total_price'].toString()) : null,
+        totalPrice: json['total_price'] != null
+            ? double.tryParse(json['total_price'].toString())
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -56,8 +62,14 @@ class Expense {
       spentAt: DateTime.parse(json['spent_at'] as String).toLocal(),
       paymentMethod: json['payment_method'] as String?,
       notes: json['notes'] as String?,
-      items: json['items'] != null ? (json['items'] as List).map((e) => ExpenseItem.fromJson(Map<String, dynamic>.from(e))).toList() : const [],
-      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString())?.toLocal() : null,
+      items: json['items'] != null
+          ? (json['items'] as List)
+              .map((e) => ExpenseItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : const [],
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'].toString())?.toLocal()
+          : null,
       offlinePending: json['_offline_pending'] == true,
     );
   }

@@ -18,8 +18,7 @@ class SubscriptionAutoRenewCard extends StatefulWidget {
       _SubscriptionAutoRenewCardState();
 }
 
-class _SubscriptionAutoRenewCardState
-    extends State<SubscriptionAutoRenewCard> {
+class _SubscriptionAutoRenewCardState extends State<SubscriptionAutoRenewCard> {
   final _service = SubscriptionAutoRenewService();
 
   SubscriptionAutoRenewInfo? _info;
@@ -57,9 +56,7 @@ class _SubscriptionAutoRenewCardState
 
       _phoneController?.dispose();
       _phoneController = TextEditingController(
-        text: info.phoneNumber
-            ?? widget.fallbackPhone
-            ?? '',
+        text: info.phoneNumber ?? widget.fallbackPhone ?? '',
       );
 
       setState(() {
@@ -82,17 +79,11 @@ class _SubscriptionAutoRenewCardState
   ) {
     var network = info.network;
 
-    if (
-        network == 'mtn'
-        && !info.supportsMtn
-        && info.supportsAirtel) {
+    if (network == 'mtn' && !info.supportsMtn && info.supportsAirtel) {
       network = 'airtel';
     }
 
-    if (
-        network == 'airtel'
-        && !info.supportsAirtel
-        && info.supportsMtn) {
+    if (network == 'airtel' && !info.supportsAirtel && info.supportsMtn) {
       network = 'mtn';
     }
 
@@ -104,8 +95,7 @@ class _SubscriptionAutoRenewCardState
 
     if (phone.isEmpty) {
       setState(() {
-        _error =
-            'Enter the Mobile Money number for renewal prompts.';
+        _error = 'Enter the Mobile Money number for renewal prompts.';
       });
       return;
     }
@@ -152,19 +142,17 @@ class _SubscriptionAutoRenewCardState
             ),
             actions: [
               TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(false),
+                onPressed: () => Navigator.of(context).pop(false),
                 child: const Text('Keep On'),
               ),
               FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(true),
+                onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('Turn Off'),
               ),
             ],
           ),
-        )
-        ?? false;
+        ) ??
+        false;
 
     if (!confirmed || !mounted) return;
 
@@ -225,8 +213,7 @@ class _SubscriptionAutoRenewCardState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
-            _error
-                ?? 'Could not load Auto Renewal settings.',
+            _error ?? 'Could not load Auto Renewal settings.',
           ),
         ),
       );
@@ -237,8 +224,7 @@ class _SubscriptionAutoRenewCardState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(
                 Icons.autorenew_rounded,
@@ -247,8 +233,7 @@ class _SubscriptionAutoRenewCardState
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Auto Renewal',
@@ -258,8 +243,8 @@ class _SubscriptionAutoRenewCardState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      info.message
-                          ?? 'Auto Renewal is not available for this subscription.',
+                      info.message ??
+                          'Auto Renewal is not available for this subscription.',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.black54,
@@ -275,24 +260,19 @@ class _SubscriptionAutoRenewCardState
     }
 
     final enabled = info.enabled;
-    final phoneController = _phoneController
-        ??= TextEditingController(
-          text: widget.fallbackPhone ?? '',
-        );
+    final phoneController = _phoneController ??= TextEditingController(
+      text: widget.fallbackPhone ?? '',
+    );
 
     return Card(
-      color: enabled
-          ? const Color(0xFFECFDF5)
-          : null,
+      color: enabled ? const Color(0xFFECFDF5) : null,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 40,
@@ -301,8 +281,7 @@ class _SubscriptionAutoRenewCardState
                     color: enabled
                         ? const Color(0xFFD1FAE5)
                         : Colors.grey.shade100,
-                    borderRadius:
-                        BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.autorenew_rounded,
@@ -314,8 +293,7 @@ class _SubscriptionAutoRenewCardState
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
@@ -323,15 +301,13 @@ class _SubscriptionAutoRenewCardState
                             child: Text(
                               'Auto Renewal',
                               style: TextStyle(
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 16,
                               ),
                             ),
                           ),
                           Container(
-                            padding:
-                                const EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 9,
                               vertical: 4,
                             ),
@@ -341,8 +317,7 @@ class _SubscriptionAutoRenewCardState
                                       0xFFD1FAE5,
                                     )
                                   : Colors.grey.shade200,
-                              borderRadius:
-                                  BorderRadius.circular(
+                              borderRadius: BorderRadius.circular(
                                 999,
                               ),
                             ),
@@ -350,8 +325,7 @@ class _SubscriptionAutoRenewCardState
                               enabled ? 'ON' : 'OFF',
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w800,
                                 color: enabled
                                     ? const Color(
                                         0xFF047857,
@@ -376,17 +350,14 @@ class _SubscriptionAutoRenewCardState
               ],
             ),
             const SizedBox(height: 12),
-
             if (enabled) ...[
               _InfoRow(
                 label: 'Next renewal',
-                value:
-                    info.nextRenewalDate ?? '—',
+                value: info.nextRenewalDate ?? '—',
               ),
               _InfoRow(
                 label: 'Payment method',
-                value: info.gatewayName
-                    ?? 'Mobile Money',
+                value: info.gatewayName ?? 'Mobile Money',
               ),
               _InfoRow(
                 label: 'Network',
@@ -394,9 +365,7 @@ class _SubscriptionAutoRenewCardState
               ),
               _InfoRow(
                 label: 'Renewal phone',
-                value: info.phoneNumber
-                    ?? widget.fallbackPhone
-                    ?? '—',
+                value: info.phoneNumber ?? widget.fallbackPhone ?? '—',
               ),
               const SizedBox(height: 8),
               const Text(
@@ -409,8 +378,7 @@ class _SubscriptionAutoRenewCardState
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed:
-                    _saving ? null : _disable,
+                onPressed: _saving ? null : _disable,
                 icon: const Icon(
                   Icons.toggle_off_outlined,
                 ),
@@ -422,15 +390,13 @@ class _SubscriptionAutoRenewCardState
               DropdownButtonFormField<String>(
                 initialValue: _network,
                 decoration: const InputDecoration(
-                  labelText:
-                      'Mobile Money network',
+                  labelText: 'Mobile Money network',
                 ),
                 items: [
                   if (info.supportsMtn)
                     const DropdownMenuItem(
                       value: 'mtn',
-                      child:
-                          Text('MTN Mobile Money'),
+                      child: Text('MTN Mobile Money'),
                     ),
                   if (info.supportsAirtel)
                     const DropdownMenuItem(
@@ -453,8 +419,7 @@ class _SubscriptionAutoRenewCardState
                 enabled: !_saving,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText:
-                      'Renewal phone number',
+                  labelText: 'Renewal phone number',
                   hintText: 'e.g. 0700000000',
                 ),
               ),
@@ -479,14 +444,12 @@ class _SubscriptionAutoRenewCardState
               ],
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed:
-                    _saving ? null : _enable,
+                onPressed: _saving ? null : _enable,
                 icon: _saving
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child:
-                            CircularProgressIndicator(
+                        child: CircularProgressIndicator(
                           strokeWidth: 2,
                         ),
                       )
@@ -494,9 +457,7 @@ class _SubscriptionAutoRenewCardState
                         Icons.toggle_on_outlined,
                       ),
                 label: Text(
-                  _saving
-                      ? 'Saving...'
-                      : 'Enable Auto Renewal',
+                  _saving ? 'Saving...' : 'Enable Auto Renewal',
                 ),
               ),
             ],
@@ -521,8 +482,7 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 116,

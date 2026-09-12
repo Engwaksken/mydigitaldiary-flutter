@@ -18,7 +18,8 @@ class AiPlanService {
     // corresponds to on the server.
     final response = await _api.post('ai-plans', {
       'client_datetime': DateTime.now().toIso8601String(),
-      if (customPrompt != null && customPrompt.trim().isNotEmpty) 'custom_prompt': customPrompt.trim(),
+      if (customPrompt != null && customPrompt.trim().isNotEmpty)
+        'custom_prompt': customPrompt.trim(),
     });
     return AiPlan.fromJson(response['data']);
   }

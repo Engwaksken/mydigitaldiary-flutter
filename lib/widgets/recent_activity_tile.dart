@@ -11,7 +11,8 @@ class RecentActivityTile extends StatelessWidget {
   const RecentActivityTile({super.key, required this.item});
 
   String _money(num amount) {
-    return (BrandingService.cached ?? BrandingInfo(siteName: '')).formatMoney(amount);
+    return (BrandingService.cached ?? BrandingInfo(siteName: ''))
+        .formatMoney(amount);
   }
 
   @override
@@ -34,14 +35,21 @@ class RecentActivityTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       elevation: 0,
       color: const Color(0xFFF8FAFC),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE2E8F0))),
       child: ListTile(
         dense: true,
         leading: Icon(icon, color: color, size: 20),
         title: Text(item['text'] ?? '', style: const TextStyle(fontSize: 13)),
         trailing: item['amount'] != null
-            ? Text(_money(item['amount']), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color))
-            : (time != null ? Text(DateFormat('MMM d').format(time), style: const TextStyle(fontSize: 11, color: Colors.grey)) : null),
+            ? Text(_money(item['amount']),
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.bold, color: color))
+            : (time != null
+                ? Text(DateFormat('MMM d').format(time),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey))
+                : null),
       ),
     );
   }

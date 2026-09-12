@@ -87,7 +87,8 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -103,9 +104,12 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
   Future<void> _delete(Meeting meeting) async {
     try {
       await _service.delete(meeting.id);
-      if (mounted) setState(() => _meetings.removeWhere((m) => m.id == meeting.id));
+      if (mounted)
+        setState(() => _meetings.removeWhere((m) => m.id == meeting.id));
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -126,9 +130,12 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'completed': return const Color(0xFF059669);
-      case 'cancelled': return const Color(0xFFE11D48);
-      default: return const Color(0xFF00897B);
+      case 'completed':
+        return const Color(0xFF059669);
+      case 'cancelled':
+        return const Color(0xFFE11D48);
+      default:
+        return const Color(0xFF00897B);
     }
   }
 
@@ -161,7 +168,9 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
             : _meetings.isEmpty
                 ? ListView(children: const [
                     SizedBox(height: 180),
-                    Center(child: Text('No meetings yet. Add one or sync your calendar.')),
+                    Center(
+                        child: Text(
+                            'No meetings yet. Add one or sync your calendar.')),
                   ])
                 : ListView.separated(
                     padding: const EdgeInsets.all(12),
@@ -172,17 +181,25 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                       return Dismissible(
                         key: ValueKey(meeting.id),
                         direction: DismissDirection.endToStart,
-                        confirmDismiss: (_) async => await showDialog<bool>(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Delete meeting?'),
-                            content: Text(meeting.title),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                            ],
-                          ),
-                        ) ?? false,
+                        confirmDismiss: (_) async =>
+                            await showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('Delete meeting?'),
+                                content: Text(meeting.title),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel')),
+                                  FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Delete')),
+                                ],
+                              ),
+                            ) ??
+                            false,
                         onDismissed: (_) => _delete(meeting),
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -193,12 +210,18 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                         child: Card(
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: _statusColor(meeting.status).withValues(alpha: .12),
-                              child: Icon(Icons.calendar_month, color: _statusColor(meeting.status)),
+                              backgroundColor: _statusColor(meeting.status)
+                                  .withValues(alpha: .12),
+                              child: Icon(Icons.calendar_month,
+                                  color: _statusColor(meeting.status)),
                             ),
                             title: Row(children: [
-                              Expanded(child: Text(meeting.title, style: const TextStyle(fontWeight: FontWeight.w700))),
-                              if (meeting.isRecurring || meeting.isGeneratedInstance)
+                              Expanded(
+                                  child: Text(meeting.title,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700))),
+                              if (meeting.isRecurring ||
+                                  meeting.isGeneratedInstance)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 8),
                                   child: Icon(Icons.repeat, size: 16),
@@ -213,7 +236,9 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                               tooltip: 'Recording, transcript & summary',
                               icon: const Icon(Icons.mic_none),
                               onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => MeetingDetailScreen(meeting: meeting)),
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        MeetingDetailScreen(meeting: meeting)),
                               ),
                             ),
                           ),
@@ -249,7 +274,15 @@ class _MeetingFormState extends State<_MeetingForm> {
   bool _saving = false;
   String? _error;
 
-  static const _weekdayLabels = {1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat',7:'Sun'};
+  static const _weekdayLabels = {
+    1: 'Mon',
+    2: 'Tue',
+    3: 'Wed',
+    4: 'Thu',
+    5: 'Fri',
+    6: 'Sat',
+    7: 'Sun'
+  };
 
   @override
   void initState() {
@@ -268,7 +301,10 @@ class _MeetingFormState extends State<_MeetingForm> {
 
   @override
   void dispose() {
-    _title.dispose(); _location.dispose(); _attendees.dispose(); _notes.dispose();
+    _title.dispose();
+    _location.dispose();
+    _attendees.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -280,9 +316,11 @@ class _MeetingFormState extends State<_MeetingForm> {
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
     if (d == null || !mounted) return;
-    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_startAt));
+    final t = await showTimePicker(
+        context: context, initialTime: TimeOfDay.fromDateTime(_startAt));
     if (t == null) return;
-    setState(() => _startAt = DateTime(d.year, d.month, d.day, t.hour, t.minute));
+    setState(
+        () => _startAt = DateTime(d.year, d.month, d.day, t.hour, t.minute));
   }
 
   Future<void> _save() async {
@@ -290,7 +328,10 @@ class _MeetingFormState extends State<_MeetingForm> {
       setState(() => _error = 'Meeting title is required.');
       return;
     }
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     final meeting = Meeting(
       id: widget.existing?.id ?? 0,
       title: _title.text.trim(),
@@ -323,7 +364,9 @@ class _MeetingFormState extends State<_MeetingForm> {
     final generated = widget.existing?.isGeneratedInstance ?? false;
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 8,
+        left: 20,
+        right: 20,
+        top: 8,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: SingleChildScrollView(
@@ -333,8 +376,11 @@ class _MeetingFormState extends State<_MeetingForm> {
             Text(widget.existing == null ? 'New Meeting' : 'Edit Meeting',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 14),
-            if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-            TextField(controller: _title, decoration: const InputDecoration(labelText: 'Title')),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            TextField(
+                controller: _title,
+                decoration: const InputDecoration(labelText: 'Title')),
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Start'),
@@ -342,18 +388,23 @@ class _MeetingFormState extends State<_MeetingForm> {
               trailing: const Icon(Icons.calendar_today),
               onTap: _pickStart,
             ),
-            TextField(controller: _location, decoration: const InputDecoration(labelText: 'Location / video link')),
+            TextField(
+                controller: _location,
+                decoration:
+                    const InputDecoration(labelText: 'Location / video link')),
             const SizedBox(height: 10),
             TextField(
               controller: _attendees,
-              decoration: const InputDecoration(labelText: 'Attendees', helperText: 'Comma-separated emails'),
+              decoration: const InputDecoration(
+                  labelText: 'Attendees', helperText: 'Comma-separated emails'),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: _status,
               decoration: const InputDecoration(labelText: 'Status'),
-              items: const ['scheduled','completed','cancelled']
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              items: const ['scheduled', 'completed', 'cancelled']
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
               onChanged: (v) => setState(() => _status = v ?? 'scheduled'),
             ),
             if (!generated) ...[
@@ -362,10 +413,14 @@ class _MeetingFormState extends State<_MeetingForm> {
                 initialValue: _recurrenceFrequency,
                 decoration: const InputDecoration(labelText: 'Repeat'),
                 items: const [
-                  DropdownMenuItem<String?>(value: null, child: Text('Does not repeat')),
-                  DropdownMenuItem<String?>(value: 'daily', child: Text('Daily')),
-                  DropdownMenuItem<String?>(value: 'weekly', child: Text('Weekly')),
-                  DropdownMenuItem<String?>(value: 'monthly', child: Text('Monthly')),
+                  DropdownMenuItem<String?>(
+                      value: null, child: Text('Does not repeat')),
+                  DropdownMenuItem<String?>(
+                      value: 'daily', child: Text('Daily')),
+                  DropdownMenuItem<String?>(
+                      value: 'weekly', child: Text('Weekly')),
+                  DropdownMenuItem<String?>(
+                      value: 'monthly', child: Text('Monthly')),
                 ],
                 onChanged: (v) => setState(() => _recurrenceFrequency = v),
               ),
@@ -373,24 +428,31 @@ class _MeetingFormState extends State<_MeetingForm> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
-                  children: _weekdayLabels.entries.map((e) => FilterChip(
-                    label: Text(e.value),
-                    selected: _recurrenceDays.contains(e.key),
-                    onSelected: (selected) => setState(() {
-                      selected ? _recurrenceDays.add(e.key) : _recurrenceDays.remove(e.key);
-                    }),
-                  )).toList(),
+                  children: _weekdayLabels.entries
+                      .map((e) => FilterChip(
+                            label: Text(e.value),
+                            selected: _recurrenceDays.contains(e.key),
+                            onSelected: (selected) => setState(() {
+                              selected
+                                  ? _recurrenceDays.add(e.key)
+                                  : _recurrenceDays.remove(e.key);
+                            }),
+                          ))
+                      .toList(),
                 ),
               ],
               if (_recurrenceFrequency != null)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Repeat until'),
-                  subtitle: Text(_recurrenceEndsAt == null ? 'No end date' : DateFormat.yMMMd().format(_recurrenceEndsAt!)),
+                  subtitle: Text(_recurrenceEndsAt == null
+                      ? 'No end date'
+                      : DateFormat.yMMMd().format(_recurrenceEndsAt!)),
                   onTap: () async {
                     final d = await showDatePicker(
                       context: context,
-                      initialDate: _recurrenceEndsAt ?? _startAt.add(const Duration(days: 30)),
+                      initialDate: _recurrenceEndsAt ??
+                          _startAt.add(const Duration(days: 30)),
                       firstDate: _startAt,
                       lastDate: DateTime.now().add(const Duration(days: 3650)),
                     );
@@ -398,7 +460,10 @@ class _MeetingFormState extends State<_MeetingForm> {
                   },
                 ),
             ],
-            TextField(controller: _notes, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes / agenda')),
+            TextField(
+                controller: _notes,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Notes / agenda')),
             const SizedBox(height: 18),
             FilledButton(
               onPressed: _saving ? null : _save,

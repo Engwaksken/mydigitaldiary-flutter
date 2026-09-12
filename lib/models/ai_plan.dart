@@ -20,7 +20,8 @@ class AiPlan {
         content: json['content'] ?? '',
         provider: json['provider'],
         usedSharedKey: json['used_shared_key'] ?? false,
-        createdAt: DateTime.tryParse(json['created_at'] ?? '')?.toLocal() ?? DateTime.now(),
+        createdAt: DateTime.tryParse(json['created_at'] ?? '')?.toLocal() ??
+            DateTime.now(),
         pdfUrl: json['pdf_url'] ?? '',
       );
 }

@@ -30,7 +30,6 @@ class DailyPlannerService {
     );
   }
 
-
   /// Backward-compatible API used by the existing dashboard and
   /// engagement services. The recurrence update must not force those
   /// callers to be rewritten.
@@ -196,7 +195,6 @@ class DailyPlannerService {
     );
   }
 }
-
 
 String _dateOnly(DateTime date) {
   return '${date.year.toString().padLeft(4, '0')}-'

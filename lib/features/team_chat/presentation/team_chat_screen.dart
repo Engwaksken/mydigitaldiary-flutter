@@ -18,8 +18,7 @@ class TeamChatScreen extends StatefulWidget {
 
 class _TeamChatScreenState extends State<TeamChatScreen> {
   final TeamChatService _service = TeamChatService();
-  final TextEditingController _messageController =
-      TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   TeamChatThread? _thread;
@@ -280,9 +279,7 @@ class _MessageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      color: message.isAnnouncement
-          ? const Color(0xFFFFFBEB)
-          : null,
+      color: message.isAnnouncement ? const Color(0xFFFFFBEB) : null,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),

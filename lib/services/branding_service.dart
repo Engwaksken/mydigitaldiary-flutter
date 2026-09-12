@@ -37,7 +37,8 @@ class BrandingInfo {
     required String symbol,
     required double rate,
     required int decimals,
-  }) => BrandingInfo(
+  }) =>
+      BrandingInfo(
         siteName: siteName,
         logoUrl: logoUrl,
         currencySymbol: symbol,
@@ -57,8 +58,6 @@ class BrandingService {
   /// first successful fetch() call anywhere in the app (e.g. from the
   /// splash or login screen, which both call this on startup).
   static BrandingInfo? get cached => _cached;
-
-
 
   /// Sync the authenticated user's display-currency preference from Laravel.
   /// Base amounts in the mobile app are stored in the site's base currency;
@@ -109,7 +108,8 @@ class BrandingService {
     try {
       final response = await _api.get('branding', auth: false);
       _cached = BrandingInfo.fromJson(response['data']);
-      debugPrint('BrandingService: fetched OK — logo_url = ${_cached?.logoUrl}');
+      debugPrint(
+          'BrandingService: fetched OK — logo_url = ${_cached?.logoUrl}');
       return _cached;
     } catch (e) {
       // Falls back to null — every screen using this shows a local

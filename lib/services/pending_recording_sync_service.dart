@@ -39,15 +39,19 @@ class PendingRecording {
         'contentType': contentType,
       };
 
-  factory PendingRecording.fromJson(Map<String, dynamic> json) => PendingRecording(
+  factory PendingRecording.fromJson(Map<String, dynamic> json) =>
+      PendingRecording(
         localId: json['localId'].toString(),
         meetingId: _asInt(json['meetingId']),
         meetingTitle: json['meetingTitle']?.toString() ?? '',
         audioPath: json['audioPath'].toString(),
         durationSeconds: _asInt(json['durationSeconds']),
         createdAt: json['createdAt']?.toString() ?? '',
-        fileName: json['fileName']?.toString() ?? _fileNameFromPath(json['audioPath']?.toString()),
-        contentType: json['contentType']?.toString() ?? _contentTypeFromName(json['fileName']?.toString() ?? json['audioPath']?.toString()),
+        fileName: json['fileName']?.toString() ??
+            _fileNameFromPath(json['audioPath']?.toString()),
+        contentType: json['contentType']?.toString() ??
+            _contentTypeFromName(
+                json['fileName']?.toString() ?? json['audioPath']?.toString()),
       );
 
   static int _asInt(dynamic value) {
@@ -64,16 +68,36 @@ class PendingRecording {
   static String _contentTypeFromName(String? name) {
     final lower = (name ?? '').toLowerCase();
     const mimeByExtension = <String, String>{
-      '.mp3': 'audio/mpeg', '.mp2': 'audio/mpeg', '.m4a': 'audio/mp4',
-      '.m4b': 'audio/mp4', '.mp4': 'audio/mp4', '.aac': 'audio/aac',
-      '.adts': 'audio/aac', '.wav': 'audio/wav', '.wave': 'audio/wav',
-      '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/opus',
-      '.webm': 'audio/webm', '.weba': 'audio/webm', '.flac': 'audio/flac',
-      '.amr': 'audio/amr', '.awb': 'audio/amr-wb', '.3gp': 'audio/3gpp',
-      '.3gpp': 'audio/3gpp', '.3g2': 'audio/3gpp2', '.caf': 'audio/x-caf',
-      '.aif': 'audio/aiff', '.aiff': 'audio/aiff', '.aifc': 'audio/aiff',
-      '.wma': 'audio/x-ms-wma', '.mid': 'audio/midi', '.midi': 'audio/midi',
-      '.ac3': 'audio/ac3', '.eac3': 'audio/eac3', '.mka': 'audio/x-matroska',
+      '.mp3': 'audio/mpeg',
+      '.mp2': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.m4b': 'audio/mp4',
+      '.mp4': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.adts': 'audio/aac',
+      '.wav': 'audio/wav',
+      '.wave': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.oga': 'audio/ogg',
+      '.opus': 'audio/opus',
+      '.webm': 'audio/webm',
+      '.weba': 'audio/webm',
+      '.flac': 'audio/flac',
+      '.amr': 'audio/amr',
+      '.awb': 'audio/amr-wb',
+      '.3gp': 'audio/3gpp',
+      '.3gpp': 'audio/3gpp',
+      '.3g2': 'audio/3gpp2',
+      '.caf': 'audio/x-caf',
+      '.aif': 'audio/aiff',
+      '.aiff': 'audio/aiff',
+      '.aifc': 'audio/aiff',
+      '.wma': 'audio/x-ms-wma',
+      '.mid': 'audio/midi',
+      '.midi': 'audio/midi',
+      '.ac3': 'audio/ac3',
+      '.eac3': 'audio/eac3',
+      '.mka': 'audio/x-matroska',
     };
     for (final entry in mimeByExtension.entries) {
       if (lower.endsWith(entry.key)) return entry.value;
@@ -92,7 +116,8 @@ class PendingRecordingSyncService {
     final result = <PendingRecording>[];
     for (final value in raw) {
       try {
-        result.add(PendingRecording.fromJson(Map<String, dynamic>.from(jsonDecode(value))));
+        result.add(PendingRecording.fromJson(
+            Map<String, dynamic>.from(jsonDecode(value))));
       } catch (_) {
         // Ignore a single corrupt queue row rather than breaking all syncing.
       }
@@ -119,7 +144,8 @@ class PendingRecordingSyncService {
       final dir = Directory('${support.path}/pending_recordings');
       if (!await dir.exists()) await dir.create(recursive: true);
 
-      final safeName = recording.fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final safeName =
+          recording.fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
       final target = File('${dir.path}/${recording.localId}_$safeName');
       if (source.path != target.path) {
         await source.copy(target.path);

@@ -206,8 +206,7 @@ class IoTecSubscriptionService {
     final endAt = DateTime.now().add(timeout);
     IoTecPaymentStatus last = await status(transactionId);
 
-    while (
-        !last.isSuccess &&
+    while (!last.isSuccess &&
         !last.isFinalFailure &&
         DateTime.now().isBefore(endAt)) {
       await Future<void>.delayed(interval);

@@ -43,8 +43,7 @@ class CurrencySettingsScreen extends StatelessWidget {
               )
             else if (config == null)
               _CurrencyLoadError(
-                message: currency.error ??
-                    'Currency settings are unavailable.',
+                message: currency.error ?? 'Currency settings are unavailable.',
                 onRetry: currency.load,
               )
             else ...[
@@ -74,16 +73,15 @@ class CurrencySettingsScreen extends StatelessWidget {
                       ),
                     )
                     .toList(),
-                onChanged:
-                    config.allowUserSelection && !currency.loading
-                        ? (value) async {
-                            if (value == null) {
-                              return;
-                            }
+                onChanged: config.allowUserSelection && !currency.loading
+                    ? (value) async {
+                        if (value == null) {
+                          return;
+                        }
 
-                            await currency.selectCurrency(value);
-                          }
-                        : null,
+                        await currency.selectCurrency(value);
+                      }
+                    : null,
               ),
               const SizedBox(height: 16),
               Card(
@@ -92,8 +90,7 @@ class CurrencySettingsScreen extends StatelessWidget {
                     Icons.currency_exchange,
                   ),
                   title: Text(
-                    currency.selectedCurrency ==
-                            config.baseCurrency
+                    currency.selectedCurrency == config.baseCurrency
                         ? '1 ${config.baseCurrency} = '
                             '1 ${config.displayCurrency}'
                         : '1 ${config.baseCurrency} = '
@@ -167,10 +164,7 @@ class _ConversionExample extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '$base → $converted',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),

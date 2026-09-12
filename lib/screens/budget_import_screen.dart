@@ -277,8 +277,7 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                   children: [
                     TextField(
                       controller: category,
-                      decoration:
-                          const InputDecoration(labelText: 'Category'),
+                      decoration: const InputDecoration(labelText: 'Category'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -297,8 +296,7 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: period,
-                      decoration:
-                          const InputDecoration(labelText: 'Period'),
+                      decoration: const InputDecoration(labelText: 'Period'),
                       items: const [
                         DropdownMenuItem(
                           value: 'weekly',
@@ -329,8 +327,7 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                     TextField(
                       controller: notes,
                       maxLines: 3,
-                      decoration:
-                          const InputDecoration(labelText: 'Notes'),
+                      decoration: const InputDecoration(labelText: 'Notes'),
                     ),
                   ],
                 ),
@@ -353,18 +350,14 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
 
     if (ok == true) {
       setState(() {
-        item.category = category.text.trim().isEmpty
-            ? 'General'
-            : category.text.trim();
+        item.category =
+            category.text.trim().isEmpty ? 'General' : category.text.trim();
         item.description = description.text.trim();
         item.plannedAmount = double.tryParse(planned.text.trim()) ?? 0;
         item.period = period;
-        item.monthYear = monthYear.text.trim().isEmpty
-            ? null
-            : monthYear.text.trim();
-        item.notes = notes.text.trim().isEmpty
-            ? null
-            : notes.text.trim();
+        item.monthYear =
+            monthYear.text.trim().isEmpty ? null : monthYear.text.trim();
+        item.notes = notes.text.trim().isEmpty ? null : notes.text.trim();
       });
     }
 
@@ -473,7 +466,6 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                     style: const TextStyle(color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 16),
-
                   if (draft == null) ...[
                     _sourceCard(
                       icon: Icons.upload_file_outlined,
@@ -503,7 +495,6 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                           : () => _pickImage(ImageSource.gallery),
                     ),
                   ],
-
                   if (_loading) ...[
                     const SizedBox(height: 24),
                     const Center(child: CircularProgressIndicator()),
@@ -515,7 +506,6 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                       ),
                     ),
                   ],
-
                   if (_error != null) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -533,7 +523,6 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                       ),
                     ),
                   ],
-
                   if (draft != null) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -566,8 +555,7 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
                           onTap: () => _editItem(index),
                           title: Text(
                             item.category,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           subtitle: Text(
                             '${item.description.isEmpty ? 'No description' : item.description}\n'
@@ -615,8 +603,7 @@ class _BudgetImportScreenState extends State<BudgetImportScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: FilledButton.icon(
-                  onPressed:
-                      _loading || draft.items.isEmpty ? null : _save,
+                  onPressed: _loading || draft.items.isEmpty ? null : _save,
                   icon: const Icon(Icons.save_outlined),
                   label: const Text('Save reviewed budget'),
                 ),

@@ -75,8 +75,7 @@ class _TeamChatConversationsScreenState
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: _items.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 6),
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
                     itemBuilder: (context, index) {
                       final item = _items[index];
 

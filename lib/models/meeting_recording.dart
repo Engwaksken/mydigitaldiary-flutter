@@ -4,9 +4,14 @@ class TranscriptSegment {
   final String? speaker;
   final String text;
 
-  TranscriptSegment({required this.startSeconds, required this.endSeconds, this.speaker, required this.text});
+  TranscriptSegment(
+      {required this.startSeconds,
+      required this.endSeconds,
+      this.speaker,
+      required this.text});
 
-  factory TranscriptSegment.fromJson(Map<String, dynamic> json) => TranscriptSegment(
+  factory TranscriptSegment.fromJson(Map<String, dynamic> json) =>
+      TranscriptSegment(
         startSeconds: _asDouble(json['start_seconds']),
         endSeconds: _asDouble(json['end_seconds']),
         speaker: _nullableString(json['speaker']),
@@ -26,7 +31,11 @@ class MeetingSummary {
   final List<Map<String, dynamic>> actionItems;
   final List<String> questionsForFollowup;
 
-  MeetingSummary({required this.mainPoints, required this.decisions, required this.actionItems, required this.questionsForFollowup});
+  MeetingSummary(
+      {required this.mainPoints,
+      required this.decisions,
+      required this.actionItems,
+      required this.questionsForFollowup});
 
   factory MeetingSummary.fromJson(Map<String, dynamic> json) => MeetingSummary(
         mainPoints: _stringList(json['main_points']),
@@ -72,13 +81,16 @@ class MeetingRecording {
     final rawSegments = json['transcript_segments'];
     if (rawSegments is List) {
       for (final item in rawSegments) {
-        if (item is Map) segments.add(TranscriptSegment.fromJson(Map<String, dynamic>.from(item)));
+        if (item is Map)
+          segments
+              .add(TranscriptSegment.fromJson(Map<String, dynamic>.from(item)));
       }
     }
 
     MeetingSummary? summary;
     final rawSummary = json['summary'];
-    if (rawSummary is Map) summary = MeetingSummary.fromJson(Map<String, dynamic>.from(rawSummary));
+    if (rawSummary is Map)
+      summary = MeetingSummary.fromJson(Map<String, dynamic>.from(rawSummary));
 
     final duration = _asInt(json['duration_seconds']);
     return MeetingRecording(
@@ -86,11 +98,13 @@ class MeetingRecording {
       meetingId: _asInt(json['meeting_id']),
       status: json['status']?.toString() ?? '',
       durationSeconds: duration,
-      formattedDuration: json['formatted_duration']?.toString() ?? _formatDuration(duration),
+      formattedDuration:
+          json['formatted_duration']?.toString() ?? _formatDuration(duration),
       audioUrl: _nullableString(json['audio_url']),
       transcript: _nullableString(json['transcript']),
       transcriptSegments: segments,
-      transcriptionStatus: json['transcription_status']?.toString() ?? 'pending',
+      transcriptionStatus:
+          json['transcription_status']?.toString() ?? 'pending',
       transcriptionError: _nullableString(json['transcription_error']),
       summary: summary,
       summaryStatus: json['summary_status']?.toString() ?? 'pending',
@@ -124,7 +138,10 @@ List<String> _stringList(dynamic value) {
 
 List<Map<String, dynamic>> _mapList(dynamic value) {
   if (value is! List) return const [];
-  return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  return value
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
 }
 
 String _formatDuration(int totalSeconds) {

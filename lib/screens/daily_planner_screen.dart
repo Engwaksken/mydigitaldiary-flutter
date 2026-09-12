@@ -152,18 +152,15 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop('occurrence'),
+              onPressed: () => Navigator.of(context).pop('occurrence'),
               child: const Text('Only this occurrence'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop('future'),
+              onPressed: () => Navigator.of(context).pop('future'),
               child: const Text('This and future'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop('series'),
+              onPressed: () => Navigator.of(context).pop('series'),
               child: const Text('Entire series'),
             ),
           ],
@@ -182,13 +179,11 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(true),
+              onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete'),
             ),
           ],
@@ -325,10 +320,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                   Expanded(
                     child: Text(
                       'Tasks',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -357,12 +349,9 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                     child: _PlannerTaskCard(
                       item: item,
                       onToggle: () => _toggle(item),
-                      onEdit: () =>
-                          _openTaskEditor(item: item),
+                      onEdit: () => _openTaskEditor(item: item),
                       onDelete: () => _delete(item),
-                      onMove: item.isRecurring
-                          ? null
-                          : () => _move(item),
+                      onMove: item.isRecurring ? null : () => _move(item),
                     ),
                   ),
                 ),
@@ -419,13 +408,8 @@ class _DateHeader extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        isToday
-                            ? 'Today'
-                            : _weekdayName(selectedDate),
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelLarge
-                            ?.copyWith(
+                        isToday ? 'Today' : _weekdayName(selectedDate),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -433,9 +417,7 @@ class _DateHeader extends StatelessWidget {
                       Text(
                         _friendlyDate(selectedDate),
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -478,10 +460,7 @@ class _ProgressCard extends StatelessWidget {
                     snapshot.plan.title?.trim().isNotEmpty == true
                         ? snapshot.plan.title!
                         : 'My Daily Plan',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                   ),
@@ -609,9 +588,7 @@ class _PlannerTaskCard extends StatelessWidget {
                         item.description!,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                     const SizedBox(height: 8),
@@ -678,8 +655,7 @@ class _PlannerTaskCard extends StatelessWidget {
                     child: ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      leading:
-                          Icon(Icons.drive_file_move_outline),
+                      leading: Icon(Icons.drive_file_move_outline),
                       title: Text('Move task'),
                     ),
                   ),
@@ -722,9 +698,7 @@ class _TaskBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -764,8 +738,7 @@ class _TaskEditorSheet extends StatefulWidget {
   });
 
   @override
-  State<_TaskEditorSheet> createState() =>
-      _TaskEditorSheetState();
+  State<_TaskEditorSheet> createState() => _TaskEditorSheetState();
 }
 
 class _TaskEditorSheetState extends State<_TaskEditorSheet> {
@@ -810,8 +783,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
     _repeatDays = item?.repeatDays.toSet() ?? <String>{};
 
     _repeatStarts = _parseDate(
-      item?.repeatStartsOn ??
-          _formatDateOnly(widget.selectedDate),
+      item?.repeatStartsOn ?? _formatDateOnly(widget.selectedDate),
     );
 
     _repeatEnds = _parseDate(
@@ -849,10 +821,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
       if (start) {
         _startTime = picked;
 
-        if (
-          _endTime != null &&
-          _minutes(_endTime!) <= _minutes(picked)
-        ) {
+        if (_endTime != null && _minutes(_endTime!) <= _minutes(picked)) {
           _endTime = null;
         }
       } else {
@@ -866,13 +835,10 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
   }) async {
     final initial = starts
         ? (_repeatStarts ?? widget.selectedDate)
-        : (_repeatEnds ??
-            _repeatStarts ??
-            widget.selectedDate);
+        : (_repeatEnds ?? _repeatStarts ?? widget.selectedDate);
 
-    final first = starts
-        ? DateTime(2020)
-        : (_repeatStarts ?? widget.selectedDate);
+    final first =
+        starts ? DateTime(2020) : (_repeatStarts ?? widget.selectedDate);
 
     final picked = await showDatePicker(
       context: context,
@@ -887,10 +853,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
       if (starts) {
         _repeatStarts = picked;
 
-        if (
-          _repeatEnds != null &&
-          _repeatEnds!.isBefore(picked)
-        ) {
+        if (_repeatEnds != null && _repeatEnds!.isBefore(picked)) {
           _repeatEnds = null;
         }
       } else {
@@ -904,22 +867,16 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
       return;
     }
 
-    if (
-      _repeatType == 'specific_days' &&
-      _repeatDays.isEmpty
-    ) {
+    if (_repeatType == 'specific_days' && _repeatDays.isEmpty) {
       setState(() {
-        _error =
-            'Choose at least one day for this recurring task.';
+        _error = 'Choose at least one day for this recurring task.';
       });
       return;
     }
 
-    if (
-      _startTime != null &&
-      _endTime != null &&
-      _minutes(_endTime!) <= _minutes(_startTime!)
-    ) {
+    if (_startTime != null &&
+        _endTime != null &&
+        _minutes(_endTime!) <= _minutes(_startTime!)) {
       setState(() {
         _error = 'End time must be after start time.';
       });
@@ -939,12 +896,8 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
       description: _description.text,
       personalGoalId: _goalId,
       priority: _priority,
-      startTime: _startTime == null
-          ? null
-          : _formatTime24(_startTime!),
-      endTime: _endTime == null
-          ? null
-          : _formatTime24(_endTime!),
+      startTime: _startTime == null ? null : _formatTime24(_startTime!),
+      endTime: _endTime == null ? null : _formatTime24(_endTime!),
       repeatType: _repeatType,
       repeatDays: _repeatDays.toList(),
       repeatInterval: 1,
@@ -957,9 +910,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
           ? _formatDateOnly(_repeatEnds!)
           : null,
       occurrenceDate: item?.occurrenceDate,
-      editScope: item?.isRecurring == true
-          ? _editScope
-          : 'series',
+      editScope: item?.isRecurring == true ? _editScope : 'series',
     );
 
     try {
@@ -1010,10 +961,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
             children: [
               Text(
                 _editing ? 'Edit Task' : 'Add Planner Task',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
               ),
@@ -1022,9 +970,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 _editing
                     ? 'Update this task and its repeat schedule.'
                     : 'Create it once and choose when it should repeat.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -1035,10 +981,9 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                   border: OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'Enter a task title.'
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter a task title.'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -1081,8 +1026,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                     setState(() => _goalId = value);
                   },
                 ),
-              if (widget.goals.isNotEmpty)
-                const SizedBox(height: 12),
+              if (widget.goals.isNotEmpty) const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _priority,
                 decoration: const InputDecoration(
@@ -1158,10 +1102,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
               const SizedBox(height: 18),
               Text(
                 'Repeat',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
               ),
@@ -1209,9 +1150,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 const SizedBox(height: 12),
                 Text(
                   'Repeat on',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge,
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -1238,8 +1177,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                   ).map((choice) {
                     return ChoiceChip(
                       label: Text(choice.label),
-                      selected:
-                          _repeatDays.contains(choice.value),
+                      selected: _repeatDays.contains(choice.value),
                       onSelected: (selected) {
                         setState(() {
                           if (selected) {
@@ -1262,15 +1200,13 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                     final starts = _DateField(
                       label: 'Starts',
                       value: _repeatStarts,
-                      onTap: () =>
-                          _pickRepeatDate(starts: true),
+                      onTap: () => _pickRepeatDate(starts: true),
                     );
 
                     final ends = _DateField(
                       label: 'Ends (optional)',
                       value: _repeatEnds,
-                      onTap: () =>
-                          _pickRepeatDate(starts: false),
+                      onTap: () => _pickRepeatDate(starts: false),
                       onClear: _repeatEnds == null
                           ? null
                           : () => setState(
@@ -1300,17 +1236,11 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 const SizedBox(height: 10),
                 const _RecurringInfoCard(),
               ],
-              if (
-                _editing &&
-                widget.item!.isRecurring
-              ) ...[
+              if (_editing && widget.item!.isRecurring) ...[
                 const SizedBox(height: 16),
                 Text(
                   'Apply changes to',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -1351,9 +1281,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 Text(
                   _error!,
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .error,
+                    color: Theme.of(context).colorScheme.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1373,9 +1301,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 label: Text(
                   _saving
                       ? 'Saving...'
-                      : (_editing
-                          ? 'Save Changes'
-                          : 'Save Task'),
+                      : (_editing ? 'Save Changes' : 'Save Task'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1428,9 +1354,7 @@ class _TimeField extends StatelessWidget {
                 ),
         ),
         child: Text(
-          value == null
-              ? 'Not set'
-              : value!.format(context),
+          value == null ? 'Not set' : value!.format(context),
         ),
       ),
     );
@@ -1468,9 +1392,7 @@ class _DateField extends StatelessWidget {
                 ),
         ),
         child: Text(
-          value == null
-              ? 'No end date'
-              : _friendlyDate(value!),
+          value == null ? 'No end date' : _friendlyDate(value!),
         ),
       ),
     );
@@ -1485,9 +1407,7 @@ class _RecurringInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .secondaryContainer,
+        color: Theme.of(context).colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Row(
@@ -1530,17 +1450,12 @@ class _EmptyDayCard extends StatelessWidget {
             Icon(
               Icons.event_available_outlined,
               size: 42,
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 10),
             Text(
               'No tasks for this day',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
             ),
@@ -1610,9 +1525,7 @@ DateTime? _parseDate(String? value) {
   }
 
   return DateTime.tryParse(
-    value.length >= 10
-        ? value.substring(0, 10)
-        : value,
+    value.length >= 10 ? value.substring(0, 10) : value,
   );
 }
 
@@ -1627,14 +1540,12 @@ TimeOfDay? _parseTime(String? value) {
   final hour = int.tryParse(parts[0]);
   final minute = int.tryParse(parts[1]);
 
-  if (
-    hour == null ||
-    minute == null ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
+  if (hour == null ||
+      minute == null ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59) {
     return null;
   }
 
@@ -1654,9 +1565,8 @@ String _formatTime12(String value) {
   if (time == null) return value;
 
   final period = time.hour >= 12 ? 'PM' : 'AM';
-  final hour = time.hour == 0
-      ? 12
-      : (time.hour > 12 ? time.hour - 12 : time.hour);
+  final hour =
+      time.hour == 0 ? 12 : (time.hour > 12 ? time.hour - 12 : time.hour);
 
   return '$hour:${time.minute.toString().padLeft(2, '0')} $period';
 }
@@ -1666,9 +1576,7 @@ int _minutes(TimeOfDay value) {
 }
 
 bool _sameDay(DateTime a, DateTime b) {
-  return a.year == b.year &&
-      a.month == b.month &&
-      a.day == b.day;
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 String _weekdayName(DateTime date) {

@@ -40,7 +40,8 @@ class BusinessCardService {
 
   Future<List<int>> photoBytes() => _api.downloadBytes('business-card/photo');
 
-  Future<List<int>> downloadPdfBytes() => _api.downloadBytes('business-card/pdf');
+  Future<List<int>> downloadPdfBytes() =>
+      _api.downloadBytes('business-card/pdf');
 
   String _imageContentType(String filename) {
     final lower = filename.toLowerCase();

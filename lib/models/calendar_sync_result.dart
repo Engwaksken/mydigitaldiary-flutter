@@ -28,7 +28,9 @@ class CalendarSyncResult {
       from: json['from']?.toString() ?? '',
       to: json['to']?.toString() ?? '',
       syncedAt: DateTime.tryParse(json['synced_at']?.toString() ?? ''),
-      errors: (json['errors'] as List? ?? const []).map((e) => e.toString()).toList(),
+      errors: (json['errors'] as List? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }

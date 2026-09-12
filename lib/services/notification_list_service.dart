@@ -12,7 +12,8 @@ class NotificationListService {
 
   Future<void> markRead(String id) => _api.post('notifications/$id/read', {});
 
-  Future<void> markReminderRead(int reminderId) => _api.post('notifications/reminder/$reminderId/read', {});
+  Future<void> markReminderRead(int reminderId) =>
+      _api.post('notifications/reminder/$reminderId/read', {});
 
   Future<void> markAllRead() => _api.post('notifications/read-all', {});
 }

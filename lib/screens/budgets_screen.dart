@@ -14,6 +14,7 @@ class BudgetsScreen extends StatefulWidget {
 
 class _BudgetsScreenState extends State<BudgetsScreen> {
   List<Map<String, dynamic>> _budgets = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> _debts = <Map<String, dynamic>>[];
 
   bool _loading = true;
   bool _duplicating = false;
@@ -61,10 +62,23 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
       final rows = _extractRows(response);
 
+      List<Map<String, dynamic>> debts = <Map<String, dynamic>>[];
+
+      try {
+        final debtResponse = await ApiClient.instance.get(
+          'budgets/debts',
+          cacheable: false,
+        );
+        debts = _extractRows(debtResponse);
+      } catch (_) {
+        // Budget listing remains usable if debt lookup is unavailable.
+      }
+
       if (!mounted) return;
 
       setState(() {
         _budgets = rows;
+        _debts = debts;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -153,7 +167,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Future<void> _showNewBudgetOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: false,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         Widget action({
           required IconData icon,
@@ -162,12 +179,26 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           required VoidCallback onTap,
         }) {
           return ListTile(
-            leading: CircleAvatar(child: Icon(icon)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 2,
+            ),
+            leading: CircleAvatar(
+              child: Icon(icon),
+            ),
             title: Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
             ),
-            subtitle: Text(subtitle),
+            subtitle: Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () {
               Navigator.pop(sheetContext);
@@ -176,64 +207,84 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           );
         }
 
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const ListTile(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                  title: Text(
-                    'New Budget',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 19,
+        return DraggableScrollableSheet(
+          initialChildSize: 0.70,
+          minChildSize: 0.45,
+          maxChildSize: 0.94,
+          expand: false,
+          builder: (context, scrollController) {
+            return Material(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(26),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF475569),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  subtitle: Text(
-                    'Create, copy, import or scan a monthly budget.',
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+                      children: [
+                        const ListTile(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                          title: Text(
+                            'New Budget',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 19,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Create, copy, import or scan a monthly budget.',
+                          ),
+                        ),
+                        action(
+                          icon: Icons.copy_all_outlined,
+                          title: 'Duplicate monthly budget',
+                          subtitle: 'Copy another month and edit only what changed',
+                          onTap: _duplicateMonth,
+                        ),
+                        action(
+                          icon: Icons.edit_note_rounded,
+                          title: 'Enter manually',
+                          subtitle: 'Add one budget line yourself',
+                          onTap: _openManualForm,
+                        ),
+                        action(
+                          icon: Icons.upload_file_outlined,
+                          title: 'Upload budget file',
+                          subtitle: 'Excel, CSV, PDF, Word or image file',
+                          onTap: () => _openImport(BudgetImportLaunchMode.file),
+                        ),
+                        action(
+                          icon: Icons.document_scanner_outlined,
+                          title: 'Scan / take picture',
+                          subtitle: 'Photograph a printed or handwritten budget',
+                          onTap: () => _openImport(BudgetImportLaunchMode.camera),
+                        ),
+                        action(
+                          icon: Icons.photo_library_outlined,
+                          title: 'Choose budget photo',
+                          subtitle: 'Select an existing budget image from your phone',
+                          onTap: () => _openImport(BudgetImportLaunchMode.gallery),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                action(
-                  icon: Icons.copy_all_outlined,
-                  title: 'Duplicate monthly budget',
-                  subtitle:
-                      'Copy another month and edit only what changed',
-                  onTap: _duplicateMonth,
-                ),
-                action(
-                  icon: Icons.edit_note_rounded,
-                  title: 'Enter manually',
-                  subtitle: 'Add one budget line yourself',
-                  onTap: _openManualForm,
-                ),
-                action(
-                  icon: Icons.upload_file_outlined,
-                  title: 'Upload budget file',
-                  subtitle: 'Excel, CSV, PDF, Word or image file',
-                  onTap: () =>
-                      _openImport(BudgetImportLaunchMode.file),
-                ),
-                action(
-                  icon: Icons.document_scanner_outlined,
-                  title: 'Scan / take picture',
-                  subtitle:
-                      'Photograph a printed or handwritten budget',
-                  onTap: () =>
-                      _openImport(BudgetImportLaunchMode.camera),
-                ),
-                action(
-                  icon: Icons.photo_library_outlined,
-                  title: 'Choose budget photo',
-                  subtitle:
-                      'Select an existing budget image from your phone',
-                  onTap: () =>
-                      _openImport(BudgetImportLaunchMode.gallery),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -290,17 +341,19 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               }
             }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 18,
-                right: 18,
-                bottom:
-                    MediaQuery.viewInsetsOf(sheetContext).bottom + 18,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            return SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  top: 8,
+                  bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 18,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Text(
                     'Duplicate Monthly Budget',
                     style: Theme.of(sheetContext)
@@ -364,6 +417,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     label: const Text('Duplicate Budget'),
                   ),
                 ],
+                ),
               ),
             );
           },
@@ -459,8 +513,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         SnackBar(
           content: Text(
             wanted
-                ? 'Added to Expenses automatically.'
-                : 'Linked automatic expense removed.',
+                ? ((budget['application_type']?.toString() == 'debt_payment')
+                    ? 'Debt reduced and Income balance updated.'
+                    : 'Added to Expenses and Income balance updated.')
+                : 'Automatic Budget payment reversed.',
           ),
         ),
       );
@@ -503,6 +559,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     bool isExpensed = existing?['is_expensed'] == true ||
         existing?['is_expensed']?.toString() == '1';
+
+    String applicationType =
+        existing?['application_type']?.toString() == 'debt_payment'
+            ? 'debt_payment'
+            : 'expense';
+
+    int? debtId = int.tryParse(
+      existing?['debt_id']?.toString() ?? '',
+    );
 
     bool saving = false;
     String? formError;
@@ -558,6 +623,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 return;
               }
 
+              if (applicationType == 'debt_payment' &&
+                  isExpensed &&
+                  debtId == null) {
+                setLocal(() {
+                  formError =
+                      'Select the debt this payment should reduce.';
+                });
+                return;
+              }
+
               setLocal(() {
                 saving = true;
                 formError = null;
@@ -570,6 +645,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 'month_year':
                     DateFormat('yyyy-MM').format(budgetMonth),
                 'notes': notes.text.trim(),
+                'application_type': applicationType,
+                'debt_id':
+                    applicationType == 'debt_payment' ? debtId : null,
                 'is_expensed': isExpensed,
               };
 
@@ -692,16 +770,84 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       ),
                       onTap: saving ? null : pickMonth,
                     ),
+                    DropdownButtonFormField<String>(
+                      initialValue: applicationType,
+                      decoration: const InputDecoration(
+                        labelText: 'Apply as',
+                        helperText:
+                            'Choose Expense or Debt Payment.',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'expense',
+                          child: Text('Expense'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'debt_payment',
+                          child: Text('Debt Payment'),
+                        ),
+                      ],
+                      onChanged: saving
+                          ? null
+                          : (value) {
+                              setLocal(() {
+                                applicationType =
+                                    value ?? 'expense';
+
+                                if (applicationType !=
+                                    'debt_payment') {
+                                  debtId = null;
+                                }
+                              });
+                            },
+                    ),
+                    if (applicationType == 'debt_payment') ...[
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<int>(
+                        initialValue: _debts.any(
+                          (debt) => _intId(debt) == debtId,
+                        )
+                            ? debtId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Debt to pay',
+                          helperText:
+                              'The payment reduces this outstanding debt.',
+                        ),
+                        items: _debts
+                            .where((debt) => _intId(debt) != null)
+                            .map(
+                              (debt) => DropdownMenuItem<int>(
+                                value: _intId(debt),
+                                child: Text(
+                                  '${debt['person_name'] ?? 'Debt'} — ${_money(debt['amount'])}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: saving
+                            ? null
+                            : (value) {
+                                setLocal(() {
+                                  debtId = value;
+                                });
+                              },
+                      ),
+                    ],
+                    const SizedBox(height: 4),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       controlAffinity:
                           ListTileControlAffinity.leading,
                       value: isExpensed,
                       title: const Text(
-                        'This item has been expensed',
+                        'This item has been paid / spent',
                       ),
-                      subtitle: const Text(
-                        'Checking this automatically adds it to Expenses. No re-entry is needed.',
+                      subtitle: Text(
+                        applicationType == 'debt_payment'
+                            ? 'Checking this reduces the selected debt and updates your Income balance.'
+                            : 'Checking this adds it to Expenses and updates your Income balance.',
                       ),
                       onChanged: saving
                           ? null

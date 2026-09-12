@@ -15,12 +15,15 @@ class ReminderService {
   }
 
   Future<Reminder> create(Reminder reminder, {List<int>? itemIds}) async {
-    final response = await _api.post('reminders', {...reminder.toJson(), if (itemIds != null) 'item_ids': itemIds});
+    final response = await _api.post('reminders',
+        {...reminder.toJson(), if (itemIds != null) 'item_ids': itemIds});
     return Reminder.fromJson(response);
   }
 
-  Future<Reminder> update(int id, Reminder reminder, {List<int>? itemIds}) async {
-    final response = await _api.put('reminders/$id', {...reminder.toJson(), if (itemIds != null) 'item_ids': itemIds});
+  Future<Reminder> update(int id, Reminder reminder,
+      {List<int>? itemIds}) async {
+    final response = await _api.put('reminders/$id',
+        {...reminder.toJson(), if (itemIds != null) 'item_ids': itemIds});
     return Reminder.fromJson(response);
   }
 
@@ -29,7 +32,8 @@ class ReminderService {
   /// call behind its own version of this picker.
   Future<List<Map<String, dynamic>>> itemsForModule(String module) async {
     if (module.isEmpty) return [];
-    final response = await _api.get('reminders/items-for-module?module=${Uri.encodeQueryComponent(module)}');
+    final response = await _api.get(
+        'reminders/items-for-module?module=${Uri.encodeQueryComponent(module)}');
     return (response as List).cast<Map<String, dynamic>>();
   }
 

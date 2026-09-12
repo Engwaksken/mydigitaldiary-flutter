@@ -161,7 +161,6 @@ class SocialMediaPlannerService {
     return _map(response);
   }
 
-
   Future<Map<String, dynamic>> syncPostAnalytics(int postId) async {
     final response = await ApiClient.instance.post(
       'social-media-planner/$postId/analytics/sync',
@@ -201,7 +200,6 @@ class SocialMediaPlannerService {
       },
     );
   }
-
 
   Future<Map<String, dynamic>> syncAnalytics() async {
     final response = await ApiClient.instance.post(

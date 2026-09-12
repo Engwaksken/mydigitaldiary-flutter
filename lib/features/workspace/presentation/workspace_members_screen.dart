@@ -8,12 +8,10 @@ class WorkspaceMembersScreen extends StatefulWidget {
   const WorkspaceMembersScreen({super.key});
 
   @override
-  State<WorkspaceMembersScreen> createState() =>
-      _WorkspaceMembersScreenState();
+  State<WorkspaceMembersScreen> createState() => _WorkspaceMembersScreenState();
 }
 
-class _WorkspaceMembersScreenState
-    extends State<WorkspaceMembersScreen> {
+class _WorkspaceMembersScreenState extends State<WorkspaceMembersScreen> {
   final WorkspaceMemberManagementService _service =
       WorkspaceMemberManagementService();
 
@@ -192,8 +190,7 @@ class _WorkspaceMembersScreenState
               ),
               actions: [
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pop(dialogContext, false),
+                  onPressed: () => Navigator.pop(dialogContext, false),
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
@@ -293,13 +290,11 @@ class _WorkspaceMembersScreenState
               ),
               actions: [
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pop(dialogContext, false),
+                  onPressed: () => Navigator.pop(dialogContext, false),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(dialogContext, true),
+                  onPressed: () => Navigator.pop(dialogContext, true),
                   child: const Text('Save Changes'),
                 ),
               ],
@@ -332,8 +327,7 @@ class _WorkspaceMembersScreenState
       builder: (dialogContext) => AlertDialog(
         title: const Text('Assign Role'),
         content: StatefulBuilder(
-          builder: (context, setDialogState) =>
-              DropdownButtonFormField<String>(
+          builder: (context, setDialogState) => DropdownButtonFormField<String>(
             initialValue: role,
             items: _roles.entries
                 .map(
@@ -356,8 +350,7 @@ class _WorkspaceMembersScreenState
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, role),
+            onPressed: () => Navigator.pop(dialogContext, role),
             child: const Text('Save Role'),
           ),
         ],
@@ -387,13 +380,11 @@ class _WorkspaceMembersScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Remove'),
           ),
         ],
@@ -454,9 +445,7 @@ class _WorkspaceMembersScreenState
           IconButton(
             tooltip: 'Add member',
             onPressed:
-                _loading || _actionRunning || data == null
-                    ? null
-                    : _invite,
+                _loading || _actionRunning || data == null ? null : _invite,
             icon: const Icon(Icons.person_add_alt_1_outlined),
           ),
         ],
@@ -486,8 +475,7 @@ class _WorkspaceMembersScreenState
                           _SummaryCard(data: data),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: data.hasSeatAvailable &&
-                                    !_actionRunning
+                            onPressed: data.hasSeatAvailable && !_actionRunning
                                 ? _invite
                                 : null,
                             icon: const Icon(
@@ -514,14 +502,11 @@ class _WorkspaceMembersScreenState
                             ...data.members.map(
                               (member) => _MemberTile(
                                 member: member,
-                                roleLabel: _roles[
-                                        member.role.toLowerCase()] ??
+                                roleLabel: _roles[member.role.toLowerCase()] ??
                                     member.role,
                                 actionRunning: _actionRunning,
-                                onEdit: () =>
-                                    _editMember(member),
-                                onRole: () =>
-                                    _changeRole(member),
+                                onEdit: () => _editMember(member),
+                                onRole: () => _changeRole(member),
                                 onToggleActive: member.isInactive
                                     ? () => _runAction(
                                           () => _service.activate(
@@ -677,9 +662,7 @@ class _MemberTile extends StatelessWidget {
           children: [
             CircleAvatar(
               child: Text(
-                member.name.isNotEmpty
-                    ? member.name[0].toUpperCase()
-                    : '?',
+                member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
               ),
             ),
             const SizedBox(width: 12),
@@ -708,9 +691,7 @@ class _MemberTile extends StatelessWidget {
                     children: [
                       _Chip(label: roleLabel),
                       _Chip(
-                        label: pending
-                            ? 'Invitation Pending'
-                            : member.status,
+                        label: pending ? 'Invitation Pending' : member.status,
                       ),
                     ],
                   ),
@@ -749,9 +730,7 @@ class _MemberTile extends StatelessWidget {
                   PopupMenuItem(
                     value: 'toggle',
                     child: Text(
-                      member.isInactive
-                          ? 'Reactivate'
-                          : 'Suspend',
+                      member.isInactive ? 'Reactivate' : 'Suspend',
                     ),
                   ),
                 const PopupMenuItem(

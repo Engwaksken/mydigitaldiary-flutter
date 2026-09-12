@@ -50,7 +50,9 @@ Future<void> _initializeBackgroundServices() async {
   }
 
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).timeout(const Duration(seconds: 4));
+    await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform)
+        .timeout(const Duration(seconds: 4));
     unawaited(NotificationService.instance.initializePushNotifications());
   } catch (e) {
     debugPrint('Firebase push notifications not configured/reachable yet: $e');
@@ -80,13 +82,16 @@ class PersonalMonitorApp extends StatelessWidget {
           ThemeData theme;
           try {
             theme = AppTheme.light(
-              primaryColor: user != null ? _colorFromHex(user.themeColor) : null,
-              secondaryColor: user != null ? _colorFromHex(user.themeColorSecondary) : null,
+              primaryColor:
+                  user != null ? _colorFromHex(user.themeColor) : null,
+              secondaryColor:
+                  user != null ? _colorFromHex(user.themeColorSecondary) : null,
               fontFamily: user?.fontFamily,
               fontSizeScale: (user?.fontSize ?? 100) / 100,
             );
           } catch (e) {
-            debugPrint('Theme construction failed, falling back to defaults: $e');
+            debugPrint(
+                'Theme construction failed, falling back to defaults: $e');
             theme = AppTheme.light();
           }
           return MaterialApp(

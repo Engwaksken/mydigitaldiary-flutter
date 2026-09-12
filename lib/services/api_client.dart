@@ -116,9 +116,9 @@ class ApiClient {
   }
 
   Future<void> _recoverBrokenSecureStorage(PlatformException error) async {
-    final message = '${error.message ?? ''} ${error.details ?? ''}'.toLowerCase();
-    final looksLikeDecryptFailure =
-        message.contains('decrypt') ||
+    final message =
+        '${error.message ?? ''} ${error.details ?? ''}'.toLowerCase();
+    final looksLikeDecryptFailure = message.contains('decrypt') ||
         message.contains('encryptedsharedpreferences') ||
         message.contains('keystore');
 
@@ -160,7 +160,8 @@ class ApiClient {
   /// (no connection at all — NOT a 4xx/5xx from a reachable server),
   /// falls back to whatever was last successfully cached for this
   /// exact path, if anything.
-  Future<dynamic> get(String path, {bool auth = true, bool cacheable = false}) async {
+  Future<dynamic> get(String path,
+      {bool auth = true, bool cacheable = false}) async {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/$path'), headers: await _headers(auth: auth))
@@ -189,13 +190,15 @@ class ApiClient {
     }
   }
 
-  String _cacheKey(String path) => 'api_cache_${path.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+  String _cacheKey(String path) =>
+      'api_cache_${path.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
 
   Future<void> _writeCache(String path, dynamic decoded) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_cacheKey(path), jsonEncode(decoded));
-      await prefs.setString('${_cacheKey(path)}_at', DateTime.now().toIso8601String());
+      await prefs.setString(
+          '${_cacheKey(path)}_at', DateTime.now().toIso8601String());
     } catch (_) {
       // Caching is a nice-to-have, not a critical path — a failure to
       // write it (e.g. storage full) shouldn't affect the actual
@@ -210,7 +213,8 @@ class ApiClient {
       if (raw == null) return null;
 
       final timestamp = prefs.getString('${_cacheKey(path)}_at');
-      lastServedFromCacheAt = timestamp != null ? DateTime.tryParse(timestamp) : null;
+      lastServedFromCacheAt =
+          timestamp != null ? DateTime.tryParse(timestamp) : null;
 
       return jsonDecode(raw);
     } catch (_) {
@@ -223,7 +227,8 @@ class ApiClient {
   /// _handle() and just returns the raw bytes on success.
   Future<List<int>> downloadBytes(String path, {bool auth = true}) async {
     final headers = await _headers(auth: auth);
-    headers.remove('Content-Type'); // this is a GET with no body, not a JSON request
+    headers.remove(
+        'Content-Type'); // this is a GET with no body, not a JSON request
     final response = await http
         .get(Uri.parse('$baseUrl/$path'), headers: headers)
         .timeout(requestTimeout);
@@ -238,7 +243,8 @@ class ApiClient {
   Future<void> _invalidateApiCaches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys().where((key) => key.startsWith('api_cache_')).toList();
+      final keys =
+          prefs.getKeys().where((key) => key.startsWith('api_cache_')).toList();
       for (final key in keys) {
         await prefs.remove(key);
       }
@@ -248,7 +254,9 @@ class ApiClient {
   }
 
   static bool isTransientNetworkError(Object error) =>
-      error is SocketException || error is http.ClientException || error is TimeoutException;
+      error is SocketException ||
+      error is http.ClientException ||
+      error is TimeoutException;
 
   bool _isTransientNetworkError(Object error) => isTransientNetworkError(error);
 
@@ -286,7 +294,6 @@ class ApiClient {
     throw StateError('Unreachable write retry state.');
   }
 
-
   /// Replays a mutation previously saved by OfflineMutationQueue. The original
   /// idempotency key is deliberately reused across reconnect attempts so a
   /// lost response can never create the same record twice.
@@ -308,7 +315,8 @@ class ApiClient {
           'PUT' => http.put(uri, headers: headers, body: encoded),
           'PATCH' => http.patch(uri, headers: headers, body: encoded),
           'DELETE' => http.delete(uri, headers: headers, body: encoded),
-          _ => throw ArgumentError('Unsupported offline mutation method: $method'),
+          _ =>
+            throw ArgumentError('Unsupported offline mutation method: $method'),
         };
       },
       fixedIdempotencyKey: idempotencyKey,
@@ -316,36 +324,43 @@ class ApiClient {
     );
   }
 
-  Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) =>
+  Future<dynamic> post(String path, Map<String, dynamic> body,
+          {bool auth = true}) =>
       _performJsonWrite(
         path,
-        (headers) => http.post(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        (headers) => http.post(Uri.parse('$baseUrl/$path'),
+            headers: headers, body: jsonEncode(body)),
         auth: auth,
       );
 
-  Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) =>
+  Future<dynamic> put(String path, Map<String, dynamic> body,
+          {bool auth = true}) =>
       _performJsonWrite(
         path,
-        (headers) => http.put(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        (headers) => http.put(Uri.parse('$baseUrl/$path'),
+            headers: headers, body: jsonEncode(body)),
         auth: auth,
       );
 
-  Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) =>
+  Future<dynamic> patch(String path, Map<String, dynamic> body,
+          {bool auth = true}) =>
       _performJsonWrite(
         path,
-        (headers) => http.patch(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        (headers) => http.patch(Uri.parse('$baseUrl/$path'),
+            headers: headers, body: jsonEncode(body)),
         auth: auth,
       );
 
-  Future<dynamic> deleteWithBody(String path, Map<String, dynamic> body, {bool auth = true}) =>
+  Future<dynamic> deleteWithBody(String path, Map<String, dynamic> body,
+          {bool auth = true}) =>
       _performJsonWrite(
         path,
-        (headers) => http.delete(Uri.parse('$baseUrl/$path'), headers: headers, body: jsonEncode(body)),
+        (headers) => http.delete(Uri.parse('$baseUrl/$path'),
+            headers: headers, body: jsonEncode(body)),
         auth: auth,
       );
 
-  Future<dynamic> delete(String path, {bool auth = true}) =>
-      _performJsonWrite(
+  Future<dynamic> delete(String path, {bool auth = true}) => _performJsonWrite(
         path,
         (headers) => http.delete(Uri.parse('$baseUrl/$path'), headers: headers),
         auth: auth,
@@ -371,7 +386,8 @@ class ApiClient {
 
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final request = http.MultipartRequest(method.toUpperCase(), Uri.parse('$baseUrl/$path'));
+        final request = http.MultipartRequest(
+            method.toUpperCase(), Uri.parse('$baseUrl/$path'));
         final token = await getToken();
         request.headers['Accept'] = 'application/json';
         request.headers['X-Idempotency-Key'] = idempotencyKey;
@@ -387,9 +403,8 @@ class ApiClient {
               fileFieldName,
               fileBytes,
               filename: fileName,
-              contentType: contentType != null
-                  ? MediaType.parse(contentType)
-                  : null,
+              contentType:
+                  contentType != null ? MediaType.parse(contentType) : null,
             ),
           );
         }
@@ -410,9 +425,8 @@ class ApiClient {
           );
         }
 
-        final streamedResponse = await request
-            .send()
-            .timeout(const Duration(minutes: 5));
+        final streamedResponse =
+            await request.send().timeout(const Duration(minutes: 5));
         final response = await http.Response.fromStream(streamedResponse);
         final decoded = _handle(response);
         lastSuccessfulSyncAt = DateTime.now();
@@ -437,7 +451,8 @@ class ApiClient {
     required String fileName,
     String? contentType,
     Map<String, String> fields = const {},
-  }) => multipart(
+  }) =>
+      multipart(
         path,
         fileFieldName: fileFieldName,
         fileBytes: fileBytes,

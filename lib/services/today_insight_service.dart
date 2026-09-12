@@ -38,8 +38,7 @@ class TodayInsightService {
       Map<String, dynamic>.from(response),
     );
 
-    if (insight.title.trim().isEmpty ||
-        insight.message.trim().isEmpty) {
+    if (insight.title.trim().isEmpty || insight.message.trim().isEmpty) {
       throw ApiException(
         500,
         'Today’s Insight response was incomplete.',

@@ -171,9 +171,10 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
                       children: [
                         Text(
                           'Sync selected dates',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                         ),
                         const Text(
                           'Choose the exact period to import from your authorised calendars.',
@@ -225,23 +226,19 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
                 children: [
                   ActionChip(
                     label: const Text('Today'),
-                    onPressed:
-                        _loading ? null : () => _quickRange('today'),
+                    onPressed: _loading ? null : () => _quickRange('today'),
                   ),
                   ActionChip(
                     label: const Text('Last 7 days'),
-                    onPressed:
-                        _loading ? null : () => _quickRange('7'),
+                    onPressed: _loading ? null : () => _quickRange('7'),
                   ),
                   ActionChip(
                     label: const Text('Last 30 days'),
-                    onPressed:
-                        _loading ? null : () => _quickRange('30'),
+                    onPressed: _loading ? null : () => _quickRange('30'),
                   ),
                   ActionChip(
                     label: const Text('This month'),
-                    onPressed:
-                        _loading ? null : () => _quickRange('month'),
+                    onPressed: _loading ? null : () => _quickRange('month'),
                   ),
                 ],
               ),

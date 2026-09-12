@@ -29,10 +29,8 @@ class OrganizationAccessContext {
       isWorkspaceOwner: json['is_workspace_owner'] == true,
       hasActiveAccess: json['has_active_access'] == true,
       organizationId: _asInt(json['organization_id']),
-      organizationName:
-          (json['organization_name'] ?? '').toString(),
-      organizationRole:
-          (json['organization_role'] ?? '').toString(),
+      organizationName: (json['organization_name'] ?? '').toString(),
+      organizationRole: (json['organization_role'] ?? '').toString(),
       ownerUserId: _asInt(json['owner_user_id']),
       ownerName: (json['owner_name'] ?? '').toString(),
     );
@@ -73,9 +71,7 @@ class OrganizationAccessService {
     if (raw is! Map) {
       throw ApiException(
         500,
-        (root['message'] ??
-                'Could not load organisation access.')
-            .toString(),
+        (root['message'] ?? 'Could not load organisation access.').toString(),
       );
     }
 

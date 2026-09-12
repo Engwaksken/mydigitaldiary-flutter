@@ -48,7 +48,9 @@ class BusinessCard {
         website: json['website'],
         address: json['address'],
         bio: json['bio'],
-        socialLinks: json['social_links'] != null ? Map<String, dynamic>.from(json['social_links']) : {},
+        socialLinks: json['social_links'] != null
+            ? Map<String, dynamic>.from(json['social_links'])
+            : {},
         photoUrl: json['photo_url'],
         publicUrl: json['public_url'],
         qrCodeUrl: json['qr_code_url'],
@@ -67,10 +69,14 @@ class BusinessCard {
         if (website != null) 'website': website!,
         if (address != null) 'address': address!,
         if (bio != null) 'bio': bio!,
-        if (socialLinks['facebook'] != null) 'social_facebook': socialLinks['facebook'],
-        if (socialLinks['twitter'] != null) 'social_twitter': socialLinks['twitter'],
-        if (socialLinks['linkedin'] != null) 'social_linkedin': socialLinks['linkedin'],
-        if (socialLinks['instagram'] != null) 'social_instagram': socialLinks['instagram'],
+        if (socialLinks['facebook'] != null)
+          'social_facebook': socialLinks['facebook'],
+        if (socialLinks['twitter'] != null)
+          'social_twitter': socialLinks['twitter'],
+        if (socialLinks['linkedin'] != null)
+          'social_linkedin': socialLinks['linkedin'],
+        if (socialLinks['instagram'] != null)
+          'social_instagram': socialLinks['instagram'],
         'card_color': cardColor,
         'card_color_secondary': cardColorSecondary,
       };

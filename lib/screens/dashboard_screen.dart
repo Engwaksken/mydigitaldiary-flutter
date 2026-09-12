@@ -9,6 +9,7 @@ import '../services/reminder_alarm_service.dart';
 import '../services/engagement_service.dart';
 import '../services/daily_planner_service.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/dashboard_steps_card.dart';
 import '../widgets/engagement_dashboard_section.dart';
 import 'annual_plans_screen.dart';
 import 'daily_planner_screen.dart';
@@ -36,7 +37,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _stats;
   bool _loading = true;
 
@@ -54,15 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Timer? _insightTimer;
 
-<<<<<<< HEAD
-  final ScrollController _dashboardScrollController = ScrollController();
-
-=======
->>>>>>> 3ff4e8f (Budgets updates)
   String _currencyCode = 'UGX';
-  String _currencySymbol = 'UGX';
-  double _currencyRate = 1.0;
-  int _currencyDecimals = 0;
 
   @override
   void initState() {
@@ -75,7 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _insightTimer?.cancel();
-    _dashboardScrollController.dispose();
     super.dispose();
   }
 
@@ -102,191 +95,636 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
 
     Map<String, dynamic> data = <String, dynamic>{};
-    String? dashboardError;
 
     try {
+      // The main dashboard request is the only request that controls the
+      // initial loading state. Optional focus/finance refreshes happen after
+      // the page is already visible, so a slow secondary endpoint can never
+      // leave Home looking blank for 30–45 seconds.
       dynamic response;
-
       try {
         response = await ApiClient.instance
-            .get(
-              'dashboard',
-              cacheable: false,
-            )
+            .get('dashboard', cacheable: false)
             .timeout(const Duration(seconds: 7));
       } catch (_) {
+        // If the network is unavailable, fall back to any locally cached
+        // dashboard payload instead of leaving Home empty.
         response = await ApiClient.instance
-            .get(
-              'dashboard',
-              cacheable: true,
-            )
+            .get('dashboard', cacheable: true)
             .timeout(const Duration(seconds: 3));
       }
 
       if (response is Map) {
         final root = Map<String, dynamic>.from(response);
         final wrapped = root['data'];
-
         if (wrapped is Map &&
             (wrapped.containsKey('top_tasks') ||
+                wrapped.containsKey('today_focus') ||
                 wrapped.containsKey('personal_progress') ||
                 wrapped.containsKey('finance_summary') ||
-                wrapped.containsKey('today_insight'))) {
+                wrapped.containsKey('today_insight') ||
+                wrapped.containsKey('goal_intelligence') ||
+                wrapped.containsKey('onboarding'))) {
           data = Map<String, dynamic>.from(wrapped);
         } else {
           data = root;
         }
       }
     } catch (_) {
-      dashboardError = 'Could not refresh the dashboard right now.';
+      // Still render Home shortcuts even when the dashboard request fails.
+      data = <String, dynamic>{};
+      if (mounted && _todayFocusItems.isEmpty) {
+        _todayFocusError = 'Could not load today’s dashboard items.';
+      }
     }
 
     if (!mounted) return;
 
-    final rawMainFocus = data['top_tasks'] is List
-        ? data['top_tasks']
-        : (data['today_focus'] is List ? data['today_focus'] : null);
+    // Collect every dashboard source that may contain items due today.
+    // Recurring items are often returned separately from top_tasks/today_focus,
+    // so reading only one list can silently hide them from Today's Focus.
+    final rawMainFocus = <dynamic>[];
+    for (final key in const <String>[
+      'top_tasks',
+      'today_focus',
+      'recurring_tasks',
+      'recurring_items',
+      'today_recurring',
+      'due_today',
+      'reminders',
+      'meetings',
+      'project_tasks',
+    ]) {
+      final value = data[key];
+      if (value is List) {
+        rawMainFocus.addAll(value);
+      }
+    }
 
-    final mainFocus = rawMainFocus is List
-        ? _normaliseTodayFocus(rawMainFocus)
-        : <Map<String, dynamic>>[];
+    final mainFocus = _normaliseTodayFocus(rawMainFocus);
+
+    // The dedicated endpoint is recurrence-aware and remains fresh even when
+    // the broader dashboard payload is cached or deployed separately.
+    var authoritativeFocus = <Map<String, dynamic>>[];
+
+    try {
+      authoritativeFocus = await _authoritativeTodayFocus();
+    } catch (_) {}
+
+    // Today’s Focus should match the Daily Planner itself. Load that source
+    // before completing the Dashboard refresh instead of starting several
+    // competing asynchronous focus requests.
+    var plannerFocus = <Map<String, dynamic>>[];
+
+    try {
+      plannerFocus = await _todayPlannerFocus();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final mergedFocus = _mergeTodayFocus(
+      plannerFocus,
+      _mergeTodayFocus(authoritativeFocus, mainFocus),
+    );
 
     setState(() {
       _stats = data;
-      _applyCurrencyMetadata(data);
       _currencyCode = _extractCurrency(data) ?? _currencyCode;
-
-      if (mainFocus.isNotEmpty) {
-        _todayFocusItems = mainFocus;
-        _todayFocusError = null;
-      } else if (_todayFocusItems.isEmpty && dashboardError != null) {
-        _todayFocusError = dashboardError;
-      }
-
+      _todayFocusItems = mergedFocus;
+      _todayFocusError = null;
       _loadingTodayFocus = false;
       _loading = false;
     });
 
-    unawaited(_refreshTodayFocusFromPlanner());
+    // Retention/engagement data is independent of Today's Focus.
     unawaited(_refreshEngagement());
     unawaited(_refreshGrowth());
+
+    // Finance and Insight may refresh independently because they never own
+    // or mutate Today's Focus.
     unawaited(_refreshFinanceSummary());
     unawaited(_refreshTodayInsight());
   }
 
-  Future<void> _refreshTodayFocusFromPlanner() async {
-    if (!mounted) return;
-
-    if (_todayFocusItems.isEmpty) {
-      setState(() {
-        _loadingTodayFocus = true;
-        _todayFocusError = null;
-      });
-    }
-
-    try {
-      final plannerItems = await _todayPlannerFocus();
-
-      if (!mounted) return;
-
-      setState(() {
-        if (plannerItems.isNotEmpty) {
-          _todayFocusItems = plannerItems;
-        }
-
-        _todayFocusError = null;
-        _loadingTodayFocus = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _loadingTodayFocus = false;
-
-        if (_todayFocusItems.isEmpty) {
-          _todayFocusError =
-              'Could not refresh Today’s Focus. Pull down to try again.';
-        }
-      });
-    }
-  }
-
-
   Future<List<Map<String, dynamic>>> _todayPlannerFocus() async {
     final now = DateTime.now();
-    final today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    final today = DateTime(now.year, now.month, now.day);
+    final date = _plannerDateKey(today);
 
-    final plan = await DailyPlannerService()
-        .getPlan(today)
-        .timeout(const Duration(seconds: 6));
+    final focus = <Map<String, dynamic>>[];
 
-    final pending = plan.items
-        .where(
-          (item) =>
-              !item.isCompleted &&
-              item.title.trim().isNotEmpty,
-        )
-        .toList()
-      ..sort((a, b) {
-        int priorityWeight(String value) {
-          switch (value.toLowerCase()) {
-            case 'urgent':
-            case 'high':
-              return 0;
-            case 'medium':
-              return 1;
-            default:
-              return 2;
-          }
-        }
+    // First use the typed service because this is the same source used by the
+    // Daily Planner screen itself.
+    try {
+      final plan = await DailyPlannerService()
+          .getPlan(today)
+          .timeout(const Duration(seconds: 10));
 
-        final priorityCompare = priorityWeight(
-          a.priority,
-        ).compareTo(
-          priorityWeight(b.priority),
-        );
+      for (final item in plan.items) {
+        if (item.isCompleted || item.title.trim().isEmpty) continue;
 
-        if (priorityCompare != 0) {
-          return priorityCompare;
-        }
+        focus.add(<String, dynamic>{
+          'id': item.id,
+          'title': item.title.trim(),
+          'description': item.description,
+          'source': 'Daily Planner',
+          'module': 'Daily Planner',
+          'type': 'daily_planner',
+          'time': item.startTime ?? '',
+          'start_time': item.startTime ?? '',
+          'end_time': item.endTime ?? '',
+          'priority': item.priority,
+          'is_completed': false,
+          'personal_goal_id': item.personalGoalId,
+          'is_recurring': item.isRecurring,
+          'repeat_type': item.repeatType,
+          'occurrence_date': item.occurrenceDate,
+        });
+      }
+    } catch (_) {
+      // The raw API fallback below can still populate Today's Focus.
+    }
 
-        final aTime = a.startTime?.trim() ?? '';
-        final bTime = b.startTime?.trim() ?? '';
+    // Also inspect the raw response. Recurring templates/occurrences are often
+    // returned outside the typed `items` list, and converting only plan.items
+    // loses recurrence_rule/repeat fields that Today's Focus needs.
+    try {
+      final response = await ApiClient.instance
+          .get('daily-planner?date=$date', cacheable: false)
+          .timeout(const Duration(seconds: 10));
 
-        if (aTime.isEmpty && bTime.isEmpty) {
-          return a.title.toLowerCase().compareTo(
-                b.title.toLowerCase(),
-              );
-        }
+      final rawItems = <Map<String, dynamic>>[];
+      _collectPlannerPayloadItems(response, rawItems);
 
-        if (aTime.isEmpty) return 1;
-        if (bTime.isEmpty) return -1;
+      for (final raw in rawItems) {
+        final item = _normalisePlannerRawItem(raw, today);
+        if (item != null) focus.add(item);
+      }
+    } catch (_) {
+      // Keep typed service results when the raw request is unavailable.
+    }
 
-        return aTime.compareTo(bTime);
-      });
-
-    return pending.take(6).map((item) {
-      return <String, dynamic>{
-        'id': item.id,
-        'title': item.title.trim(),
-        'description': item.description,
-        'source': 'Daily Planner',
-        'module': 'Daily Planner',
-        'type': 'daily_planner',
-        'time': item.startTime ?? '',
-        'start_time': item.startTime ?? '',
-        'end_time': item.endTime ?? '',
-        'priority': item.priority,
-        'is_completed': false,
-        'personal_goal_id': item.personalGoalId,
-      };
-    }).toList();
+    final merged = _mergeTodayFocus(focus, const <Map<String, dynamic>>[]);
+    return merged;
   }
 
+  Future<List<Map<String, dynamic>>> _authoritativeTodayFocus() async {
+    final response = await ApiClient.instance
+        .get('dashboard/today-focus', cacheable: false)
+        .timeout(const Duration(seconds: 10));
+
+    if (response is! Map) return const <Map<String, dynamic>>[];
+
+    final payload = Map<String, dynamic>.from(response);
+    final items = payload['data'] is List
+        ? payload['data'] as List
+        : (payload['top_tasks'] is List ? payload['top_tasks'] as List : const []);
+
+    return _normaliseTodayFocus(items);
+  }
+
+  String _plannerDateKey(DateTime date) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${date.year}-${two(date.month)}-${two(date.day)}';
+  }
+
+  void _collectPlannerPayloadItems(
+    dynamic value,
+    List<Map<String, dynamic>> output, [
+    int depth = 0,
+  ]) {
+    if (value == null || depth > 7) return;
+
+    if (value is List) {
+      for (final child in value) {
+        _collectPlannerPayloadItems(child, output, depth + 1);
+      }
+      return;
+    }
+
+    if (value is! Map) return;
+    final map = Map<String, dynamic>.from(value);
+
+    final title = (map['title'] ?? map['name'] ?? map['task'] ?? map['subject'])
+        ?.toString()
+        .trim();
+    final looksLikePlannerItem =
+        title != null &&
+        title.isNotEmpty &&
+        (map.containsKey('priority') ||
+            map.containsKey('start_time') ||
+            map.containsKey('end_time') ||
+            map.containsKey('is_completed') ||
+            map.containsKey('completed') ||
+            map.containsKey('recurrence') ||
+            map.containsKey('recurrence_rule') ||
+            map.containsKey('repeat') ||
+            map.containsKey('repeat_type') ||
+            map.containsKey('repeat_frequency') ||
+            map.containsKey('is_recurring') ||
+            map.containsKey('scheduled_date') ||
+            map.containsKey('plan_date') ||
+            map.containsKey('date'));
+
+    if (looksLikePlannerItem) {
+      output.add(map);
+    }
+
+    for (final entry in map.entries) {
+      if (entry.value is Map || entry.value is List) {
+        _collectPlannerPayloadItems(entry.value, output, depth + 1);
+      }
+    }
+  }
+
+  Map<String, dynamic>? _normalisePlannerRawItem(
+    Map<String, dynamic> raw,
+    DateTime today,
+  ) {
+    String first(List<dynamic> values) {
+      for (final value in values) {
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty) return text;
+      }
+      return '';
+    }
+
+    bool truthy(dynamic value) {
+      if (value == true || value == 1 || value == '1') return true;
+      final text = value?.toString().trim().toLowerCase() ?? '';
+      return text == 'true' ||
+          text == 'yes' ||
+          text == 'done' ||
+          text == 'completed';
+    }
+
+    final title = first([
+      raw['title'],
+      raw['name'],
+      raw['task'],
+      raw['subject'],
+    ]);
+    if (title.isEmpty) return null;
+
+    final status = first([raw['status'], raw['state']]).toLowerCase();
+    if (truthy(raw['is_completed']) ||
+        truthy(raw['completed']) ||
+        status == 'done' ||
+        status == 'completed') {
+      return null;
+    }
+
+    final dateText = first([
+      raw['occurrence_date'],
+      raw['scheduled_date'],
+      raw['plan_date'],
+      raw['due_date'],
+      raw['date'],
+    ]);
+
+    final recurring = _recursOnDate(raw, today);
+    if (dateText.isNotEmpty) {
+      final parsed = DateTime.tryParse(dateText)?.toLocal();
+      if (parsed != null) {
+        final sameDay =
+            parsed.year == today.year &&
+            parsed.month == today.month &&
+            parsed.day == today.day;
+        if (!sameDay && !recurring) return null;
+      }
+    } else if (!recurring) {
+      // A raw undated object must explicitly be recurring to qualify for Today.
+      // Typed getPlan(today) items were already included above.
+      return null;
+    }
+
+    String timeKey(String value) {
+      final text = value.trim();
+      // Match DailyPlannerItem._timeOnly (HH:MM) so typed items and raw
+      // items produce the same dedup key (API may return HH:MM:SS).
+      return text.length >= 5 ? text.substring(0, 5) : text;
+    }
+
+    final time = timeKey(first([raw['time'], raw['start_time'], raw['due_time']]));
+    final startTime = timeKey(first([raw['start_time'], raw['time']]));
+
+    return <String, dynamic>{
+      ...raw,
+      'title': title,
+      'source': 'Daily Planner',
+      'module': 'Daily Planner',
+      'type': 'daily_planner',
+      'time': time,
+      'start_time': startTime,
+      'end_time': timeKey(first([raw['end_time']])),
+      'priority': first([raw['priority'], 'medium']),
+      'is_completed': false,
+      'occurrence_date': _plannerDateKey(today),
+      'is_recurring': recurring || truthy(raw['is_recurring']),
+    };
+  }
+
+  bool _recursOnDate(Map<String, dynamic> item, DateTime date) {
+    String first(List<dynamic> values) {
+      for (final value in values) {
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty) return text;
+      }
+      return '';
+    }
+
+    final recurrence = first([
+      item['recurrence'],
+      item['recurrence_rule'],
+      item['repeat_type'],
+      item['repeat_frequency'],
+      item['frequency'],
+      item['repeat'],
+    ]).toLowerCase();
+
+    final isRecurring =
+        item['is_recurring'] == true ||
+        item['is_recurring'] == 1 ||
+        item['is_recurring'] == '1' ||
+        recurrence.isNotEmpty && recurrence != 'none' && recurrence != 'never';
+
+    if (!isRecurring) return false;
+
+    final starts = first([
+      item['recurrence_start_date'],
+      item['start_date'],
+      item['plan_date'],
+      item['date'],
+      item['created_at'],
+    ]);
+    final ends = first([
+      item['recurrence_end_date'],
+      item['repeat_until'],
+      item['end_date'],
+    ]);
+
+    final start = DateTime.tryParse(starts)?.toLocal();
+    final end = DateTime.tryParse(ends)?.toLocal();
+    final target = DateTime(date.year, date.month, date.day);
+
+    if (start != null) {
+      final startDay = DateTime(start.year, start.month, start.day);
+      if (target.isBefore(startDay)) return false;
+    }
+    if (end != null) {
+      final endDay = DateTime(end.year, end.month, end.day);
+      if (target.isAfter(endDay)) return false;
+    }
+
+    if (recurrence.contains('daily') ||
+        recurrence == 'day' ||
+        recurrence == 'every day') {
+      return true;
+    }
+
+    if (recurrence.contains('weekday') || recurrence.contains('mon-fri')) {
+      return date.weekday >= DateTime.monday && date.weekday <= DateTime.friday;
+    }
+
+    const names = <int, List<String>>{
+      DateTime.monday: ['mon', 'monday'],
+      DateTime.tuesday: ['tue', 'tues', 'tuesday'],
+      DateTime.wednesday: ['wed', 'wednesday'],
+      DateTime.thursday: ['thu', 'thur', 'thurs', 'thursday'],
+      DateTime.friday: ['fri', 'friday'],
+      DateTime.saturday: ['sat', 'saturday'],
+      DateTime.sunday: ['sun', 'sunday'],
+    };
+
+    final daysValue = first([
+      item['repeat_days'],
+      item['days_of_week'],
+      item['weekdays'],
+      item['recurrence_days'],
+    ]).toLowerCase();
+
+    final weekdayNames = names[date.weekday] ?? const <String>[];
+    if (daysValue.isNotEmpty && weekdayNames.any(daysValue.contains)) {
+      return true;
+    }
+
+    if (recurrence.contains('weekly') || recurrence == 'week') {
+      if (daysValue.isNotEmpty) {
+        return weekdayNames.any(daysValue.contains);
+      }
+      if (start != null) return start.weekday == date.weekday;
+      return true;
+    }
+
+    if (recurrence.contains('monthly') || recurrence == 'month') {
+      final repeatDay = int.tryParse(
+        first([
+          item['repeat_day'],
+          item['day_of_month'],
+          item['recurrence_day'],
+        ]),
+      );
+      if (repeatDay != null) return repeatDay == date.day;
+      if (start != null) return start.day == date.day;
+      return true;
+    }
+
+    if (recurrence.contains('yearly') || recurrence.contains('annual')) {
+      if (start == null) return true;
+      return start.month == date.month && start.day == date.day;
+    }
+
+    // RRULE-like strings: BYDAY=MO,WE,FR / FREQ=DAILY, etc.
+    final upper = recurrence.toUpperCase();
+    if (upper.contains('FREQ=DAILY')) return true;
+    if (upper.contains('FREQ=WEEKLY')) {
+      const codes = <int, String>{
+        DateTime.monday: 'MO',
+        DateTime.tuesday: 'TU',
+        DateTime.wednesday: 'WE',
+        DateTime.thursday: 'TH',
+        DateTime.friday: 'FR',
+        DateTime.saturday: 'SA',
+        DateTime.sunday: 'SU',
+      };
+      final code = codes[date.weekday];
+      if (!upper.contains('BYDAY='))
+        return start == null || start.weekday == date.weekday;
+      return code != null && upper.contains(code);
+    }
+    if (upper.contains('FREQ=MONTHLY')) {
+      final match = RegExp(r'BYMONTHDAY=(\d+)').firstMatch(upper);
+      if (match != null) return int.tryParse(match.group(1) ?? '') == date.day;
+      return start == null || start.day == date.day;
+    }
+
+    // If the server explicitly says recurring but uses a custom recurrence
+    // label we do not recognise, include it rather than silently hiding it.
+    return true;
+  }
+
+  List<Map<String, dynamic>> _mergeTodayFocus(
+    List<Map<String, dynamic>> plannerItems,
+    List<Map<String, dynamic>> dashboardItems,
+  ) {
+    final all = <Map<String, dynamic>>[...plannerItems, ...dashboardItems];
+
+    bool isRecurring(Map<String, dynamic> item) {
+      dynamic nestedRaw = item['item'];
+      final nested = nestedRaw is Map
+          ? Map<String, dynamic>.from(nestedRaw)
+          : const <String, dynamic>{};
+
+      bool truthy(dynamic value) {
+        if (value == true || value == 1 || value == '1') return true;
+        final text = value?.toString().trim().toLowerCase() ?? '';
+        return text == 'true' ||
+            text == 'yes' ||
+            text == 'daily' ||
+            text == 'weekly' ||
+            text == 'monthly' ||
+            text == 'yearly';
+      }
+
+      for (final key in const <String>['is_recurring', 'recurring', 'repeat']) {
+        if (truthy(item[key]) || truthy(nested[key])) return true;
+      }
+
+      for (final key in const <String>[
+        'recurrence',
+        'recurrence_rule',
+        'repeat_type',
+        'repeat_frequency',
+        'frequency',
+      ]) {
+        final value = (item[key] ?? nested[key])?.toString().trim() ?? '';
+        if (value.isNotEmpty && value.toLowerCase() != 'none') return true;
+      }
+
+      return false;
+    }
+
+    int priorityWeight(dynamic value) {
+      switch (value?.toString().trim().toLowerCase()) {
+        case 'urgent':
+        case 'high':
+          return 0;
+        case 'medium':
+          return 1;
+        default:
+          return 2;
+      }
+    }
+
+    // Recurring items are promoted before ordinary items so they cannot be
+    // pushed out merely because six one-off planner tasks were loaded first.
+    all.sort((a, b) {
+      final recurringCompare = (isRecurring(b) ? 1 : 0).compareTo(
+        isRecurring(a) ? 1 : 0,
+      );
+      if (recurringCompare != 0) return recurringCompare;
+
+      final priorityCompare = priorityWeight(
+        a['priority'],
+      ).compareTo(priorityWeight(b['priority']));
+      if (priorityCompare != 0) return priorityCompare;
+
+      final aTime = (a['time'] ?? a['start_time'] ?? a['due_time'] ?? '')
+          .toString()
+          .trim();
+      final bTime = (b['time'] ?? b['start_time'] ?? b['due_time'] ?? '')
+          .toString()
+          .trim();
+      if (aTime.isEmpty && bTime.isNotEmpty) return 1;
+      if (aTime.isNotEmpty && bTime.isEmpty) return -1;
+      return aTime.compareTo(bTime);
+    });
+
+    final merged = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    String normTime(dynamic value) {
+      final text = value?.toString().trim().toLowerCase() ?? '';
+      // Normalise HH:MM:SS to HH:MM so the typed service (HH:MM) and the
+      // raw API payload (HH:MM:SS) dedup to the same key.
+      return text.length >= 5 && RegExp(r'^\d{1,2}:\d{2}').hasMatch(text)
+          ? text.substring(0, 5)
+          : text;
+    }
+
+    String normDate(dynamic value) {
+      final text = value?.toString().trim().toLowerCase() ?? '';
+      return text.length >= 10 ? text.substring(0, 10) : text;
+    }
+
+    for (final item in all) {
+      final title = (item['title'] ?? item['name'] ?? '').toString().trim();
+      if (title.isEmpty) continue;
+
+      final source = (item['source'] ?? item['module'] ?? item['type'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      final time = normTime(
+        item['time'] ?? item['start_time'] ?? item['due_time'] ?? '',
+      );
+      final id = item['id']?.toString().trim() ?? '';
+
+      // Recurring occurrences may reuse the same template id. Include the
+      // occurrence date/time in the key so today's occurrence is not removed
+      // as a duplicate of its recurring template.
+      final occurrence = normDate(
+        item['occurrence_date'] ??
+            item['date'] ??
+            item['scheduled_date'] ??
+            item['due_date'] ??
+            '',
+      );
+
+      final key = id.isNotEmpty
+          ? '$source|$id|$occurrence|$time'
+          : '${title.toLowerCase()}|$source|$occurrence|$time';
+
+      if (!seen.add(key)) continue;
+
+      // Same logical task can arrive once from the typed service and again
+      // from the raw payload (or as template + occurrence) with a different
+      // id shape. Guard on title + time so it cannot repeat in one slot.
+      final titleTimeKey = '${title.toLowerCase()}|$occurrence|$time';
+      if (merged.any(
+        (existing) =>
+            ((existing['title'] ?? existing['name'] ?? '')
+                    .toString()
+                    .trim()
+                    .toLowerCase()) ==
+                title.toLowerCase() &&
+            normTime(
+                  existing['time'] ??
+                      existing['start_time'] ??
+                      existing['due_time'] ??
+                      '',
+                ) ==
+                time &&
+            normDate(
+                  existing['occurrence_date'] ??
+                      existing['date'] ??
+                      existing['scheduled_date'] ??
+                      existing['due_date'] ??
+                      '',
+                ) ==
+                occurrence,
+      )) {
+        continue;
+      }
+      // Keep the set consistent for the secondary guard above.
+      seen.add('titletime|$titleTimeKey');
+
+      merged.add(item);
+      if (merged.length >= 6) break;
+    }
+
+    return merged;
+  }
 
   List<Map<String, dynamic>> _normaliseTodayFocus(List<dynamic> raw) {
     final items = <Map<String, dynamic>>[];
@@ -307,7 +745,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           ? Map<String, dynamic>.from(source['item'] as Map)
           : <String, dynamic>{};
 
-      final completed = source['is_completed'] ??
+      final completed =
+          source['is_completed'] ??
           source['completed'] ??
           nested['is_completed'] ??
           nested['completed'];
@@ -356,8 +795,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           nested['start_time'],
         ]),
       });
-
-      if (items.length >= 6) break;
     }
 
     return items;
@@ -457,9 +894,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
 
     try {
-      await const EngagementService().startDay(
-        reflection: controller.text,
-      );
+      await const EngagementService().startDay(reflection: controller.text);
       controller.dispose();
       await _refreshEngagement();
     } catch (_) {
@@ -577,10 +1012,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
-        builder: (_) => EngagementReviewSheet(
-          period: period,
-          review: review,
-        ),
+        builder: (_) => EngagementReviewSheet(period: period, review: review),
       );
     } catch (_) {
       if (!mounted) return;
@@ -606,6 +1038,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         final next = Map<String, dynamic>.from(_stats ?? const {});
         next['today_insight'] = insight;
         _stats = next;
+
+        // Today's Insight is generated on Laravel using the signed-in user's
+        // preferred currency. Keep Flutter's active currency in sync with the
+        // insight payload as well as the finance summary.
+        _currencyCode =
+            _extractCurrency(insight) ??
+            _extractCurrency(next) ??
+            _currencyCode;
       });
 
       _scheduleInsightRefresh(insight['refresh_after']?.toString());
@@ -655,7 +1095,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         final next = Map<String, dynamic>.from(_stats ?? const {});
         next['finance_summary'] = Map<String, dynamic>.from(finance as Map);
         _stats = next;
-        _applyCurrencyMetadata(finance);
         _currencyCode =
             _extractCurrency(finance) ??
             _extractCurrency(next) ??
@@ -663,56 +1102,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       });
     } catch (_) {
       // Finance-at-a-glance can use the values already present in _stats.
-    }
-  }
-
-  void _applyCurrencyMetadata(dynamic source) {
-    if (source is! Map) return;
-
-    dynamic raw = source['display_currency'];
-    if (raw is! Map && source['data'] is Map) {
-      raw = (source['data'] as Map)['display_currency'];
-    }
-
-    final map = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : Map<String, dynamic>.from(source);
-
-    final code = (map['code'] ??
-            source['preferred_currency_code'] ??
-            source['currency_code'])
-        ?.toString()
-        .trim()
-        .toUpperCase();
-
-    final symbol = (map['symbol'] ?? source['currency_symbol'])
-        ?.toString()
-        .trim();
-
-    final rateRaw = map['rate'] ?? source['currency_rate'];
-    final decimalsRaw = map['decimals'] ?? source['currency_decimals'];
-
-    final rate = rateRaw is num
-        ? rateRaw.toDouble()
-        : double.tryParse(rateRaw?.toString() ?? '');
-
-    final decimals = decimalsRaw is num
-        ? decimalsRaw.toInt()
-        : int.tryParse(decimalsRaw?.toString() ?? '');
-
-    if (code != null && code.isNotEmpty) {
-      _currencyCode = code;
-    }
-    if (symbol != null && symbol.isNotEmpty) {
-      _currencySymbol = symbol;
-    } else {
-      _currencySymbol = _currencyCode;
-    }
-    if (rate != null && rate > 0) {
-      _currencyRate = rate;
-    }
-    if (decimals != null && decimals >= 0 && decimals <= 6) {
-      _currencyDecimals = decimals;
     }
   }
 
@@ -756,7 +1145,25 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           'user_currency',
         ]) {
           if (value.containsKey(key)) {
-            final found = normalise(value[key]);
+            final rawCurrency = value[key];
+
+            if (rawCurrency is Map) {
+              // Laravel may return:
+              // preferred_currency: {code: "USD", symbol: "$", ...}
+              for (final nestedKey in const <String>[
+                'code',
+                'currency_code',
+                'iso_code',
+                'value',
+              ]) {
+                if (rawCurrency.containsKey(nestedKey)) {
+                  final nested = normalise(rawCurrency[nestedKey]);
+                  if (nested != null) return nested;
+                }
+              }
+            }
+
+            final found = normalise(rawCurrency);
             if (found != null) return found;
           }
         }
@@ -813,7 +1220,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return const _DashboardInsight(
         category: 'Evening Reflection',
         title: 'Give today a clear stopping point.',
-        message: 'Let unfinished work wait for tomorrow. Reduce unnecessary screen time, notice one thing that went well, and give your mind room to settle.',
+        message:
+            'Let unfinished work wait for tomorrow. Reduce unnecessary screen time, notice one thing that went well, and give your mind room to settle.',
         action: 'Review Sleep',
         icon: Icons.nightlight_round,
         background: Color(0xFFF5F3FF),
@@ -826,7 +1234,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return const _DashboardInsight(
         category: 'Morning Planning',
         title: 'Choose the few things that deserve your best energy.',
-        message: 'Start with your most important outcome, then place the next two priorities around it. A focused morning makes the rest of the day easier to manage.',
+        message:
+            'Start with your most important outcome, then place the next two priorities around it. A focused morning makes the rest of the day easier to manage.',
         action: 'Plan My Day',
         icon: Icons.wb_sunny_outlined,
         background: Color(0xFFFFFBEB),
@@ -839,7 +1248,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return const _DashboardInsight(
         category: 'Productivity',
         title: 'Protect your most productive hours.',
-        message: 'Check whether your most important task has moved forward. Give it one uninterrupted block before smaller requests take over the day.',
+        message:
+            'Check whether your most important task has moved forward. Give it one uninterrupted block before smaller requests take over the day.',
         action: 'Open Planner',
         icon: Icons.center_focus_strong_outlined,
         background: Color(0xFFFFFBEB),
@@ -852,7 +1262,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return const _DashboardInsight(
         category: 'Afternoon Reset',
         title: 'Reset before the second half of your day.',
-        message: 'Have some water, move for a few minutes, and close one open loop before taking on another task. A short reset can restore useful focus.',
+        message:
+            'Have some water, move for a few minutes, and close one open loop before taking on another task. A short reset can restore useful focus.',
         action: 'Open Self-care',
         icon: Icons.water_drop_outlined,
         background: Color(0xFFF0F9FF),
@@ -864,7 +1275,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return const _DashboardInsight(
       category: 'Evening Review',
       title: 'Notice what moved forward today.',
-      message: 'Review what you completed, what needs to move, and one thing you handled well. A short review makes tomorrow easier to start.',
+      message:
+          'Review what you completed, what needs to move, and one thing you handled well. A short review makes tomorrow easier to start.',
       action: 'Open Planner',
       icon: Icons.fact_check_outlined,
       background: Color(0xFFECFDF5),
@@ -883,7 +1295,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return _DashboardInsight(
         category: category,
         title: data['title']?.toString() ?? 'Make today count.',
-        message: data['message']?.toString() ?? 'Choose one useful next step and give it your attention.',
+        message:
+            data['message']?.toString() ??
+            'Choose one useful next step and give it your attention.',
         action: data['action']?.toString() ?? 'Open planner',
         icon: _insightIcon(category, destination),
         background: palette.$1,
@@ -899,10 +1313,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (value.contains('fuchsia') || value.contains('spiritual')) {
       return (const Color(0xFFFDF4FF), const Color(0xFFA21CAF));
     }
-    if (value.contains('amber') || value.contains('productivity') || value.contains('budget')) {
+    if (value.contains('amber') ||
+        value.contains('productivity') ||
+        value.contains('budget')) {
       return (const Color(0xFFFFFBEB), const Color(0xFFB45309));
     }
-    if (value.contains('violet') || value.contains('indigo') || value.contains('sleep')) {
+    if (value.contains('violet') ||
+        value.contains('indigo') ||
+        value.contains('sleep')) {
       return (const Color(0xFFF5F3FF), const Color(0xFF6D28D9));
     }
     if (value.contains('sky') || value.contains('digital')) {
@@ -913,9 +1331,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   IconData _insightIcon(String category, String destination) {
     final value = '$category $destination'.toLowerCase();
-    if (value.contains('digital') || value.contains('device')) return Icons.devices_outlined;
+    if (value.contains('digital') || value.contains('device'))
+      return Icons.devices_outlined;
     if (value.contains('saving')) return Icons.savings_outlined;
-    if (value.contains('expense') || value.contains('budget') || value.contains('financial')) return Icons.account_balance_wallet_outlined;
+    if (value.contains('expense') ||
+        value.contains('budget') ||
+        value.contains('financial'))
+      return Icons.account_balance_wallet_outlined;
     if (value.contains('sleep')) return Icons.bedtime_outlined;
     if (value.contains('spiritual')) return Icons.self_improvement_outlined;
     if (value.contains('reminder')) return Icons.notifications_outlined;
@@ -931,8 +1353,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ...value,
         'title': value['title'] ?? _financeTitle(key),
         'endpoint': value['endpoint'] ?? key,
-        'monthly_total': value['monthly_total'] ?? value['month_total'] ?? value['current_month'] ?? 0,
-        'overall_total': value['overall_total'] ?? value['total'] ?? value['all_time_total'] ?? 0,
+        'monthly_total':
+            value['monthly_total'] ??
+            value['month_total'] ??
+            value['current_month'] ??
+            0,
+        'overall_total':
+            value['overall_total'] ??
+            value['total'] ??
+            value['all_time_total'] ??
+            0,
       };
     }
 
@@ -949,23 +1379,80 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         return {
           'title': 'Financial Planner',
           'endpoint': 'financial-planner',
-          'monthly_total': pick(['monthly_net', 'net_position', 'monthly_savings']),
-          'overall_total': pick(['overall_net', 'net_position', 'monthly_savings']),
+          'monthly_total': pick([
+            'monthly_net',
+            'net_position',
+            'monthly_savings',
+          ]),
+          'overall_total': pick([
+            'overall_net',
+            'net_position',
+            'monthly_savings',
+          ]),
           'monthly_label': 'Net this month',
           'overall_label': 'Current position',
         };
       case 'income':
-        return {'title': 'Income', 'endpoint': 'incomes', 'monthly_total': pick(['monthly_income', 'income_month']), 'overall_total': pick(['total_income', 'overall_income', 'monthly_income'])};
+        return {
+          'title': 'Income',
+          'endpoint': 'incomes',
+          'monthly_total': pick(['monthly_income', 'income_month']),
+          'overall_total': pick([
+            'total_income',
+            'overall_income',
+            'monthly_income',
+          ]),
+        };
       case 'expenses':
-        return {'title': 'Expenses', 'endpoint': 'expenses', 'monthly_total': pick(['monthly_expenses', 'expense_month']), 'overall_total': pick(['total_expenses', 'overall_expenses', 'monthly_expenses'])};
+        return {
+          'title': 'Expenses',
+          'endpoint': 'expenses',
+          'monthly_total': pick(['monthly_expenses', 'expense_month']),
+          'overall_total': pick([
+            'total_expenses',
+            'overall_expenses',
+            'monthly_expenses',
+          ]),
+        };
       case 'budgets':
-        return {'title': 'Budgets', 'endpoint': 'budgets', 'monthly_total': pick(['monthly_budget', 'budget_month']), 'overall_total': pick(['total_budget', 'overall_budget', 'monthly_budget'])};
+        return {
+          'title': 'Budgets',
+          'endpoint': 'budgets',
+          'monthly_total': pick(['monthly_budget', 'budget_month']),
+          'overall_total': pick([
+            'total_budget',
+            'overall_budget',
+            'monthly_budget',
+          ]),
+        };
       case 'debts':
-        return {'title': 'Debts', 'endpoint': 'debts', 'monthly_total': pick(['monthly_debts', 'debt_month']), 'overall_total': pick(['total_debts', 'outstanding_debt'])};
+        return {
+          'title': 'Debts',
+          'endpoint': 'debts',
+          'monthly_total': pick(['monthly_debts', 'debt_month']),
+          'overall_total': pick(['total_debts', 'outstanding_debt']),
+        };
       case 'savings':
-        return {'title': 'Savings', 'endpoint': 'savings', 'monthly_total': pick(['monthly_savings', 'saved_month']), 'overall_total': pick(['total_savings', 'overall_savings', 'monthly_savings'])};
+        return {
+          'title': 'Savings',
+          'endpoint': 'savings',
+          'monthly_total': pick(['monthly_savings', 'saved_month']),
+          'overall_total': pick([
+            'total_savings',
+            'overall_savings',
+            'monthly_savings',
+          ]),
+        };
       case 'savings_goals':
-        return {'title': 'Savings Goals', 'endpoint': 'savings-goals', 'monthly_total': pick(['monthly_goal_contributions', 'monthly_savings']), 'overall_total': pick(['savings_goal_total', 'total_savings_goals'])};
+        return {
+          'title': 'Savings Goals',
+          'endpoint': 'savings-goals',
+          'monthly_total': pick([
+            'monthly_goal_contributions',
+            'monthly_savings',
+          ]),
+          'overall_total': pick(['savings_goal_total', 'total_savings_goals']),
+        };
       default:
         return const {};
     }
@@ -973,14 +1460,22 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   String _financeTitle(String key) {
     switch (key) {
-      case 'financial_planner': return 'Financial Planner';
-      case 'income': return 'Income';
-      case 'expenses': return 'Expenses';
-      case 'budgets': return 'Budgets';
-      case 'debts': return 'Debts';
-      case 'savings': return 'Savings';
-      case 'savings_goals': return 'Savings Goals';
-      default: return 'Finance';
+      case 'financial_planner':
+        return 'Financial Planner';
+      case 'income':
+        return 'Income';
+      case 'expenses':
+        return 'Expenses';
+      case 'budgets':
+        return 'Budgets';
+      case 'debts':
+        return 'Debts';
+      case 'savings':
+        return 'Savings';
+      case 'savings_goals':
+        return 'Savings Goals';
+      default:
+        return 'Finance';
     }
   }
 
@@ -1075,47 +1570,28 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       if (!mounted) return;
       context.read<AuthService>().updateAlarmsMuted(muted);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(muted ? 'Reminder alarms muted.' : 'Reminder alarms unmuted.')),
+        SnackBar(
+          content: Text(
+            muted ? 'Reminder alarms muted.' : 'Reminder alarms unmuted.',
+          ),
+        ),
       );
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   void _open(Widget screen) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
-  }
-
-  Future<void> _openPlannerAndRefresh() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const DailyPlannerScreen(),
-      ),
-    );
-
-    if (!mounted) return;
-    await _refreshTodayFocusFromPlanner();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   Future<void> _openPersonalisation() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const PersonalisationScreen(),
-      ),
-    );
-
-    if (!mounted) return;
-    await _load();
-  }
-
-  Future<void> _openPersonalisation() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const PersonalisationScreen(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PersonalisationScreen()));
 
     if (!mounted) return;
     await _load();
@@ -1124,6 +1600,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void _openModule(String endpoint) {
     final config = moduleConfigByEndpoint(endpoint);
     _open(DynamicCrudScreen(config: config));
+  }
+
+  void _openTodayFocusTask(Map<String, dynamic> task) {
+    final haystack = <dynamic>[
+      task['source'],
+      task['module'],
+      task['type'],
+      task['endpoint'],
+      task['route'],
+    ]
+        .map((value) => value?.toString().toLowerCase() ?? '')
+        .join(' ');
+
+    if (haystack.contains('meeting')) {
+      _open(const MeetingsScreen());
+    } else if (haystack.contains('reminder')) {
+      _open(const RemindersScreen());
+    } else if (haystack.contains('goal') ||
+        haystack.contains('project-task') ||
+        haystack.contains('project_task')) {
+      _openModule('project-tasks');
+    } else if (haystack.contains('project')) {
+      _openModule('projects');
+    } else {
+      // Daily Planner owns Today's Focus items by default, including
+      // recurring occurrences.
+      _open(const DailyPlannerScreen());
+    }
   }
 
   Widget _buildTodayFocusSection() {
@@ -1141,7 +1645,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               ),
             ),
             TextButton.icon(
-              onPressed: _openPlannerAndRefresh,
+              onPressed: () => _open(const DailyPlannerScreen()),
               icon: const Icon(Icons.today_outlined, size: 16),
               label: const Text('Planner'),
             ),
@@ -1159,15 +1663,33 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             ),
             child: const Row(
               children: [
-                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
                 SizedBox(width: 12),
-                Expanded(child: Text('Loading today’s tasks…', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600))),
+                Expanded(
+                  child: Text(
+                    'Loading today’s tasks…',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
           )
-        else if (items.isNotEmpty)
-          ...[for (var i = 0; i < items.length; i++) _TodayTask(index: i + 1, task: items[i])]
-        else if (_todayFocusError != null)
+        else if (items.isNotEmpty) ...[
+          for (var i = 0; i < items.length; i++)
+            _TodayTask(
+              index: i + 1,
+              task: items[i],
+              onTap: () => _openTodayFocusTask(items[i]),
+            ),
+        ] else if (_todayFocusError != null)
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -1178,36 +1700,72 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFD97706),
+                  size: 22,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Today’s Focus could not refresh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                      const Text(
+                        'Today’s Focus could not refresh',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
                       const SizedBox(height: 3),
-                      Text(_todayFocusError!, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                      Text(
+                        _todayFocusError!,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                IconButton(onPressed: _load, tooltip: 'Retry', icon: const Icon(Icons.refresh_rounded)),
+                IconButton(
+                  onPressed: _load,
+                  tooltip: 'Retry',
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
               ],
             ),
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              leading: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF0F9D8A)),
-              title: const Text('No pending focus items for today.', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              subtitle: const Text('Pending Daily Planner tasks due today will appear here. Pull down to refresh after making changes.', style: TextStyle(fontSize: 11)),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: _openPlannerAndRefresh,
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                leading: const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF0F9D8A),
+                ),
+                title: const Text(
+                  'No pending focus items for today.',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                subtitle: const Text(
+                  'Pending Daily Planner tasks, meetings, reminders and project tasks due today will appear here.',
+                  style: TextStyle(fontSize: 11),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: () => _open(const DailyPlannerScreen()),
+              ),
             ),
           ),
 
@@ -1257,42 +1815,56 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       final a = Map<String, dynamic>.from(raw);
       final title = (a['title'] ?? a['name'] ?? '').toString().trim();
       if (title.isEmpty) continue;
-      final message = (a['message'] ?? a['description'] ?? 'Review this goal and choose one useful next step.').toString().trim();
+      final message =
+          (a['message'] ??
+                  a['description'] ??
+                  'Review this goal and choose one useful next step.')
+              .toString()
+              .trim();
       final state = (a['state'] ?? a['status'] ?? '').toString().toLowerCase();
 
       widgets.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              leading: Icon(
-                state == 'overdue' || state == 'at_risk'
-                    ? Icons.warning_amber_rounded
-                    : Icons.trending_up_rounded,
-                color: state == 'overdue' || state == 'at_risk'
-                    ? const Color(0xFFD97706)
-                    : const Color(0xFF0F9D8A),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              title: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                leading: Icon(
+                  state == 'overdue' || state == 'at_risk'
+                      ? Icons.warning_amber_rounded
+                      : Icons.trending_up_rounded,
+                  color: state == 'overdue' || state == 'at_risk'
+                      ? const Color(0xFFD97706)
+                      : const Color(0xFF0F9D8A),
+                ),
+                title: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                subtitle: Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: () => _open(const GoalIntelligenceScreen()),
               ),
-              subtitle: Text(
-                message,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11),
-              ),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: () => _open(const GoalIntelligenceScreen()),
             ),
           ),
         ),
@@ -1304,25 +1876,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     if (count == 0) {
       widgets.add(
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            leading: const Icon(Icons.track_changes_outlined, color: Color(0xFF7C3AED)),
-            title: const Text(
-              'No urgent goal actions right now.',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            subtitle: const Text(
-              'Open Goals to review progress or choose your next action.',
-              style: TextStyle(fontSize: 11),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 4,
+              ),
+              leading: const Icon(
+                Icons.track_changes_outlined,
+                color: Color(0xFF7C3AED),
+              ),
+              title: const Text(
+                'No urgent goal actions right now.',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Open Goals to review progress or choose your next action.',
+                style: TextStyle(fontSize: 11),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => _open(const GoalIntelligenceScreen()),
             ),
-            trailing: const Icon(Icons.chevron_right, size: 18),
-            onTap: () => _open(const GoalIntelligenceScreen()),
           ),
         ),
       );
@@ -1339,10 +1920,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 18),
-        const _SectionHeading(
-          title: 'Tools',
-          icon: Icons.grid_view_rounded,
-        ),
+        const _SectionHeading(title: 'Tools', icon: Icons.grid_view_rounded),
         const SizedBox(height: 8),
         GridView.count(
           crossAxisCount: 4,
@@ -1454,11 +2032,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             final summary = _financeSummary(key);
             return _FinanceCard(
               summary: summary,
-              currencyCode:
-                  _extractCurrency(summary) ?? _currencyCode,
-              currencySymbol: _currencySymbol,
-              currencyRate: _currencyRate,
-              currencyDecimals: _currencyDecimals,
+              currencyCode: _extractCurrency(summary) ?? _currencyCode,
               onTap: () => key == 'financial_planner'
                   ? _open(const FinancialPlannerScreen())
                   : _openFinance(key),
@@ -1477,6 +2051,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return Scaffold(
       appBar: AppBar(
         title: Text('Hi, ${_firstName(auth.user?.name)}'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'Open navigation menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -1484,9 +2065,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             onPressed: () => _open(const SearchScreen()),
           ),
           IconButton(
-            icon: Icon(auth.user?.alarmsMuted == true
-                ? Icons.notifications_off
-                : Icons.notifications_active),
+            icon: Icon(
+              auth.user?.alarmsMuted == true
+                  ? Icons.notifications_off
+                  : Icons.notifications_active,
+            ),
             tooltip: auth.user?.alarmsMuted == true
                 ? 'Unmute reminders'
                 : 'Mute reminders',
@@ -1495,132 +2078,198 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ],
       ),
       drawer: const AppDrawer(),
-      body: RefreshIndicator(
-        onRefresh: _refreshHome,
-        child: CustomScrollView(
-          controller: _dashboardScrollController,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: _refreshHome,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                primary: true,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                  14,
+                  8,
+                  14,
+                  32 + MediaQuery.paddingOf(context).bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        constraints.maxHeight -
+                        40 -
+                        MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_loading) ...[
+                        const LinearProgressIndicator(minHeight: 2),
+                        const SizedBox(height: 8),
+                      ],
+                      _WelcomeCard(name: _firstName(auth.user?.name)),
+                      const SizedBox(height: 12),
+                      EngagementDashboardSection(
+                        data: _engagement,
+                        loading: _loadingEngagement,
+                        onStartDay: _startMyDay,
+                        onCloseDay: _closeMyDay,
+                        onWeekReview: () => _showEngagementReview('week'),
+                        onMonthReview: () => _showEngagementReview('month'),
+                      ),
+                      if (_growth.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _GrowthStrategyCard(
+                          data: _growth,
+                          onRefresh: _refreshGrowth,
+                        ),
+                      ],
+                      if (_stats?['onboarding'] is Map &&
+                          (Map<String, dynamic>.from(
+                                _stats!['onboarding'] as Map,
+                              )['completed'] !=
+                              true)) ...[
+                        const SizedBox(height: 10),
+                        _GettingStartedCard(onTap: _openPersonalisation),
+                      ],
+                      const SizedBox(height: 14),
+                      if (_stats?['personal_progress'] is Map) ...[
+                        _ProgressOverview(
+                          progress: Map<String, dynamic>.from(
+                            _stats!['personal_progress'] as Map,
+                          ),
+                          currencyCode: _currencyCode,
+                          onFinancialHealth: () =>
+                              _open(const FinancialPlannerScreen()),
+                          onWeekReview: () =>
+                              _open(const RecentActivityScreen()),
+                        ),
+                        const SizedBox(height: 8),
+                        const DashboardStepsCard(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => _open(const MonthlyReviewScreen()),
+                            icon: const Icon(
+                              Icons.calendar_view_month_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('My Month in Review'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_stats?['personal_progress'] is! Map) ...[
+                        const DashboardStepsCard(),
+                        const SizedBox(height: 12),
+                      ],
+                      const _SectionHeading(
+                        title: 'Start here',
+                        icon: Icons.bolt_rounded,
+                      ),
+                      const SizedBox(height: 8),
+                      GridView.count(
+                        crossAxisCount: 4,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 6,
+                        childAspectRatio: .9,
+                        children: [
+                          _AppleIconTile(
+                            title: 'Planner',
+                            icon: Icons.today_outlined,
+                            background: const Color(0xFFECFDF5),
+                            foreground: const Color(0xFF047857),
+                            onTap: () => _open(const DailyPlannerScreen()),
+                          ),
+                          _AppleIconTile(
+                            title: 'Reminders',
+                            icon: Icons.notifications_outlined,
+                            background: const Color(0xFFFFFBEB),
+                            foreground: const Color(0xFFB45309),
+                            onTap: () => _open(const RemindersScreen()),
+                          ),
+                          _AppleIconTile(
+                            title: 'Meetings',
+                            icon: Icons.video_camera_front_outlined,
+                            background: const Color(0xFFF5F3FF),
+                            foreground: const Color(0xFF6D28D9),
+                            onTap: () => _open(const MeetingsScreen()),
+                          ),
+                          _AppleIconTile(
+                            title: 'Plans',
+                            icon: Icons.event_note_outlined,
+                            background: const Color(0xFFEFF6FF),
+                            foreground: const Color(0xFF1D4ED8),
+                            onTap: () => _open(const AnnualPlansScreen()),
+                          ),
+                          _AppleIconTile(
+                            title: 'Projects',
+                            icon: Icons.account_tree_outlined,
+                            background: const Color(0xFFF0F9FF),
+                            foreground: const Color(0xFF0369A1),
+                            onTap: () => _openModule('projects'),
+                          ),
+                          _AppleIconTile(
+                            title: 'Health',
+                            icon: Icons.favorite_border,
+                            background: const Color(0xFFFFF1F2),
+                            foreground: const Color(0xFFBE123C),
+                            onTap: () => _openModule('health-checkups'),
+                          ),
+                          _AppleIconTile(
+                            title: 'Goals',
+                            icon: Icons.track_changes_outlined,
+                            background: const Color(0xFFF5F3FF),
+                            foreground: const Color(0xFF6D28D9),
+                            onTap: () => _openModule('personal-goals'),
+                          ),
+                          _AppleIconTile(
+                            title: 'Self-care',
+                            icon: Icons.water_drop_outlined,
+                            background: const Color(0xFFECFEFF),
+                            foreground: const Color(0xFF0F766E),
+                            onTap: () => _openModule('wellbeing'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      _buildTodayFocusSection(),
+                      _buildNextBestActionsSection(),
+                      _buildToolsSection(),
+                      const SizedBox(height: 18),
+                      _DailyInsightCard(
+                        insight: dailyInsight,
+                        onTap: () => _openInsight(dailyInsight),
+                      ),
+                      _buildFinanceSection(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-          slivers: [
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                14,
-                8,
-                14,
-                28 + MediaQuery.paddingOf(context).bottom,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(
-                  [
-            if (_loading) ...[
-              const LinearProgressIndicator(minHeight: 2),
-              const SizedBox(height: 8),
-            ],
-            _WelcomeCard(name: _firstName(auth.user?.name)),
-            const SizedBox(height: 12),
-            EngagementDashboardSection(
-              data: _engagement,
-              loading: _loadingEngagement,
-              onStartDay: _startMyDay,
-              onCloseDay: _closeMyDay,
-              onWeekReview: () => _showEngagementReview('week'),
-              onMonthReview: () => _showEngagementReview('month'),
-            ),
-            if (_growth.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _GrowthStrategyCard(
-                data: _growth,
-                onRefresh: _refreshGrowth,
-              ),
-            ],
-            if (_stats?['onboarding'] is Map &&
-                (Map<String, dynamic>.from(_stats!['onboarding'] as Map)['completed'] != true)) ...[
-              const SizedBox(height: 10),
-              _GettingStartedCard(
-                onTap: _openPersonalisation,
-              ),
-            ],
-            const SizedBox(height: 14),
-            if (_stats?['personal_progress'] is Map) ...[
-              _ProgressOverview(
-                progress: Map<String, dynamic>.from(
-                  _stats!['personal_progress'] as Map,
-                ),
-                currencyCode: _currencyCode,
-                currencySymbol: _currencySymbol,
-                currencyRate: _currencyRate,
-                currencyDecimals: _currencyDecimals,
-                onFinancialHealth: () => _open(const FinancialPlannerScreen()),
-                onWeekReview: () => _open(const RecentActivityScreen()),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => _open(const MonthlyReviewScreen()),
-                  icon: const Icon(Icons.calendar_view_month_outlined, size: 18),
-                  label: const Text('My Month in Review'),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            const _SectionHeading(title: 'Start here', icon: Icons.bolt_rounded),
-            const SizedBox(height: 8),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 6,
-              childAspectRatio: .9,
-              children: [
-                _AppleIconTile(title: 'Planner', icon: Icons.today_outlined, background: const Color(0xFFECFDF5), foreground: const Color(0xFF047857), onTap: () => _open(const DailyPlannerScreen())),
-                _AppleIconTile(title: 'Reminders', icon: Icons.notifications_outlined, background: const Color(0xFFFFFBEB), foreground: const Color(0xFFB45309), onTap: () => _open(const RemindersScreen())),
-                _AppleIconTile(title: 'Meetings', icon: Icons.video_camera_front_outlined, background: const Color(0xFFF5F3FF), foreground: const Color(0xFF6D28D9), onTap: () => _open(const MeetingsScreen())),
-                _AppleIconTile(title: 'Plans', icon: Icons.event_note_outlined, background: const Color(0xFFEFF6FF), foreground: const Color(0xFF1D4ED8), onTap: () => _open(const AnnualPlansScreen())),
-                _AppleIconTile(title: 'Projects', icon: Icons.account_tree_outlined, background: const Color(0xFFF0F9FF), foreground: const Color(0xFF0369A1), onTap: () => _openModule('projects')),
-                _AppleIconTile(title: 'Health', icon: Icons.favorite_border, background: const Color(0xFFFFF1F2), foreground: const Color(0xFFBE123C), onTap: () => _openModule('health-checkups')),
-                _AppleIconTile(title: 'Goals', icon: Icons.track_changes_outlined, background: const Color(0xFFF5F3FF), foreground: const Color(0xFF6D28D9), onTap: () => _openModule('personal-goals')),
-                _AppleIconTile(title: 'Self-care', icon: Icons.water_drop_outlined, background: const Color(0xFFECFEFF), foreground: const Color(0xFF0F766E), onTap: () => _openModule('wellbeing')),
-              ],
-            ),
-            const SizedBox(height: 18),
-            _buildTodayFocusSection(),
-            _buildNextBestActionsSection(),
-            _buildToolsSection(),
-            const SizedBox(height: 18),
-            _DailyInsightCard(
-              insight: dailyInsight,
-              onTap: () => _openInsight(dailyInsight),
-            ),
-            _buildFinanceSection(),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-
 class _GrowthStrategyCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final Future<void> Function() onRefresh;
 
-  const _GrowthStrategyCard({
-    required this.data,
-    required this.onRefresh,
-  });
+  const _GrowthStrategyCard({required this.data, required this.onRefresh});
 
   Map<String, dynamic> _map(String key) {
     final raw = data[key];
-    return raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : <String, dynamic>{};
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
   @override
@@ -1629,11 +2278,15 @@ class _GrowthStrategyCard extends StatelessWidget {
     final challenge = _map('challenge');
     final trust = _map('trust');
 
-    final percent = ((activation['percent'] as num?)?.toDouble() ?? 0)
-        .clamp(0, 100);
+    final percent = ((activation['percent'] as num?)?.toDouble() ?? 0).clamp(
+      0,
+      100,
+    );
     final challengePercent =
-        ((challenge['progress_percent'] as num?)?.toDouble() ?? 0)
-            .clamp(0, 100);
+        ((challenge['progress_percent'] as num?)?.toDouble() ?? 0).clamp(
+          0,
+          100,
+        );
     final joined = challenge['joined'] == true;
 
     return Container(
@@ -1642,9 +2295,7 @@ class _GrowthStrategyCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1678,10 +2329,7 @@ class _GrowthStrategyCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(999),
@@ -1752,8 +2400,7 @@ class _GrowthStrategyCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  (challenge['title'] ??
-                          '30 Days With My Digital Diary')
+                  (challenge['title'] ?? '30 Days With My Digital Diary')
                       .toString(),
                   style: const TextStyle(
                     fontSize: 13,
@@ -1763,10 +2410,7 @@ class _GrowthStrategyCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 const Text(
                   'Plan, act, record and reflect consistently.',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: Color(0xFF64748B),
-                  ),
+                  style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                 ),
                 if (joined) ...[
                   const SizedBox(height: 9),
@@ -1810,10 +2454,7 @@ class _GrowthStrategyCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: () => onRefresh(),
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 16,
-              ),
+              icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Refresh'),
             ),
           ),
@@ -1823,63 +2464,47 @@ class _GrowthStrategyCard extends StatelessWidget {
   }
 }
 
-
 class _ProgressOverview extends StatelessWidget {
   final Map<String, dynamic> progress;
   final String currencyCode;
-  final String currencySymbol;
-  final double currencyRate;
-  final int currencyDecimals;
   final VoidCallback? onFinancialHealth;
   final VoidCallback? onWeekReview;
 
   const _ProgressOverview({
     required this.progress,
     required this.currencyCode,
-    required this.currencySymbol,
-    required this.currencyRate,
-    required this.currencyDecimals,
     this.onFinancialHealth,
     this.onWeekReview,
   });
 
   String _money(dynamic value) {
-    final baseAmount = value is num
+    final n = value is num
         ? value.toDouble()
-        : double.tryParse(
-              value?.toString().replaceAll(',', '').trim() ?? '',
-            ) ??
-            0;
+        : double.tryParse(value?.toString().replaceAll(',', '').trim() ?? '') ??
+              0;
 
-    // Laravel stores finance amounts in the base currency. Admin currency
-    // rates are base-currency units per 1 display-currency unit, matching
-    // SiteSetting::convertBaseAmount().
-    final rate = currencyRate > 0 ? currencyRate : 1.0;
-    final converted = baseAmount / rate;
-    final decimals = currencyDecimals.clamp(0, 6).toInt();
-    final fixed = converted.toStringAsFixed(decimals);
-    final parts = fixed.split('.');
-    final whole = parts.first.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (match) => ',',
-    );
-    final formatted = decimals > 0 && parts.length > 1
-        ? '$whole.${parts[1]}'
-        : whole;
+    final formatted = n
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
 
-    final prefix = currencySymbol.trim().isNotEmpty
-        ? currencySymbol.trim()
-        : currencyCode.trim().toUpperCase();
-
-    return '${prefix.isEmpty ? 'UGX' : prefix} $formatted';
+    final code = currencyCode.trim().toUpperCase();
+    return '${code.isEmpty ? 'UGX' : code} $formatted';
   }
 
   @override
   Widget build(BuildContext context) {
-    final finance = Map<String, dynamic>.from((progress['financial_health'] as Map?) ?? const {});
-    final week = Map<String, dynamic>.from((progress['weekly_review'] as Map?) ?? const {});
+    final finance = Map<String, dynamic>.from(
+      (progress['financial_health'] as Map?) ?? const {},
+    );
+    final week = Map<String, dynamic>.from(
+      (progress['weekly_review'] as Map?) ?? const {},
+    );
 
-    Widget progressCard({required Widget child, required Color accent, VoidCallback? onTap}) {
+    Widget progressCard({
+      required Widget child,
+      required Color accent,
+      VoidCallback? onTap,
+    }) {
       return Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1889,7 +2514,12 @@ class _ProgressOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(width: 4, color: accent),
-                Expanded(child: Padding(padding: const EdgeInsets.all(14), child: child)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: child,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1900,51 +2530,370 @@ class _ProgressOverview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHeading(title: 'Your progress', icon: Icons.insights_outlined),
+        const _SectionHeading(
+          title: 'Your progress',
+          icon: Icons.insights_outlined,
+        ),
         const SizedBox(height: 10),
         progressCard(
           accent: const Color(0xFF0F766E),
           onTap: onFinancialHealth,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Financial Health', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('${finance['score'] ?? 0}/100 · ${finance['label'] ?? 'Start tracking'}', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-              ])),
-              const CircleAvatar(backgroundColor: Color(0xFFCCFBF1), foregroundColor: Color(0xFF0F766E), child: Icon(Icons.trending_up)),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _MiniMetric(label: 'Income', value: _money(finance['monthly_income']))),
-              Expanded(child: _MiniMetric(label: 'Expenses', value: _money(finance['monthly_expenses']))),
-              Expanded(child: _MiniMetric(label: 'Saved', value: _money(finance['monthly_savings']))),
-            ]),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Financial Health',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${finance['score'] ?? 0}/100 · ${finance['label'] ?? 'Start tracking'}',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFFCCFBF1),
+                    foregroundColor: Color(0xFF0F766E),
+                    child: Icon(Icons.trending_up),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _MiniMetric(
+                      label: 'Income',
+                      value: _money(finance['monthly_income']),
+                    ),
+                  ),
+                  Expanded(
+                    child: _MiniMetric(
+                      label: 'Expenses',
+                      value: _money(finance['monthly_expenses']),
+                    ),
+                  ),
+                  Expanded(
+                    child: _MiniMetric(
+                      label: 'Saved',
+                      value: _money(finance['monthly_savings']),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         progressCard(
           accent: const Color(0xFF7C3AED),
           onTap: onWeekReview,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Your Week in Review', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                Text('${week['completion_percent'] ?? 0}% task completion', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-              ])),
-              const Icon(Icons.chevron_right, color: Colors.black38),
-            ]),
-            if ((week['period'] ?? '').toString().isNotEmpty) Text(week['period'].toString(), style: const TextStyle(fontSize: 11, color: Colors.black54)),
-            const SizedBox(height: 12),
-            Wrap(spacing: 18, runSpacing: 10, children: [
-              _MiniMetric(label: 'Tasks', value: '${week['completed_tasks'] ?? 0}/${week['total_tasks'] ?? 0}'),
-              _MiniMetric(label: 'Spent', value: _money(week['expenses'])),
-              _MiniMetric(label: 'Saved', value: _money(week['saved'])),
-              _MiniMetric(label: 'Exercise', value: '${week['exercise_sessions'] ?? 0} sessions'),
-            ]),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Your Week in Review',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${week['completion_percent'] ?? 0}% task completion',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.black38),
+                ],
+              ),
+              if ((week['period'] ?? '').toString().isNotEmpty)
+                Text(
+                  week['period'].toString(),
+                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 18,
+                runSpacing: 10,
+                children: [
+                  _MiniMetric(
+                    label: 'Tasks',
+                    value:
+                        '${week['completed_tasks'] ?? 0}/${week['total_tasks'] ?? 0}',
+                  ),
+                  _MiniMetric(label: 'Spent', value: _money(week['expenses'])),
+                  _MiniMetric(label: 'Saved', value: _money(week['saved'])),
+                  _MiniMetric(
+                    label: 'Exercise',
+                    value: '${week['exercise_sessions'] ?? 0} sessions',
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _StepsProgressCard extends StatefulWidget {
+  final Map<String, dynamic> summary;
+
+  const _StepsProgressCard({required this.summary});
+
+  @override
+  State<_StepsProgressCard> createState() => _StepsProgressCardState();
+}
+
+class _StepsProgressCardState extends State<_StepsProgressCard> {
+  String _trackingState = 'stopped';
+
+  @override
+  void initState() {
+    super.initState();
+    _trackingState = _normaliseTrackingState(widget.summary['tracking_state']);
+  }
+
+  @override
+  void didUpdateWidget(covariant _StepsProgressCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final incoming = _normaliseTrackingState(widget.summary['tracking_state']);
+    if (incoming != 'stopped' || oldWidget.summary['tracking_state'] != null) {
+      _trackingState = incoming;
+    }
+  }
+
+  String _normaliseTrackingState(dynamic value) {
+    final raw = value?.toString().trim().toLowerCase() ?? '';
+    if (raw == 'running' || raw == 'started' || raw == 'active') {
+      return 'running';
+    }
+    if (raw == 'paused' || raw == 'pause') {
+      return 'paused';
+    }
+    return 'stopped';
+  }
+
+  int _intValue(dynamic value) {
+    if (value is num) return value.round();
+    return num.tryParse(
+          value?.toString().replaceAll(',', '').trim() ?? '',
+        )?.round() ??
+        0;
+  }
+
+  String _format(int value) {
+    return value.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => ',',
+    );
+  }
+
+  void _startTracking() {
+    setState(() => _trackingState = 'running');
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Step tracking started.')));
+  }
+
+  void _pauseTracking() {
+    setState(() => _trackingState = 'paused');
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Step tracking paused.')));
+  }
+
+  void _stopTracking() {
+    setState(() => _trackingState = 'stopped');
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Step tracking stopped.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.summary;
+    final steps = _intValue(summary['steps']).clamp(0, 1000000);
+    final goal = _intValue(summary['goal']).clamp(1, 1000000);
+    final progress = (steps / goal).clamp(0.0, 1.0);
+    final remaining = (goal - steps).clamp(0, goal);
+    final isRunning = _trackingState == 'running';
+    final isPaused = _trackingState == 'paused';
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: Color(0xFF2563EB), width: 4)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Today’s Steps',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isRunning
+                              ? 'Tracking in progress'
+                              : isPaused
+                              ? 'Tracking paused'
+                              : 'Daily movement progress',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFFDBEAFE),
+                    foregroundColor: const Color(0xFF2563EB),
+                    child: Icon(
+                      isRunning
+                          ? Icons.directions_run_rounded
+                          : Icons.directions_walk_rounded,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _format(steps),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text(
+                      'of ${_format(goal)} steps',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 9),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 7,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                steps >= goal
+                    ? 'Goal achieved today.'
+                    : '${_format(remaining)} steps to today’s goal',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 330;
+
+                  Widget startButton() => FilledButton.icon(
+                    onPressed: isRunning ? null : _startTracking,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: Text(isPaused ? 'Resume' : 'Start'),
+                  );
+
+                  Widget pauseButton() => OutlinedButton.icon(
+                    onPressed: isRunning ? _pauseTracking : null,
+                    icon: const Icon(Icons.pause_rounded, size: 18),
+                    label: const Text('Pause'),
+                  );
+
+                  Widget stopButton() => OutlinedButton.icon(
+                    onPressed: (isRunning || isPaused) ? _stopTracking : null,
+                    icon: const Icon(Icons.stop_rounded, size: 18),
+                    label: const Text('Stop'),
+                  );
+
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        startButton(),
+                        const SizedBox(height: 7),
+                        Row(
+                          children: [
+                            Expanded(child: pauseButton()),
+                            const SizedBox(width: 7),
+                            Expanded(child: stopButton()),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: startButton()),
+                      const SizedBox(width: 7),
+                      Expanded(child: pauseButton()),
+                      const SizedBox(width: 7),
+                      Expanded(child: stopButton()),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1954,11 +2903,18 @@ class _MiniMetric extends StatelessWidget {
   final String value;
   const _MiniMetric({required this.label, required this.value});
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-    Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-    const SizedBox(height: 2),
-    Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-  ]);
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+      const SizedBox(height: 2),
+      Text(
+        value,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+    ],
+  );
 }
 
 class _GettingStartedCard extends StatelessWidget {
@@ -1975,16 +2931,32 @@ class _GettingStartedCard extends StatelessWidget {
         onTap: onTap,
         child: const Padding(
           padding: EdgeInsets.all(14),
-          child: Row(children: [
-            CircleAvatar(backgroundColor: Color(0xFFCCFBF1), child: Icon(Icons.tune_rounded, color: Color(0xFF0F766E))),
-            SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Make My Digital Diary yours', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 3),
-              Text('Choose what matters most and what AI Planner may use.', style: TextStyle(fontSize: 12, color: Colors.black54)),
-            ])),
-            Icon(Icons.chevron_right, color: Color(0xFF0F766E)),
-          ]),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Color(0xFFCCFBF1),
+                child: Icon(Icons.tune_rounded, color: Color(0xFF0F766E)),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Make My Digital Diary yours',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Choose what matters most and what AI Planner may use.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Color(0xFF0F766E)),
+            ],
+          ),
         ),
       ),
     );
@@ -2031,12 +3003,15 @@ class _DailyInsightCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: insight.foreground.withValues(alpha: .18)),
+            border: Border.all(
+              color: insight.foreground.withValues(alpha: .18),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 46,
@@ -2045,32 +3020,91 @@ class _DailyInsightCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: .78),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(insight.icon, color: insight.foreground, size: 23),
+                    child: Icon(
+                      insight.icon,
+                      color: insight.foreground,
+                      size: 23,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TODAY’S INSIGHT', style: TextStyle(fontSize: 10.5, letterSpacing: .7, fontWeight: FontWeight.w800, color: insight.foreground)),
+                        Text(
+                          'TODAY’S INSIGHT',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            letterSpacing: .7,
+                            fontWeight: FontWeight.w800,
+                            color: insight.foreground,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text(insight.category, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                        Text(
+                          insight.category,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Refreshes about every 2 hours',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: Colors.black45,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const Text('Refreshes ~2h', style: TextStyle(fontSize: 11, color: Colors.black45)),
                 ],
               ),
               const SizedBox(height: 14),
-              Text(insight.title, style: const TextStyle(fontSize: 17, height: 1.25, fontWeight: FontWeight.w800)),
+              Text(
+                insight.title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 7),
-              Text(insight.message, style: TextStyle(fontSize: 13, height: 1.45, color: Colors.grey.shade700)),
+              Text(
+                insight.message,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Colors.grey.shade700,
+                ),
+              ),
               const SizedBox(height: 13),
               Row(
                 children: [
-                  Text(insight.action, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: insight.foreground)),
+                  Flexible(
+                    child: Text(
+                      insight.action,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: insight.foreground,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 5),
-                  Icon(Icons.arrow_forward_rounded, size: 16, color: insight.foreground),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: insight.foreground,
+                  ),
                 ],
               ),
             ],
@@ -2084,56 +3118,65 @@ class _DailyInsightCard extends StatelessWidget {
 class _FinanceCard extends StatelessWidget {
   final Map<String, dynamic> summary;
   final String currencyCode;
-  final String currencySymbol;
-  final double currencyRate;
-  final int currencyDecimals;
   final VoidCallback onTap;
 
   const _FinanceCard({
     required this.summary,
     required this.currencyCode,
-    required this.currencySymbol,
-    required this.currencyRate,
-    required this.currencyDecimals,
     required this.onTap,
   });
 
   String _money(dynamic value) {
-    final baseAmount = value is num
+    final number = value is num
         ? value.toDouble()
-        : double.tryParse(
-              value?.toString().replaceAll(',', '').trim() ?? '',
-            ) ??
-            0;
+        : double.tryParse(value?.toString().replaceAll(',', '').trim() ?? '') ??
+              0;
 
-    final rate = currencyRate > 0 ? currencyRate : 1.0;
-    final converted = baseAmount / rate;
-    final decimals = currencyDecimals.clamp(0, 6).toInt();
-    final fixed = converted.toStringAsFixed(decimals);
-    final parts = fixed.split('.');
-    final whole = parts.first.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (match) => ',',
-    );
-    final formatted = decimals > 0 && parts.length > 1
-        ? '$whole.${parts[1]}'
-        : whole;
+    final formatted = number
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ',');
 
-    final prefix = currencySymbol.trim().isNotEmpty
-        ? currencySymbol.trim()
-        : currencyCode.trim().toUpperCase();
-
-    return '${prefix.isEmpty ? 'UGX' : prefix} $formatted';
+    final code = currencyCode.trim().toUpperCase();
+    return '${code.isEmpty ? 'UGX' : code} $formatted';
   }
 
   (Color, Color, IconData) _style(String title) {
     final key = title.toLowerCase();
-    if (key.contains('income')) return (const Color(0xFFEAFBF3), const Color(0xFF047857), Icons.trending_up_rounded);
-    if (key.contains('expense')) return (const Color(0xFFFFEEF1), const Color(0xFFBE123C), Icons.receipt_long_outlined);
-    if (key.contains('budget')) return (const Color(0xFFEDF5FF), const Color(0xFF1D4ED8), Icons.account_balance_wallet_outlined);
-    if (key.contains('saving')) return (const Color(0xFFF4F0FF), const Color(0xFF6D28D9), Icons.savings_outlined);
-    if (key.contains('debt')) return (const Color(0xFFFFF3E8), const Color(0xFFC2410C), Icons.credit_card_outlined);
-    return (const Color(0xFFECFAFC), const Color(0xFF0E7490), Icons.flag_outlined);
+    if (key.contains('income'))
+      return (
+        const Color(0xFFEAFBF3),
+        const Color(0xFF047857),
+        Icons.trending_up_rounded,
+      );
+    if (key.contains('expense'))
+      return (
+        const Color(0xFFFFEEF1),
+        const Color(0xFFBE123C),
+        Icons.receipt_long_outlined,
+      );
+    if (key.contains('budget'))
+      return (
+        const Color(0xFFEDF5FF),
+        const Color(0xFF1D4ED8),
+        Icons.account_balance_wallet_outlined,
+      );
+    if (key.contains('saving'))
+      return (
+        const Color(0xFFF4F0FF),
+        const Color(0xFF6D28D9),
+        Icons.savings_outlined,
+      );
+    if (key.contains('debt'))
+      return (
+        const Color(0xFFFFF3E8),
+        const Color(0xFFC2410C),
+        Icons.credit_card_outlined,
+      );
+    return (
+      const Color(0xFFECFAFC),
+      const Color(0xFF0E7490),
+      Icons.flag_outlined,
+    );
   }
 
   @override
@@ -2162,23 +3205,69 @@ class _FinanceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                    child: Icon(style.$3, color: style.$2, size: 18),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF111827), fontWeight: FontWeight.w800, fontSize: 13))),
-                  Icon(Icons.chevron_right_rounded, color: style.$2, size: 18),
-                ]),
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(style.$3, color: style.$2, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF111827),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: style.$2,
+                      size: 18,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 10),
-                Text(monthlyLabel, style: const TextStyle(color: Color(0xFF64748B), fontSize: 10.5, fontWeight: FontWeight.w500)),
+                Text(
+                  monthlyLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(_money(summary['monthly_total']), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF111827), fontSize: 14, height: 1.15, fontWeight: FontWeight.w900)),
+                Text(
+                  _money(summary['monthly_total']),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 14,
+                    height: 1.15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const SizedBox(height: 5),
-                Text('$overallLabel: ${_money(summary['overall_total'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF475569), fontSize: 10.5, fontWeight: FontWeight.w500)),
+                Text(
+                  '$overallLabel: ${_money(summary['overall_total'])}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2200,16 +3289,35 @@ class _WelcomeCard extends StatelessWidget {
         color: Colors.white.withValues(alpha: .82),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white),
-        boxShadow: const [BoxShadow(color: Color(0x120F172A), blurRadius: 24, offset: Offset(0, 10))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('My Digital Diary', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.grey.shade600)),
+          Text(
+            'My Digital Diary',
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 5),
-          Text('What would you like to do today?', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'What would you like to do today?',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 5),
-          Text('Everything important is one tap away.', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          Text(
+            'Everything important is one tap away.',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -2228,7 +3336,12 @@ class _SectionHeading extends StatelessWidget {
       children: [
         Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 6),
-        Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
       ],
     );
   }
@@ -2261,7 +3374,12 @@ class _ShortcutCardState extends State<_ShortcutCard> {
   Widget _animatedSubtitle() {
     final match = RegExp(r'^([0-9]+)(.*)$').firstMatch(widget.subtitle.trim());
     if (match == null) {
-      return Text(widget.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)));
+      return Text(
+        widget.subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+      );
     }
     final target = int.tryParse(match.group(1) ?? '') ?? 0;
     final suffix = match.group(2) ?? '';
@@ -2273,30 +3391,44 @@ class _ShortcutCardState extends State<_ShortcutCard> {
         '${value.round()}$suffix',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontFeatures: [FontFeature.tabularFigures()]),
+        style: const TextStyle(
+          fontSize: 11.5,
+          color: Color(0xFF64748B),
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final scale = _pressed && !reduceMotion ? .965 : 1.0;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: reduceMotion ? 1 : .96, end: 1),
-      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 420),
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
       curve: Curves.easeOutBack,
-      builder: (context, entryScale, child) => Transform.scale(scale: entryScale * scale, child: child),
+      builder: (context, entryScale, child) =>
+          Transform.scale(scale: entryScale * scale, child: child),
       child: AnimatedContainer(
-        duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           color: widget.background,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: widget.foreground.withValues(alpha: _pressed ? .28 : .16)),
+          border: Border.all(
+            color: widget.foreground.withValues(alpha: _pressed ? .28 : .16),
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: _pressed ? .045 : .075),
+              color: const Color(
+                0xFF0F172A,
+              ).withValues(alpha: _pressed ? .045 : .075),
               blurRadius: _pressed ? 10 : 18,
               offset: Offset(0, _pressed ? 4 : 8),
             ),
@@ -2316,10 +3448,14 @@ class _ShortcutCardState extends State<_ShortcutCard> {
                 children: [
                   AnimatedRotation(
                     turns: _pressed && !reduceMotion ? -.018 : 0,
-                    duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
                     child: AnimatedScale(
                       scale: _pressed && !reduceMotion ? .9 : 1,
-                      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
                       curve: Curves.easeOutBack,
                       child: Container(
                         width: 40,
@@ -2327,16 +3463,31 @@ class _ShortcutCardState extends State<_ShortcutCard> {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: .82),
                           borderRadius: BorderRadius.circular(13),
-                          border: Border.all(color: widget.foreground.withValues(alpha: .14)),
+                          border: Border.all(
+                            color: widget.foreground.withValues(alpha: .14),
+                          ),
                         ),
-                        child: Icon(widget.icon, color: widget.foreground, size: 21),
+                        child: Icon(
+                          widget.icon,
+                          color: widget.foreground,
+                          size: 21,
+                        ),
                       ),
                     ),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 14)),
+                      Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 3),
                       _animatedSubtitle(),
                     ],
@@ -2386,7 +3537,13 @@ class _AppleIconTile extends StatelessWidget {
                   color: background,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: foreground.withValues(alpha: .12)),
-                  boxShadow: const [BoxShadow(color: Color(0x0D0F172A), blurRadius: 8, offset: Offset(0, 3))],
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0D0F172A),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Icon(icon, color: foreground, size: 21),
               ),
@@ -2396,7 +3553,12 @@ class _AppleIconTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10.5, height: 1.1, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
+                ),
               ),
             ],
           ),
@@ -2409,7 +3571,8 @@ class _AppleIconTile extends StatelessWidget {
 class _TodayTask extends StatelessWidget {
   final int index;
   final Map<String, dynamic> task;
-  const _TodayTask({required this.index, required this.task});
+  final VoidCallback? onTap;
+  const _TodayTask({required this.index, required this.task, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -2430,10 +3593,12 @@ class _TodayTask extends StatelessWidget {
     final icon = sourceLower.contains('meeting')
         ? Icons.videocam_outlined
         : sourceLower.contains('reminder')
-            ? Icons.notifications_none_rounded
-            : sourceLower.contains('planner')
-                ? Icons.today_outlined
-                : Icons.task_alt_rounded;
+        ? Icons.notifications_none_rounded
+        : sourceLower.contains('planner')
+        ? Icons.today_outlined
+        : Icons.task_alt_rounded;
+
+    final tap = onTap;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -2441,25 +3606,36 @@ class _TodayTask extends StatelessWidget {
         color: Colors.white,
         elevation: 0,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
+        child: InkWell(
+          onTap: tap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
           constraints: const BoxConstraints(minHeight: 76),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: const [
-              BoxShadow(color: Color(0x100F172A), blurRadius: 12, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Color(0x100F172A),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 5, color: accent),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 5, color: accent),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -2504,7 +3680,11 @@ class _TodayTask extends StatelessWidget {
                                 const SizedBox(height: 5),
                                 Row(
                                   children: [
-                                    const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF64748B)),
+                                    const Icon(
+                                      Icons.schedule_rounded,
+                                      size: 14,
+                                      color: Color(0xFF64748B),
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       time,
@@ -2521,12 +3701,14 @@ class _TodayTask extends StatelessWidget {
                           ),
                         ),
                       ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+        ),
         ),
       ),
     );

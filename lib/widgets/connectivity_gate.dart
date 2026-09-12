@@ -102,7 +102,6 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
     }
   }
 
-
   Future<void> _syncAfterReconnect() async {
     try {
       await OfflineMutationQueue.instance.syncAll();
@@ -124,6 +123,7 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
       // next reconnect/app launch without blocking the user.
     }
   }
+
   String _cacheAgeLabel() {
     final at = ApiClient.lastServedFromCacheAt;
     if (at == null) return '';
@@ -152,22 +152,32 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
                 color: Colors.transparent,
                 child: Container(
                   margin: const EdgeInsets.all(10),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
                     color: const Color(0xFF047857),
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 2))
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 18),
+                      const Icon(Icons.cloud_done_rounded,
+                          color: Colors.white, size: 18),
                       const SizedBox(width: 9),
                       Expanded(
                         child: Text(
                           (_pendingUploads + _pendingChanges) > 0
                               ? 'Back online. ${_pendingUploads + _pendingChanges} item${(_pendingUploads + _pendingChanges) == 1 ? '' : 's'} still waiting to sync${_conflicts > 0 ? ' · $_conflicts need review' : ''}.'
                               : 'Back online. Your latest changes are synced.',
-                          style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -187,24 +197,33 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
                 color: Colors.transparent,
                 child: Container(
                   margin: const EdgeInsets.all(10),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFF78350F),
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))],
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 2))
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+                      const Icon(Icons.wifi_off_rounded,
+                          color: Colors.white, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'No internet connection.${_cacheAgeLabel()} Planner, Notes, Tasks and Expenses can still be saved and will sync when you reconnect.',
-                          style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12.5),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                        icon: const Icon(Icons.close,
+                            color: Colors.white70, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => setState(() => _dismissed = true),

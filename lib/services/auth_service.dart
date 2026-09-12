@@ -134,8 +134,12 @@ class AuthService extends ChangeNotifier {
 
   /// Step 1 of 2. On success, `status` becomes `otpPending` — the UI
   /// should navigate to the OTP entry screen next.
-  Future<void> login({required String email, required String password, bool remember = true}) async {
-    final response = await _api.post('login', {'email': email, 'password': password}, auth: false);
+  Future<void> login(
+      {required String email,
+      required String password,
+      bool remember = true}) async {
+    final response = await _api
+        .post('login', {'email': email, 'password': password}, auth: false);
     _pendingOtpUserId = response['user_id'] as int;
     _pendingRemember = remember;
     status = AuthStatus.otpPending;
@@ -149,12 +153,16 @@ class AuthService extends ChangeNotifier {
       throw StateError('No pending login — call login() first.');
     }
 
-    final response = await _api.post('verify-otp', {
-      'user_id': _pendingOtpUserId,
-      'code': code,
-    }, auth: false);
+    final response = await _api.post(
+        'verify-otp',
+        {
+          'user_id': _pendingOtpUserId,
+          'code': code,
+        },
+        auth: false);
 
-    await _api.saveToken(response['token'] as String, remember: _pendingRemember);
+    await _api.saveToken(response['token'] as String,
+        remember: _pendingRemember);
     user = AppUser.fromJson(response['user']);
     status = AuthStatus.loggedIn;
     _pendingOtpUserId = null;
@@ -184,7 +192,8 @@ class AuthService extends ChangeNotifier {
   /// email opens the existing, already-working Breeze reset-password
   /// form in the phone's browser), not in this app.
   Future<String> forgotPassword(String email) async {
-    final response = await _api.post('forgot-password', {'email': email}, auth: false);
+    final response =
+        await _api.post('forgot-password', {'email': email}, auth: false);
     return response['message'] as String;
   }
 
@@ -198,7 +207,11 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateAppearance({String? themeColor, String? themeColorSecondary, String? fontFamily, int? fontSize}) {
+  void updateAppearance(
+      {String? themeColor,
+      String? themeColorSecondary,
+      String? fontFamily,
+      int? fontSize}) {
     if (user == null) return;
     user = user!.copyWith(
       themeColor: themeColor,

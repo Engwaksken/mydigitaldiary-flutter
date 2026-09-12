@@ -21,13 +21,10 @@ class IoTecPaymentStart {
   });
 
   factory IoTecPaymentStart.fromJson(Map<String, dynamic> json) {
-    final rawId = json['transaction_id'] ??
-        json['transactionId'] ??
-        json['id'];
+    final rawId = json['transaction_id'] ?? json['transactionId'] ?? json['id'];
 
-    final parsedId = rawId is int
-        ? rawId
-        : int.tryParse(rawId?.toString() ?? '');
+    final parsedId =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
 
     final redirect = json['redirect_url'] ??
         json['card_redirect_url'] ??
@@ -39,13 +36,10 @@ class IoTecPaymentStart {
 
     return IoTecPaymentStart(
       // Some successful initiation responses only return transaction/status.
-      success: explicitSuccess == null
-          ? parsedId != null
-          : explicitSuccess == true,
+      success:
+          explicitSuccess == null ? parsedId != null : explicitSuccess == true,
       transactionId: parsedId,
-      paymentChannel: (json['payment_channel'] ??
-              json['paymentChannel'] ??
-              '')
+      paymentChannel: (json['payment_channel'] ?? json['paymentChannel'] ?? '')
           .toString()
           .toLowerCase(),
       status: (json['status'] ?? 'pending').toString().toLowerCase(),
@@ -124,8 +118,7 @@ class IoTecPaymentStatus {
     return IoTecPaymentStatus(
       success: json['success'] == true,
       transactionId: parseInt(transaction['id']) ?? 0,
-      status:
-          (transaction['status'] ?? 'pending').toString().toLowerCase(),
+      status: (transaction['status'] ?? 'pending').toString().toLowerCase(),
       statusMessage: transaction['status_message']?.toString(),
       paid: transaction['paid'] == true,
       activated: transaction['activated'] == true,
@@ -161,8 +154,7 @@ class IoTecGatewayOptions {
 
     return IoTecGatewayOptions(
       enabled: gateway['enabled'] == true,
-      supportsMobileMoney:
-          gateway['supports_mobile_money'] == true,
+      supportsMobileMoney: gateway['supports_mobile_money'] == true,
       supportsCard: gateway['supports_card'] == true,
       cardBrands: ((gateway['card_brands'] as List?) ?? const [])
           .map((value) => value.toString().toLowerCase())
@@ -187,8 +179,7 @@ class SubscriptionService {
     if (payload is! Map) {
       throw ApiException(
         500,
-        (root['message'] ?? 'Invalid subscription status response.')
-            .toString(),
+        (root['message'] ?? 'Invalid subscription status response.').toString(),
       );
     }
 
@@ -197,15 +188,13 @@ class SubscriptionService {
 
   Future<List<SubscriptionPlanInfo>> plans() async {
     final response = await _api.get('subscription/plans');
-    final rows =
-        (response['data'] as List).cast<Map<String, dynamic>>();
+    final rows = (response['data'] as List).cast<Map<String, dynamic>>();
     return rows.map(SubscriptionPlanInfo.fromJson).toList();
   }
 
   Future<List<PaymentGatewayInfo>> gateways() async {
     final response = await _api.get('subscription/gateways');
-    final rows =
-        (response['data'] as List).cast<Map<String, dynamic>>();
+    final rows = (response['data'] as List).cast<Map<String, dynamic>>();
     return rows.map(PaymentGatewayInfo.fromJson).toList();
   }
 
@@ -292,9 +281,7 @@ class SubscriptionService {
 
     var current = await ioTecPaymentStatus(transactionId);
 
-    while (
-        current.isPending &&
-        DateTime.now().isBefore(deadline)) {
+    while (current.isPending && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(pollEvery);
       current = await ioTecPaymentStatus(transactionId);
     }
@@ -319,8 +306,7 @@ class SubscriptionService {
       },
     );
 
-    return response['message'] as String? ??
-        'Payment prompt sent.';
+    return response['message'] as String? ?? 'Payment prompt sent.';
   }
 
   Future<String> submitPendingBankPayment(
@@ -336,8 +322,7 @@ class SubscriptionService {
       },
     );
 
-    return response['message'] as String? ??
-        'Bank payment submitted.';
+    return response['message'] as String? ?? 'Bank payment submitted.';
   }
 
   Future<String> submitManualPayment(

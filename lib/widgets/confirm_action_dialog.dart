@@ -14,7 +14,8 @@ Future<bool> showAppConfirmDialog(
     barrierDismissible: false,
     builder: (ctx) {
       final theme = Theme.of(ctx);
-      final color = destructive ? theme.colorScheme.error : theme.colorScheme.primary;
+      final color =
+          destructive ? theme.colorScheme.error : theme.colorScheme.primary;
       return Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -43,9 +44,13 @@ Future<bool> showAppConfirmDialog(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                          Text(title,
+                              style: theme.textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800)),
                           const SizedBox(height: 6),
-                          Text(message, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54, height: 1.4)),
+                          Text(message,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.black54, height: 1.4)),
                         ],
                       ),
                     ),
@@ -65,9 +70,13 @@ Future<bool> showAppConfirmDialog(
                       child: Text(cancelText),
                     );
                     final confirm = FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+                      style: FilledButton.styleFrom(
+                          backgroundColor: color,
+                          foregroundColor: Colors.white),
                       onPressed: () => Navigator.pop(ctx, true),
-                      icon: Icon(destructive ? Icons.delete_outline : Icons.check_circle_outline),
+                      icon: Icon(destructive
+                          ? Icons.delete_outline
+                          : Icons.check_circle_outline),
                       label: Text(confirmText),
                     );
                     if (compact) {

@@ -39,7 +39,8 @@ class OfflineMutation {
     String? error,
     int? localId,
     bool clearBaseUpdatedAt = false,
-  }) => OfflineMutation(
+  }) =>
+      OfflineMutation(
         id: id,
         idempotencyKey: idempotencyKey,
         method: method,
@@ -69,9 +70,11 @@ class OfflineMutation {
         'created_at': createdAt.toIso8601String(),
       };
 
-  factory OfflineMutation.fromJson(Map<String, dynamic> json) => OfflineMutation(
+  factory OfflineMutation.fromJson(Map<String, dynamic> json) =>
+      OfflineMutation(
         id: json['id']?.toString() ?? const Uuid().v4(),
-        idempotencyKey: json['idempotency_key']?.toString() ?? const Uuid().v4(),
+        idempotencyKey:
+            json['idempotency_key']?.toString() ?? const Uuid().v4(),
         method: json['method']?.toString().toUpperCase() ?? 'POST',
         path: json['path']?.toString() ?? '',
         body: Map<String, dynamic>.from((json['body'] as Map?) ?? const {}),
@@ -81,7 +84,8 @@ class OfflineMutation {
         baseUpdatedAt: json['base_updated_at']?.toString(),
         status: json['status']?.toString() ?? 'pending',
         error: json['error']?.toString(),
-        createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+        createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+            DateTime.now(),
       );
 }
 
@@ -99,7 +103,10 @@ class OfflineMutationQueue {
     final raw = prefs.getString(_storageKey);
     if (raw == null || raw.isEmpty) return [];
     try {
-      final rows = (jsonDecode(raw) as List).whereType<Map>().map((e) => OfflineMutation.fromJson(Map<String, dynamic>.from(e))).toList();
+      final rows = (jsonDecode(raw) as List)
+          .whereType<Map>()
+          .map((e) => OfflineMutation.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
       rows.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return rows;
     } catch (_) {
@@ -109,14 +116,17 @@ class OfflineMutationQueue {
 
   Future<void> _save(List<OfflineMutation> rows) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
+    await prefs.setString(
+        _storageKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
   }
 
   Future<int> pendingCount() async => (await all()).length;
-  Future<int> conflictCount() async => (await all()).where((e) => e.status == 'conflict').length;
+  Future<int> conflictCount() async =>
+      (await all()).where((e) => e.status == 'conflict').length;
 
-  Future<List<OfflineMutation>> forPrefix(String prefix) async =>
-      (await all()).where((e) => e.path == prefix || e.path.startsWith('$prefix/')).toList();
+  Future<List<OfflineMutation>> forPrefix(String prefix) async => (await all())
+      .where((e) => e.path == prefix || e.path.startsWith('$prefix/'))
+      .toList();
 
   Future<OfflineMutation> enqueue({
     required String method,
@@ -145,9 +155,11 @@ class OfflineMutationQueue {
     return mutation;
   }
 
-  Future<bool> updateQueuedCreate(int localId, Map<String, dynamic> body) async {
+  Future<bool> updateQueuedCreate(
+      int localId, Map<String, dynamic> body) async {
     final rows = await all();
-    final index = rows.indexWhere((e) => e.localId == localId && e.method == 'POST' && e.status == 'pending');
+    final index = rows.indexWhere((e) =>
+        e.localId == localId && e.method == 'POST' && e.status == 'pending');
     if (index < 0) return false;
     rows[index] = rows[index].copyWith(body: Map<String, dynamic>.from(body));
     await _save(rows);
@@ -156,7 +168,8 @@ class OfflineMutationQueue {
 
   Future<void> removeLocalCreate(int localId) async {
     final rows = await all();
-    rows.removeWhere((e) => e.localId == localId || e.path.contains('/$localId'));
+    rows.removeWhere(
+        (e) => e.localId == localId || e.path.contains('/$localId'));
     await _save(rows);
   }
 
@@ -182,7 +195,8 @@ class OfflineMutationQueue {
     final rows = await all();
     final index = rows.indexWhere((e) => e.id == id);
     if (index < 0) return;
-    rows[index] = rows[index].copyWith(status: 'pending', error: '', clearBaseUpdatedAt: true);
+    rows[index] = rows[index]
+        .copyWith(status: 'pending', error: '', clearBaseUpdatedAt: true);
     await _save(rows);
     await syncAll();
   }
@@ -199,7 +213,8 @@ class OfflineMutationQueue {
 
       var resolvedPath = mutation.path;
       for (final entry in localToServer.entries) {
-        resolvedPath = resolvedPath.replaceAll('/${entry.key}', '/${entry.value}');
+        resolvedPath =
+            resolvedPath.replaceAll('/${entry.key}', '/${entry.value}');
       }
 
       try {
@@ -211,13 +226,18 @@ class OfflineMutationQueue {
           baseUpdatedAt: mutation.baseUpdatedAt,
         );
 
-        if (mutation.localId != null && mutation.method == 'POST' && response is Map) {
+        if (mutation.localId != null &&
+            mutation.method == 'POST' &&
+            response is Map) {
           final serverId = (response['id'] as num?)?.toInt();
           if (serverId != null && serverId > 0) {
             localToServer[mutation.localId!] = serverId;
             for (var j = i + 1; j < rows.length; j++) {
               if (rows[j].path.contains('/${mutation.localId}')) {
-                rows[j] = rows[j].copyWith(path: rows[j].path.replaceAll('/${mutation.localId}', '/$serverId'));
+                rows[j] = rows[j].copyWith(
+                    path: rows[j]
+                        .path
+                        .replaceAll('/${mutation.localId}', '/$serverId'));
               }
             }
           }

@@ -19,7 +19,10 @@ class SignatureService {
 
   Future<void> deleteDocument(int id) => _api.delete('signed-documents/$id');
 
-  Future<SavedSignature> uploadSignature({required List<int> fileBytes, required String fileName, String? label}) async {
+  Future<SavedSignature> uploadSignature(
+      {required List<int> fileBytes,
+      required String fileName,
+      String? label}) async {
     final response = await _api.postMultipart(
       'signatures',
       fileFieldName: 'signature',
@@ -30,8 +33,8 @@ class SignatureService {
     return SavedSignature.fromJson(response['data']);
   }
 
-
-  Future<SavedSignature> saveDrawnSignature({required List<int> pngBytes, String? label}) async {
+  Future<SavedSignature> saveDrawnSignature(
+      {required List<int> pngBytes, String? label}) async {
     final response = await _api.post('signatures', {
       'drawn_signature': 'data:image/png;base64,${base64Encode(pngBytes)}',
       if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
@@ -39,11 +42,13 @@ class SignatureService {
     return SavedSignature.fromJson(response['data']);
   }
 
-  Future<List<int>> signatureImageBytes(int id) => _api.downloadBytes('signatures/$id/image');
+  Future<List<int>> signatureImageBytes(int id) =>
+      _api.downloadBytes('signatures/$id/image');
 
   Future<void> deleteSignature(int id) => _api.delete('signatures/$id');
 
-  Future<void> bulkDeleteDocuments(List<int> ids) => _api.post('signed-documents/bulk-delete', {'document_ids': ids});
+  Future<void> bulkDeleteDocuments(List<int> ids) =>
+      _api.post('signed-documents/bulk-delete', {'document_ids': ids});
 
   /// Sends the document image, which saved signature to use, and where
   /// to place it (as percentages of the document's dimensions — same
@@ -52,10 +57,12 @@ class SignatureService {
   /// separate preview/confirm round-trip since the mobile UI already
   /// shows a live drag preview before this ever gets called.
 
-  Future<Map<String, dynamic>> bundlePages(List<int> documentIds, {String? filename}) async {
+  Future<Map<String, dynamic>> bundlePages(List<int> documentIds,
+      {String? filename}) async {
     final response = await _api.post('signed-documents/bundle-pages', {
       'document_ids': documentIds,
-      if (filename != null && filename.trim().isNotEmpty) 'filename': filename.trim(),
+      if (filename != null && filename.trim().isNotEmpty)
+        'filename': filename.trim(),
     });
     return Map<String, dynamic>.from(response['data']);
   }

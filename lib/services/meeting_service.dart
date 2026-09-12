@@ -23,8 +23,8 @@ class MeetingService {
       'meetings?page=$page&per_page=$perPage',
       cacheable: true,
     );
-    final rows = (response['data'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final rows =
+        (response['data'] as List? ?? const []).cast<Map<String, dynamic>>();
 
     return MeetingPage(
       meetings: rows.map(Meeting.fromJson).toList(),

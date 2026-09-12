@@ -6,7 +6,11 @@ class ApiCredential {
   final String provider;
   final bool isActive;
 
-  ApiCredential({required this.id, required this.label, required this.provider, required this.isActive});
+  ApiCredential(
+      {required this.id,
+      required this.label,
+      required this.provider,
+      required this.isActive});
 
   factory ApiCredential.fromJson(Map<String, dynamic> json) => ApiCredential(
         id: json['id'],
@@ -22,7 +26,8 @@ class AiProviderOption {
 
   AiProviderOption({required this.key, required this.name});
 
-  factory AiProviderOption.fromJson(Map<String, dynamic> json) => AiProviderOption(key: json['key'] ?? '', name: json['name'] ?? '');
+  factory AiProviderOption.fromJson(Map<String, dynamic> json) =>
+      AiProviderOption(key: json['key'] ?? '', name: json['name'] ?? '');
 }
 
 class ApiCredentialsOverview {
@@ -42,13 +47,18 @@ class ApiCredentialsOverview {
     required this.providers,
   });
 
-  factory ApiCredentialsOverview.fromJson(Map<String, dynamic> json) => ApiCredentialsOverview(
-        credentials: (json['data'] as List).map((e) => ApiCredential.fromJson(e)).toList(),
+  factory ApiCredentialsOverview.fromJson(Map<String, dynamic> json) =>
+      ApiCredentialsOverview(
+        credentials: (json['data'] as List)
+            .map((e) => ApiCredential.fromJson(e))
+            .toList(),
         hasOwnActiveKey: json['has_own_active_key'] ?? false,
         hasSharedKeyConfigured: json['has_shared_key_configured'] ?? false,
         sharedUsedThisMonth: json['shared_used_this_month'] ?? 0,
         sharedLimitPerMonth: json['shared_limit_per_month'] ?? 0,
-        providers: (json['providers'] as List).map((e) => AiProviderOption.fromJson(e)).toList(),
+        providers: (json['providers'] as List)
+            .map((e) => AiProviderOption.fromJson(e))
+            .toList(),
       );
 }
 
@@ -66,10 +76,15 @@ class ApiCredentialService {
     return ApiCredentialsOverview.fromJson(response);
   }
 
-  Future<void> add({required String label, required String provider, required String apiKey}) =>
-      _api.post('api-credentials', {'label': label, 'provider': provider, 'api_key': apiKey});
+  Future<void> add(
+          {required String label,
+          required String provider,
+          required String apiKey}) =>
+      _api.post('api-credentials',
+          {'label': label, 'provider': provider, 'api_key': apiKey});
 
-  Future<void> activate(int id) => _api.post('api-credentials/$id/activate', {});
+  Future<void> activate(int id) =>
+      _api.post('api-credentials/$id/activate', {});
 
   Future<void> delete(int id) => _api.delete('api-credentials/$id');
 }

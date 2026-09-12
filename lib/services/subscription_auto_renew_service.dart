@@ -49,20 +49,13 @@ class SubscriptionAutoRenewInfo {
       available: data['available'] == true,
       enabled: data['enabled'] == true,
       phoneNumber: data['phone_number']?.toString(),
-      network: (data['network'] ?? 'mtn')
-          .toString()
-          .toLowerCase(),
-      nextRenewalDate:
-          data['next_renewal_date']?.toString(),
-      subscriptionPlanId:
-          parseInt(data['subscription_plan_id']),
-      subscriptionPlan:
-          data['subscription_plan']?.toString(),
+      network: (data['network'] ?? 'mtn').toString().toLowerCase(),
+      nextRenewalDate: data['next_renewal_date']?.toString(),
+      subscriptionPlanId: parseInt(data['subscription_plan_id']),
+      subscriptionPlan: data['subscription_plan']?.toString(),
       gatewayName: gateway['name']?.toString(),
-      supportsMtn:
-          gateway['supports_mtn'] == true,
-      supportsAirtel:
-          gateway['supports_airtel'] == true,
+      supportsMtn: gateway['supports_mtn'] == true,
+      supportsAirtel: gateway['supports_airtel'] == true,
       message: data['message']?.toString(),
     );
   }
@@ -95,8 +88,7 @@ class SubscriptionAutoRenewService {
       },
     );
 
-    return response['message']?.toString()
-        ?? 'Auto renewal enabled.';
+    return response['message']?.toString() ?? 'Auto renewal enabled.';
   }
 
   Future<String> disable() async {
@@ -107,7 +99,6 @@ class SubscriptionAutoRenewService {
       },
     );
 
-    return response['message']?.toString()
-        ?? 'Auto renewal disabled.';
+    return response['message']?.toString() ?? 'Auto renewal disabled.';
   }
 }

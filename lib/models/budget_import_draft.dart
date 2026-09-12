@@ -21,13 +21,11 @@ class BudgetImportItem {
     final period = json['period']?.toString();
 
     return BudgetImportItem(
-      category:
-          json['category']?.toString().trim().isNotEmpty == true
-              ? json['category'].toString()
-              : 'General',
+      category: json['category']?.toString().trim().isNotEmpty == true
+          ? json['category'].toString()
+          : 'General',
       description: json['description']?.toString() ?? '',
-      plannedAmount:
-          _number(json['planned_amount'] ?? json['amount']),
+      plannedAmount: _number(json['planned_amount'] ?? json['amount']),
       period: <String>[
         'weekly',
         'monthly',
@@ -35,8 +33,7 @@ class BudgetImportItem {
       ].contains(period)
           ? period!
           : 'monthly',
-      monthYear:
-          json['month_year']?.toString() ?? json['date']?.toString(),
+      monthYear: json['month_year']?.toString() ?? json['date']?.toString(),
       notes: json['notes']?.toString(),
       confidence: _number(json['confidence']),
     );

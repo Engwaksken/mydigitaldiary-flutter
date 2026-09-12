@@ -13,12 +13,15 @@ class AppNotification {
     required this.createdAt,
   });
 
-  factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
+  factory AppNotification.fromJson(Map<String, dynamic> json) =>
+      AppNotification(
         id: json['id'],
         type: json['type'] ?? '',
-        data: json['data'] != null ? Map<String, dynamic>.from(json['data']) : {},
+        data:
+            json['data'] != null ? Map<String, dynamic>.from(json['data']) : {},
         read: json['read'] ?? false,
-        createdAt: DateTime.tryParse(json['created_at'] ?? '')?.toLocal() ?? DateTime.now(),
+        createdAt: DateTime.tryParse(json['created_at'] ?? '')?.toLocal() ??
+            DateTime.now(),
       );
 
   /// Laravel notification "data" payloads vary by notification class —
@@ -32,16 +35,22 @@ class AppNotification {
         return data['title'] ?? data['message'] ?? 'Reminder';
       case 'SubscriptionExpiryReminderNotification':
         final days = data['days_remaining'];
-        return days != null ? 'Your subscription expires in $days day(s)' : 'Subscription expiring soon';
+        return days != null
+            ? 'Your subscription expires in $days day(s)'
+            : 'Subscription expiring soon';
       case 'DailyTopTasksNotification':
         final taskCount = (data['tasks'] as List?)?.length ?? 0;
         return 'Today\'s top $taskCount task(s)';
       case 'PaymentSuccessfulNotification':
         final planName = data['plan_name'];
-        return planName != null ? 'Payment received — $planName is now active.' : 'Payment received.';
+        return planName != null
+            ? 'Payment received — $planName is now active.'
+            : 'Payment received.';
       case 'PaymentFailedNotification':
         final reason = data['reason'];
-        return reason != null ? 'Payment failed: $reason' : 'A payment could not be processed.';
+        return reason != null
+            ? 'Payment failed: $reason'
+            : 'A payment could not be processed.';
       case 'AnnouncementNotification':
         return data['title'] ?? 'App announcement';
       default:

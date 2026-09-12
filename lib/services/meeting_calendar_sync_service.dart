@@ -17,7 +17,8 @@ class MeetingCalendarSyncService {
     bool includeRecurring = true,
   }) async {
     if (to.isBefore(from)) {
-      throw ApiException(422, 'The sync-to date cannot be before the sync-from date.');
+      throw ApiException(
+          422, 'The sync-to date cannot be before the sync-from date.');
     }
 
     final response = await ApiClient.instance.post(
