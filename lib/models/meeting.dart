@@ -1,5 +1,3 @@
-/// Matches Api\MeetingController's JSON shape (see the Laravel package's
-/// app/Http/Controllers/Api/MeetingController.php).
 class Meeting {
   final int id;
   final String title;
@@ -9,10 +7,11 @@ class Meeting {
   final String? attendees;
   final String status;
   final String? notes;
-  final String? recurrenceFrequency; // null, 'daily', 'weekly', 'monthly'
-  final List<int> recurrenceDaysOfWeek; // ISO: 1=Mon...7=Sun, weekly only
+  final String? recurrenceFrequency;
+  final List<int> recurrenceDaysOfWeek;
   final DateTime? recurrenceEndsAt;
   final int? recurrenceParentId;
+  final String? diaryJoinUrl;
 
   Meeting({
     required this.id,
@@ -27,14 +26,12 @@ class Meeting {
     this.recurrenceDaysOfWeek = const [],
     this.recurrenceEndsAt,
     this.recurrenceParentId,
+    this.diaryJoinUrl,
   });
 
   bool get isRecurring =>
       recurrenceFrequency != null && recurrenceFrequency!.isNotEmpty;
 
-  /// A generated instance (not the original recurring series' own
-  /// definition) — these shouldn't show their own recurrence
-  /// controls when edited, since only the parent carries the rule.
   bool get isGeneratedInstance => recurrenceParentId != null;
 
   factory Meeting.fromJson(Map<String, dynamic> json) {
@@ -57,6 +54,7 @@ class Meeting {
           ? DateTime.tryParse(json['recurrence_ends_at'].toString())
           : null,
       recurrenceParentId: json['recurrence_parent_id'] as int?,
+      diaryJoinUrl: json['diary_join_url'] as String?,
     );
   }
 

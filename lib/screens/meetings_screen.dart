@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/meeting.dart';
 import '../services/meeting_service.dart';
 import '../services/api_client.dart';
@@ -28,7 +29,6 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
       return <Meeting>[];
     }
 
-    // Older MeetingService versions returned List<Meeting> directly.
     if (result is List<Meeting>) {
       return List<Meeting>.from(result);
     }
@@ -37,10 +37,6 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
       return result.whereType<Meeting>().toList(growable: false);
     }
 
-    // Current installations return a MeetingPage, but the collection getter
-    // has changed between mobile revisions. Keep this screen independent of
-    // the pagination object's field name so it works with the installed
-    // MeetingService without forcing a service/model rewrite.
     dynamic collection;
 
     for (final getter in <dynamic Function()>[
@@ -58,9 +54,7 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
           collection = value;
           break;
         }
-      } catch (_) {
-        // Getter does not exist on this MeetingPage revision.
-      }
+      } catch (_) {}
     }
 
     if (collection is List) {
@@ -128,6 +122,14 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     );
   }
 
+  Future<void> _joinMeeting(Meeting meeting) async {
+    if (meeting.diaryJoinUrl == null) return;
+    final uri = Uri.parse(meeting.diaryJoinUrl!);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'completed':
@@ -137,6 +139,55 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
       default:
         return const Color(0xFF00897B);
     }
+  }
+
+  // ── Computed stats for internal meetings ──
+  List<Meeting> get _internalMeetings =>
+      _meetings.where((m) => m.diaryJoinUrl != null).toList();
+
+  int get _totalCount => _internalMeetings.length;
+
+  int get _upcomingCount => _internalMeetings
+      .where((m) =>
+          m.status == 'scheduled' && m.startAt.isAfter(DateTime.now()))
+      .length;
+
+  int get _completedCount =>
+      _internalMeetings.where((m) => m.status == 'completed').length;
+
+  int get _attendeeCount => _internalMeetings
+      .expand((m) => (m.attendees ?? '')
+          .split(RegExp(r'[,;\s]+'))
+          .where((e) => e.trim().isNotEmpty))
+      .toSet()
+      .length;
+
+  // ── Stats card widget ──
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      width: 110,
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: color.withValues(alpha: 0.8))),
+        ],
+      ),
+    );
   }
 
   @override
@@ -172,79 +223,123 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                         child: Text(
                             'No meetings yet. Add one or sync your calendar.')),
                   ])
-                : ListView.separated(
+                : ListView(
                     padding: const EdgeInsets.all(12),
-                    itemCount: _meetings.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
-                    itemBuilder: (_, index) {
-                      final meeting = _meetings[index];
-                      return Dismissible(
-                        key: ValueKey(meeting.id),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (_) async =>
-                            await showDialog<bool>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text('Delete meeting?'),
-                                content: Text(meeting.title),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel')),
-                                  FilledButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete')),
-                                ],
-                              ),
-                            ) ??
-                            false,
-                        onDismissed: (_) => _delete(meeting),
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 24),
-                          color: Colors.red,
-                          child: const Icon(Icons.delete, color: Colors.white),
+                    children: [
+                      // ── Internal meetings stats cards ──
+                      if (_internalMeetings.isNotEmpty) ...[
+                        Text('Internal Meetings',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 80,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _statCard('Total', '$_totalCount',
+                                  Icons.calendar_today, const Color(0xFF6366F1)),
+                              _statCard('Upcoming', '$_upcomingCount',
+                                  Icons.event, const Color(0xFF0EA5E9)),
+                              _statCard('Completed', '$_completedCount',
+                                  Icons.check_circle, const Color(0xFF059669)),
+                              _statCard('Attendees', '$_attendeeCount',
+                                  Icons.people, const Color(0xFF3B82F6)),
+                            ],
+                          ),
                         ),
-                        child: Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _statusColor(meeting.status)
-                                  .withValues(alpha: .12),
-                              child: Icon(Icons.calendar_month,
-                                  color: _statusColor(meeting.status)),
-                            ),
-                            title: Row(children: [
-                              Expanded(
-                                  child: Text(meeting.title,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700))),
-                              if (meeting.isRecurring ||
-                                  meeting.isGeneratedInstance)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8),
-                                  child: Icon(Icons.repeat, size: 16),
+                        const SizedBox(height: 12),
+                      ],
+                      // ── Meeting list ──
+                      ...List.generate(_meetings.length, (index) {
+                        final meeting = _meetings[index];
+                        return Dismissible(
+                          key: ValueKey(meeting.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) async =>
+                              await showDialog<bool>(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('Delete meeting?'),
+                                  content: Text(meeting.title),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel')),
+                                    FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Delete')),
+                                  ],
                                 ),
-                            ]),
-                            subtitle: Text(
-                              '${DateFormat('yMMMd – jm').format(meeting.startAt)}'
-                              '${meeting.location != null ? ' · ${meeting.location}' : ''}',
-                            ),
-                            onTap: () => _openForm(existing: meeting),
-                            trailing: IconButton(
-                              tooltip: 'Recording, transcript & summary',
-                              icon: const Icon(Icons.mic_none),
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        MeetingDetailScreen(meeting: meeting)),
+                              ) ??
+                              false,
+                          onDismissed: (_) => _delete(meeting),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            color: Colors.red,
+                            child:
+                                const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          child: Card(
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: _statusColor(meeting.status)
+                                    .withValues(alpha: .12),
+                                child: Icon(Icons.calendar_month,
+                                    color: _statusColor(meeting.status)),
+                              ),
+                              title: Row(children: [
+                                Expanded(
+                                    child: Text(meeting.title,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                                if (meeting.isRecurring ||
+                                    meeting.isGeneratedInstance)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 8),
+                                    child: Icon(Icons.repeat, size: 16),
+                                  ),
+                              ]),
+                              subtitle: Text(
+                                '${DateFormat('yMMMd – jm').format(meeting.startAt)}'
+                                '${meeting.location != null ? ' · ${meeting.location}' : ''}',
+                              ),
+                              onTap: () => _openForm(existing: meeting),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (meeting.diaryJoinUrl != null)
+                                    IconButton(
+                                      tooltip: 'Join meeting',
+                                      icon: const Icon(Icons.launch,
+                                          color: Color(0xFF059669)),
+                                      onPressed: () =>
+                                          _joinMeeting(meeting),
+                                    ),
+                                  IconButton(
+                                    tooltip:
+                                        'Recording, transcript & summary',
+                                    icon: const Icon(Icons.mic_none),
+                                    onPressed: () =>
+                                        Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              MeetingDetailScreen(
+                                                  meeting: meeting)),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      }),
+                    ],
                   ),
       ),
     );
@@ -338,7 +433,8 @@ class _MeetingFormState extends State<_MeetingForm> {
       startAt: _startAt,
       endAt: widget.existing?.endAt,
       location: _location.text.trim().isEmpty ? null : _location.text.trim(),
-      attendees: _attendees.text.trim().isEmpty ? null : _attendees.text.trim(),
+      attendees:
+          _attendees.text.trim().isEmpty ? null : _attendees.text.trim(),
       status: _status,
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       recurrenceFrequency: _recurrenceFrequency,
@@ -390,13 +486,14 @@ class _MeetingFormState extends State<_MeetingForm> {
             ),
             TextField(
                 controller: _location,
-                decoration:
-                    const InputDecoration(labelText: 'Location / video link')),
+                decoration: const InputDecoration(
+                    labelText: 'Location / video link')),
             const SizedBox(height: 10),
             TextField(
               controller: _attendees,
               decoration: const InputDecoration(
-                  labelText: 'Attendees', helperText: 'Comma-separated emails'),
+                  labelText: 'Attendees',
+                  helperText: 'Comma-separated emails'),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
@@ -405,7 +502,8 @@ class _MeetingFormState extends State<_MeetingForm> {
               items: const ['scheduled', 'completed', 'cancelled']
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
-              onChanged: (v) => setState(() => _status = v ?? 'scheduled'),
+              onChanged: (v) =>
+                  setState(() => _status = v ?? 'scheduled'),
             ),
             if (!generated) ...[
               const SizedBox(height: 10),
@@ -422,7 +520,8 @@ class _MeetingFormState extends State<_MeetingForm> {
                   DropdownMenuItem<String?>(
                       value: 'monthly', child: Text('Monthly')),
                 ],
-                onChanged: (v) => setState(() => _recurrenceFrequency = v),
+                onChanged: (v) =>
+                    setState(() => _recurrenceFrequency = v),
               ),
               if (_recurrenceFrequency == 'weekly') ...[
                 const SizedBox(height: 8),
@@ -454,7 +553,8 @@ class _MeetingFormState extends State<_MeetingForm> {
                       initialDate: _recurrenceEndsAt ??
                           _startAt.add(const Duration(days: 30)),
                       firstDate: _startAt,
-                      lastDate: DateTime.now().add(const Duration(days: 3650)),
+                      lastDate: DateTime.now()
+                          .add(const Duration(days: 3650)),
                     );
                     if (d != null) setState(() => _recurrenceEndsAt = d);
                   },
@@ -463,7 +563,8 @@ class _MeetingFormState extends State<_MeetingForm> {
             TextField(
                 controller: _notes,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Notes / agenda')),
+                decoration:
+                    const InputDecoration(labelText: 'Notes / agenda')),
             const SizedBox(height: 18),
             FilledButton(
               onPressed: _saving ? null : _save,
