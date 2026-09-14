@@ -18,11 +18,26 @@ class MeetingPage {
 class MeetingService {
   final _api = ApiClient.instance;
 
-  Future<MeetingPage> list({int page = 1, int perPage = 10}) async {
-    final response = await _api.get(
-      'meetings?page=$page&per_page=$perPage',
-      cacheable: true,
-    );
+   Future<MeetingPage> list({
+    int page = 1,
+    int perPage = 10,
+    String? search,
+    String? status,
+  }) async {
+    final params = <String, String>{
+      'page': '$page',
+      'per_page': '$perPage',
+    };
+    if (search != null && search.trim().isNotEmpty) {
+      params['search'] = search.trim();
+    }
+    if (status != null && status.isNotEmpty) {
+      params['status'] = status;
+    }
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    final response = await _api.get('meetings?$query', cacheable: true);
     final rows =
         (response['data'] as List? ?? const []).cast<Map<String, dynamic>>();
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,8 +16,19 @@ class MeetingsScreen extends StatefulWidget {
 
 class _MeetingsScreenState extends State<MeetingsScreen> {
   final _service = MeetingService();
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+
   List<Meeting> _meetings = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  int _page = 1;
+  int _total = 0;
+  String _searchQuery = '';
+  String? _statusFilter;
+
+  static const _perPage = 20;
 
   @override
   void initState() {
@@ -24,58 +36,28 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     _load();
   }
 
-  List<Meeting> _extractMeetings(dynamic result) {
-    if (result == null) {
-      return <Meeting>[];
-    }
-
-    if (result is List<Meeting>) {
-      return List<Meeting>.from(result);
-    }
-
-    if (result is List) {
-      return result.whereType<Meeting>().toList(growable: false);
-    }
-
-    dynamic collection;
-
-    for (final getter in <dynamic Function()>[
-      () => result.meetings,
-      () => result.data,
-      () => result.records,
-      () => result.results,
-      () => result.list,
-      () => result.values,
-      () => result.items,
-    ]) {
-      try {
-        final value = getter();
-        if (value is List) {
-          collection = value;
-          break;
-        }
-      } catch (_) {}
-    }
-
-    if (collection is List) {
-      return collection.whereType<Meeting>().toList(growable: false);
-    }
-
-    throw StateError(
-      'MeetingService returned a MeetingPage whose meeting collection '
-      'could not be resolved.',
-    );
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final dynamic result = await _service.list();
-      final meetings = _extractMeetings(result);
-
+      final page = await _service.list(
+        page: 1,
+        perPage: _perPage,
+        search: _searchQuery,
+        status: _statusFilter,
+      );
       if (!mounted) return;
       setState(() {
-        _meetings = meetings;
+        _meetings = page.meetings;
+        _page = page.currentPage;
+        _hasMore = page.currentPage < page.lastPage;
+        _total = page.total;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -84,6 +66,55 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _service.list(
+        page: _page + 1,
+        perPage: _perPage,
+        search: _searchQuery,
+        status: _statusFilter,
+      );
+      if (!mounted) return;
+      setState(() {
+        _meetings = [..._meetings, ...page.meetings];
+        _page = page.currentPage;
+        _hasMore = page.currentPage < page.lastPage;
+        _total = page.total;
+        _loadingMore = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {}); // rebuild to show/hide the clear button
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim());
+      _load();
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _load();
+  }
+
+  void _setStatusFilter(String? status) {
+    if (_statusFilter == status) return;
+    setState(() => _statusFilter = status);
+    _load();
   }
 
   void _openSync() {
@@ -128,6 +159,24 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _openLocation(String raw) async {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Could not open link.')));
+    }
+  }
+
+  bool _isUrl(String value) {
+    final uri = Uri.tryParse(value.trim());
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
   Color _statusColor(String status) {
@@ -190,6 +239,45 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     );
   }
 
+  // ── Status filter chip ──
+  Widget _filterChip(String label, String? value) {
+    final selected = _statusFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => _setStatusFilter(value),
+      ),
+    );
+  }
+
+  // ── Location: plain text, or an "Open Link" chip when it's a URL ──
+  Widget _locationWidget(Meeting meeting) {
+    final location = meeting.location;
+    if (location == null || location.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (!_isUrl(location)) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          location,
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: ActionChip(
+        avatar: const Icon(Icons.open_in_new, size: 16),
+        label: const Text('Open Link'),
+        visualDensity: VisualDensity.compact,
+        onPressed: () => _openLocation(location),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,131 +304,198 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                   Center(child: CircularProgressIndicator()),
                 ],
               )
-            : _meetings.isEmpty
-                ? ListView(children: const [
-                    SizedBox(height: 180),
-                    Center(
-                        child: Text(
-                            'No meetings yet. Add one or sync your calendar.')),
-                  ])
-                : ListView(
-                    padding: const EdgeInsets.all(12),
-                    children: [
-                      // ── Internal meetings stats cards ──
-                      if (_internalMeetings.isNotEmpty) ...[
-                        Text('Internal Meetings',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 80,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _statCard('Total', '$_totalCount',
-                                  Icons.calendar_today, const Color(0xFF6366F1)),
-                              _statCard('Upcoming', '$_upcomingCount',
-                                  Icons.event, const Color(0xFF0EA5E9)),
-                              _statCard('Completed', '$_completedCount',
-                                  Icons.check_circle, const Color(0xFF059669)),
-                              _statCard('Attendees', '$_attendeeCount',
-                                  Icons.people, const Color(0xFF3B82F6)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+            : ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  // ── Search bar ──
+                  TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    decoration: InputDecoration(
+                      hintText: 'Search meetings…',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchController.text.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearSearch,
+                            ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // ── Status filter chips ──
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _filterChip('All', null),
+                        _filterChip('Scheduled', 'scheduled'),
+                        _filterChip('Completed', 'completed'),
+                        _filterChip('Cancelled', 'cancelled'),
                       ],
-                      // ── Meeting list ──
-                      ...List.generate(_meetings.length, (index) {
-                        final meeting = _meetings[index];
-                        return Dismissible(
-                          key: ValueKey(meeting.id),
-                          direction: DismissDirection.endToStart,
-                          confirmDismiss: (_) async =>
-                              await showDialog<bool>(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text('Delete meeting?'),
-                                  content: Text(meeting.title),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text('Cancel')),
-                                    FilledButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: const Text('Delete')),
-                                  ],
-                                ),
-                              ) ??
-                              false,
-                          onDismissed: (_) => _delete(meeting),
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 24),
-                            color: Colors.red,
-                            child:
-                                const Icon(Icons.delete, color: Colors.white),
-                          ),
-                          child: Card(
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: _statusColor(meeting.status)
-                                    .withValues(alpha: .12),
-                                child: Icon(Icons.calendar_month,
-                                    color: _statusColor(meeting.status)),
-                              ),
-                              title: Row(children: [
-                                Expanded(
-                                    child: Text(meeting.title,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700))),
-                                if (meeting.isRecurring ||
-                                    meeting.isGeneratedInstance)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 8),
-                                    child: Icon(Icons.repeat, size: 16),
-                                  ),
-                              ]),
-                              subtitle: Text(
-                                '${DateFormat('yMMMd – jm').format(meeting.startAt)}'
-                                '${meeting.location != null ? ' · ${meeting.location}' : ''}',
-                              ),
-                              onTap: () => _openForm(existing: meeting),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (meeting.diaryJoinUrl != null)
-                                    IconButton(
-                                      tooltip: 'Join meeting',
-                                      icon: const Icon(Icons.launch,
-                                          color: Color(0xFF059669)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ── Internal meetings stats cards ──
+                  if (_internalMeetings.isNotEmpty) ...[
+                    Text('Internal Meetings',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 80,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _statCard('Total', '$_totalCount',
+                              Icons.calendar_today, const Color(0xFF6366F1)),
+                          _statCard('Upcoming', '$_upcomingCount',
+                              Icons.event, const Color(0xFF0EA5E9)),
+                          _statCard('Completed', '$_completedCount',
+                              Icons.check_circle, const Color(0xFF059669)),
+                          _statCard('Attendees', '$_attendeeCount',
+                              Icons.people, const Color(0xFF3B82F6)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  // ── Empty state ──
+                  if (_meetings.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 80),
+                      child: Center(
+                        child: Text(
+                          _searchQuery.isNotEmpty || _statusFilter != null
+                              ? 'No meetings match your search.'
+                              : 'No meetings yet. Add one or sync your calendar.',
+                        ),
+                      ),
+                    )
+                  else ...[
+                    // ── Meeting list ──
+                    ...List.generate(_meetings.length, (index) {
+                      final meeting = _meetings[index];
+                      return Dismissible(
+                        key: ValueKey(meeting.id),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (_) async =>
+                            await showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('Delete meeting?'),
+                                content: Text(meeting.title),
+                                actions: [
+                                  TextButton(
                                       onPressed: () =>
-                                          _joinMeeting(meeting),
-                                    ),
-                                  IconButton(
-                                    tooltip:
-                                        'Recording, transcript & summary',
-                                    icon: const Icon(Icons.mic_none),
-                                    onPressed: () =>
-                                        Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              MeetingDetailScreen(
-                                                  meeting: meeting)),
-                                    ),
-                                  ),
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel')),
+                                  FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Delete')),
                                 ],
                               ),
+                            ) ??
+                            false,
+                        onDismissed: (_) => _delete(meeting),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 24),
+                          color: Colors.red,
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        child: Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _statusColor(meeting.status)
+                                  .withValues(alpha: .12),
+                              child: Icon(Icons.calendar_month,
+                                  color: _statusColor(meeting.status)),
+                            ),
+                            title: Row(children: [
+                              Expanded(
+                                  child: Text(meeting.title,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700))),
+                              if (meeting.isRecurring ||
+                                  meeting.isGeneratedInstance)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: Icon(Icons.repeat, size: 16),
+                                ),
+                            ]),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(DateFormat('yMMMd – jm')
+                                    .format(meeting.startAt)),
+                                _locationWidget(meeting),
+                              ],
+                            ),
+                            onTap: () => _openForm(existing: meeting),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (meeting.diaryJoinUrl != null)
+                                  IconButton(
+                                    tooltip: 'Join meeting',
+                                    icon: const Icon(Icons.launch,
+                                        color: Color(0xFF059669)),
+                                    onPressed: () =>
+                                        _joinMeeting(meeting),
+                                  ),
+                                IconButton(
+                                  tooltip:
+                                      'Recording, transcript & summary',
+                                  icon: const Icon(Icons.mic_none),
+                                  onPressed: () =>
+                                      Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            MeetingDetailScreen(
+                                                meeting: meeting)),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      }),
-                    ],
-                  ),
+                        ),
+                      );
+                    }),
+                    // ── Load more ──
+                    if (_hasMore)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: _loadingMore
+                            ? const Center(
+                                child: CircularProgressIndicator())
+                            : OutlinedButton.icon(
+                                onPressed: _loadMore,
+                                icon: const Icon(Icons.expand_more),
+                                label: const Text('Load more'),
+                              ),
+                      ),
+                    if (!_hasMore && _meetings.length > _perPage)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Text(
+                            'Showing all $_total meetings',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
       ),
     );
   }
