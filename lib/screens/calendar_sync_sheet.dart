@@ -36,6 +36,32 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
     final now = DateTime.now();
     _from = DateTime(now.year, now.month, 1);
     _to = DateTime(now.year, now.month + 1, 0);
+    _restoreSelection();
+  }
+
+  Future<void> _restoreSelection() async {
+    final selection = await _service.lastSelection();
+    if (!mounted || selection == null) return;
+
+    final from = selection['from'] as DateTime?;
+    final to = selection['to'] as DateTime?;
+    if (from == null || to == null) return;
+
+    setState(() {
+      _provider = (selection['provider'] as String?) ?? 'all';
+      _from = from;
+      _to = to;
+      _includeRecurring = (selection['includeRecurring'] as bool?) ?? true;
+    });
+  }
+
+  Future<void> _persistSelection() async {
+    await _service.saveSelection(
+      provider: _provider,
+      from: _from,
+      to: _to,
+      includeRecurring: _includeRecurring,
+    );
   }
 
   Future<void> _pickFrom() async {
@@ -54,6 +80,7 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
         _to = _from;
       }
     });
+    _persistSelection();
   }
 
   Future<void> _pickTo() async {
@@ -67,6 +94,7 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
     if (date == null) return;
 
     setState(() => _to = date);
+    _persistSelection();
   }
 
   void _quickRange(String range) {
@@ -100,6 +128,7 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
           break;
       }
     });
+    _persistSelection();
   }
 
   Future<void> _sync() async {
@@ -124,14 +153,21 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
         includeRecurring: _includeRecurring,
       );
 
+      await _service.clearPending();
+      await _persistSelection();
+
       if (!mounted) return;
 
       setState(() => _result = result);
       widget.onCompleted();
     } on ApiException catch (e) {
+      await _service.markPending();
+      await _persistSelection();
       if (!mounted) return;
       setState(() => _error = e.message);
     } catch (_) {
+      await _service.markPending();
+      await _persistSelection();
       if (!mounted) return;
       setState(() {
         _error = 'Calendar sync could not be completed. Please try again.';
@@ -217,6 +253,7 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
                     ? null
                     : (value) {
                         setState(() => _provider = value ?? 'all');
+                        _persistSelection();
                       },
               ),
               const SizedBox(height: 14),
@@ -276,6 +313,7 @@ class _CalendarSyncSheetState extends State<CalendarSyncSheet> {
                     ? null
                     : (value) {
                         setState(() => _includeRecurring = value);
+                        _persistSelection();
                       },
               ),
               if (_error != null) ...[

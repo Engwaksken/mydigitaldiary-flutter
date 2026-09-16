@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:intl/intl.dart';
 import '../services/api_client.dart';
+import '../services/meeting_calendar_sync_service.dart';
 import '../services/pending_recording_sync_service.dart';
 import '../services/sync_status_service.dart';
 import '../services/offline_mutation_queue.dart';
@@ -121,6 +123,69 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
     } catch (_) {
       // Connectivity is advisory; failed sync will be attempted again on the
       // next reconnect/app launch without blocking the user.
+    }
+
+    await _promptPendingCalendarSync();
+  }
+
+  /// If a calendar-sync with selected dates was interrupted while offline,
+  /// offer to run it again now that we're back online. Confirmed by the
+  /// user rather than run automatically, so nothing is synced behind their
+  /// back.
+  Future<void> _promptPendingCalendarSync() async {
+    if (!mounted) return;
+
+    final service = const MeetingCalendarSyncService();
+    if (!await service.hasPending()) return;
+
+    final selection = await service.lastSelection();
+    final from = selection?['from'] as DateTime?;
+    final to = selection?['to'] as DateTime?;
+    if (from == null || to == null) {
+      await service.clearPending();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final df = DateFormat('d MMM yyyy');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sync calendar dates?'),
+        content: Text(
+          'Your previous calendar sync for the selected dates '
+          '(${df.format(from)} – ${df.format(to)}) did not finish while you '
+          'were offline. Sync it now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sync now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final result = await service.resyncPending();
+      if (!mounted || result == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Calendar synced — ${result.imported} imported, '
+            '${result.updated} updated, ${result.failed} failed.',
+          ),
+        ),
+      );
+    } catch (_) {
+      // Keep the pending flag so the next reconnect can offer it again.
     }
   }
 
