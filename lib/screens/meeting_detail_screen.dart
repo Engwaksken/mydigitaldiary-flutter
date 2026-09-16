@@ -13,6 +13,7 @@ import '../services/meeting_recording_service.dart';
 import '../services/pending_recording_sync_service.dart';
 import '../services/api_client.dart';
 import '../widgets/confirm_action_dialog.dart';
+import 'extra_recording_quota_screen.dart';
 
 /// Recording, transcript, and AI summary for one meeting — the mobile
 /// equivalent of the web app's MediaRecorder-based flow, using the
@@ -530,9 +531,44 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       await _service.transcribe(recording.id, language: _transcriptionLanguage);
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (!mounted) return;
+      if (e.errorCode == 'recording_too_large') {
+        await _showRecordingTooLargeDialog();
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _showRecordingTooLargeDialog() async {
+    final topUp = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recording too large'),
+        content: const Text(
+            'This recording is bigger than the 25 MB limit, so it can\'t be '
+            'transcribed. Please top up your extra recording quota or record a '
+            'shorter meeting.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.credit_card),
+            label: const Text('Top Up Quota'),
+          ),
+        ],
+      ),
+    );
+    if (topUp == true && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+            builder: (_) => const ExtraRecordingQuotaScreen()),
+      );
     }
   }
 

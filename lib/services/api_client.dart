@@ -17,7 +17,12 @@ class ApiException implements Exception {
   final String message;
   final Map<String, dynamic>? errors;
 
-  ApiException(this.statusCode, this.message, [this.errors]);
+  /// Optional machine-readable error code the server can attach (e.g.
+  /// 'recording_too_large') so the UI can special-case it instead of
+  /// only matching on human-readable message text.
+  final String? errorCode;
+
+  ApiException(this.statusCode, this.message, [this.errors, this.errorCode]);
 
   @override
   String toString() => message;
@@ -485,6 +490,10 @@ class ApiClient {
         ? Map<String, dynamic>.from(decoded['errors'] as Map)
         : null;
 
-    throw ApiException(response.statusCode, message, errors);
+    final errorCode = decoded is Map && decoded['error_code'] is String
+        ? decoded['error_code'] as String
+        : null;
+
+    throw ApiException(response.statusCode, message, errors, errorCode);
   }
 }
