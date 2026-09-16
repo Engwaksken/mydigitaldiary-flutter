@@ -47,6 +47,9 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
   final _instagramController = TextEditingController();
 
   XFile? _pickedPhoto;
+  XFile? _pickedLogo;
+  Uint8List? _serverLogoBytes;
+  bool _removeLogo = false;
   String _cardColor = '#00897B';
   String _cardColorSecondary = '#73BEB6';
 
@@ -102,10 +105,18 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
           // Keep the form usable even if an older/broken public photo URL exists.
         }
       }
+      Uint8List? logoBytes;
+      if (card?.logoUrl != null) {
+        try {
+          final bytes = await _service.logoBytes();
+          if (bytes.isNotEmpty) logoBytes = Uint8List.fromList(bytes);
+        } catch (_) {}
+      }
       if (!mounted) return;
       _applyCard(card);
       setState(() {
         _serverPhotoBytes = photoBytes;
+        _serverLogoBytes = logoBytes;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -158,6 +169,21 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
     if (picked != null && mounted) setState(() => _pickedPhoto = picked);
   }
 
+  Future<void> _pickLogo() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 90,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _pickedLogo = picked;
+        _removeLogo = false;
+      });
+    }
+  }
+
   String? _nullable(TextEditingController controller) {
     final value = controller.text.trim();
     return value.isEmpty ? null : value;
@@ -203,10 +229,21 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
         }
       }
 
+      List<int>? logoBytes;
+      if (_pickedLogo != null) {
+        logoBytes = await File(_pickedLogo!.path).readAsBytes();
+        if (logoBytes.isEmpty) {
+          throw const FormatException('The selected logo is empty.');
+        }
+      }
+
       final saved = await _service.save(
         draft,
         photoBytes: photoBytes,
         photoFilename: _pickedPhoto?.name,
+        logoBytes: logoBytes,
+        logoFilename: _pickedLogo?.name,
+        removeLogo: _removeLogo && _pickedLogo == null,
       );
 
       // Re-read after save so the screen uses canonical values and the
@@ -219,10 +256,20 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
           if (bytes.isNotEmpty) refreshedPhotoBytes = Uint8List.fromList(bytes);
         } catch (_) {}
       }
+      Uint8List? refreshedLogoBytes;
+      if (refreshed.logoUrl != null) {
+        try {
+          final bytes = await _service.logoBytes();
+          if (bytes.isNotEmpty) refreshedLogoBytes = Uint8List.fromList(bytes);
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _pickedPhoto = null;
+        _pickedLogo = null;
+        _removeLogo = false;
         _serverPhotoBytes = refreshedPhotoBytes;
+        _serverLogoBytes = refreshedLogoBytes;
         _applyCard(refreshed);
         _saving = false;
       });
@@ -374,6 +421,56 @@ class _BusinessCardScreenState extends State<BusinessCardScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                Center(
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: _pickLogo,
+                        child: _pickedLogo != null
+                            ? Image.file(File(_pickedLogo!.path),
+                                height: 56,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.business, size: 40))
+                            : (_serverLogoBytes != null
+                                ? Image.memory(_serverLogoBytes!,
+                                    height: 56,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.business, size: 40))
+                                : Container(
+                                    height: 56,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: Colors.grey.shade400),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.business_outlined),
+                                        SizedBox(width: 8),
+                                        Text('Add Company Logo'),
+                                      ],
+                                    ),
+                                  )),
+                      ),
+                      if (_pickedLogo == null && _serverLogoBytes != null)
+                        TextButton(
+                          onPressed: () => setState(() => _removeLogo = true),
+                          child: Text(
+                            _removeLogo ? 'Logo will be removed on save' : 'Remove logo',
+                            style: TextStyle(
+                              color: _removeLogo
+                                  ? Colors.red
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
                 _field(_nameController, 'Name *'),
                 const SizedBox(height: 12),
                 _field(_titleController, 'Job Title'),

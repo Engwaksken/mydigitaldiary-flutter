@@ -11,6 +11,7 @@ class BusinessCard {
   final String? bio;
   final Map<String, dynamic> socialLinks;
   final String? photoUrl;
+  final String? logoUrl;
   final String? publicUrl;
   final String? qrCodeUrl;
   final bool isPublished;
@@ -30,6 +31,7 @@ class BusinessCard {
     this.bio,
     this.socialLinks = const {},
     this.photoUrl,
+    this.logoUrl,
     this.publicUrl,
     this.qrCodeUrl,
     this.isPublished = true,
@@ -52,6 +54,7 @@ class BusinessCard {
             ? Map<String, dynamic>.from(json['social_links'])
             : {},
         photoUrl: json['photo_url'],
+        logoUrl: json['logo_url'],
         publicUrl: json['public_url'],
         qrCodeUrl: json['qr_code_url'],
         isPublished: json['is_published'] ?? true,

@@ -14,20 +14,44 @@ class BusinessCardService {
     BusinessCard card, {
     List<int>? photoBytes,
     String? photoFilename,
+    List<int>? logoBytes,
+    String? logoFilename,
+    bool removeLogo = false,
   }) async {
     dynamic response;
 
-    if (photoBytes != null && photoFilename != null) {
-      response = await _api.postMultipart(
+    final files = <MultipartUploadFile>[
+      if (photoBytes != null && photoFilename != null)
+        MultipartUploadFile(
+          fieldName: 'photo',
+          bytes: photoBytes,
+          fileName: photoFilename,
+          contentType: _imageContentType(photoFilename),
+        ),
+      if (logoBytes != null && logoFilename != null)
+        MultipartUploadFile(
+          fieldName: 'logo',
+          bytes: logoBytes,
+          fileName: logoFilename,
+          contentType: _imageContentType(logoFilename),
+        ),
+    ];
+
+    final fields = card.toFormFields();
+    if (removeLogo) fields['remove_logo'] = '1';
+
+    if (files.isNotEmpty) {
+      response = await _api.multipart(
         'business-card',
-        fileFieldName: 'photo',
-        fileBytes: photoBytes,
-        fileName: photoFilename,
-        contentType: _imageContentType(photoFilename),
-        fields: card.toFormFields(),
+        fileFieldName: files.first.fieldName,
+        fileBytes: files.first.bytes,
+        fileName: files.first.fileName,
+        contentType: files.first.contentType,
+        fields: fields,
+        files: files.sublist(1),
       );
     } else {
-      response = await _api.post('business-card', card.toFormFields());
+      response = await _api.post('business-card', fields);
     }
 
     return BusinessCard.fromJson(Map<String, dynamic>.from(response['data']));
@@ -39,6 +63,8 @@ class BusinessCardService {
   }
 
   Future<List<int>> photoBytes() => _api.downloadBytes('business-card/photo');
+
+  Future<List<int>> logoBytes() => _api.downloadBytes('business-card/logo');
 
   Future<List<int>> downloadPdfBytes() =>
       _api.downloadBytes('business-card/pdf');
