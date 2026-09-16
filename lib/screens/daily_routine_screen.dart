@@ -59,6 +59,56 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
         : <Map<String, dynamic>>[];
   }
 
+  List<String> _stringList(String key) {
+    final raw = _data[key];
+    return raw is List
+        ? raw.whereType<String>().toList(growable: false)
+        : const <String>[];
+  }
+
+  Widget _suggestionChips(String label, List<String> options, TextEditingController controller) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 6),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: options.take(6).map((option) {
+            final selected = controller.text.trim() == option;
+            return FilterChip(
+              label: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220),
+                child: Text(
+                  option,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              selected: selected,
+              selectedColor: const Color(0xFFDBEAFE),
+              visualDensity: VisualDensity.compact,
+              onSelected: (_) {
+                setState(() {
+                  if (selected) {
+                    controller.clear();
+                  } else {
+                    controller.text = option;
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 2),
+      ],
+    );
+  }
+
   Widget _section(String title, IconData icon, List<Map<String, dynamic>> rows, String Function(Map<String, dynamic>) label, {String empty = 'Nothing due here.'}) {
     return Card(
       child: Padding(
@@ -149,6 +199,8 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
     final relationships = _rows('relationships');
     final reminders = _rows('reminders');
     final tasksDue = _rows('tasks_due');
+    final reflectionSuggestions = _stringList('reflection_suggestions');
+    final gratitudeSuggestions = _stringList('gratitude_suggestions');
 
     return Scaffold(
       appBar: AppBar(title: Text(_start ? 'Start Day' : 'End Day'), actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh_rounded))]),
@@ -207,6 +259,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
                 }),
               ),
               const SizedBox(height: 10),
+              _suggestionChips(_start ? 'Choose a focus for today' : 'Choose a reflection', reflectionSuggestions, _reflection),
               TextField(
                 controller: _reflection,
                 minLines: 3,
@@ -214,6 +267,7 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> {
                 decoration: InputDecoration(labelText: _start ? 'Daily intention / focus' : 'Reflection, wins and challenges'),
               ),
               const SizedBox(height: 10),
+              _suggestionChips('Choose a gratitude', gratitudeSuggestions, _gratitude),
               TextField(controller: _gratitude, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Gratitude / something worth noticing')),
               if (!_start) ...[
                 const SizedBox(height: 10),
