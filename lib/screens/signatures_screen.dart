@@ -231,6 +231,16 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _view(SignedDocument doc) async {
+    final uri = Uri.parse(doc.downloadUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Could not open the document.')));
+    }
+  }
+
   Future<void> _delete(SignedDocument doc) async {
     final confirmed = await showAppConfirmDialog(context,
         title: 'Delete this document?',
@@ -472,6 +482,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  IconButton(
+                                      icon: const Icon(Icons.visibility_outlined),
+                                      tooltip: 'View document',
+                                      onPressed: () => _view(doc)),
                                   IconButton(
                                       icon: const Icon(Icons.share_outlined),
                                       onPressed: () => _shareOne(doc)),
