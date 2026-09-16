@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/subscription.dart';
 import '../services/subscription_service.dart';
 import '../services/api_client.dart';
+import 'extra_recording_quota_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -427,6 +428,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     _SubscriptionValueCard(
                         summary: Map<String, dynamic>.from(
                             _status!['value_summary'] as Map)),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.av_timer_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      title: const Text('Extra recording quota',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text(
+                          'Buy extra transcription minutes when your '
+                          'plan allowance runs out.'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ExtraRecordingQuotaScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Text('Choose your plan',
                       style: Theme.of(context).textTheme.titleMedium),
