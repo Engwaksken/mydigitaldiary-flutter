@@ -59,7 +59,7 @@ class ApiClient {
   /// alias for the host machine's localhost — a physical device needs your
   /// computer's real LAN IP (e.g. http://192.168.1.50:8000/api) instead,
   /// and production needs your real domain over https.
-  static const String baseUrl = 'https://diary.kemmytech.com/api';
+  static const String baseUrl = 'https://my-digital-diary.com/api';
 
   // A connected Wi-Fi/mobile interface does not guarantee the API server is
   // reachable. Never let a socket keep the app on the splash screen for
