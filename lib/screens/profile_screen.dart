@@ -118,15 +118,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _selectedCurrency = (data['selected'] ?? '').toString().toUpperCase();
-        _currencyOptions = (data['options'] as List? ?? const [])
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList();
+        _currencyOptions = _sanitizeCurrencyOptions(
+          data['options'] as List? ?? const [],
+        );
         _currencyLoading = false;
       });
     } catch (_) {
       if (mounted) setState(() => _currencyLoading = false);
     }
+  }
+
+  List<Map<String, dynamic>> _sanitizeCurrencyOptions(List<dynamic>? rows) {
+    final seen = <String>{};
+    final result = <Map<String, dynamic>>[];
+    for (final row in rows ?? const []) {
+      if (row is! Map) continue;
+      final code = (row['code'] ?? '').toString().trim().toUpperCase();
+      if (code.isEmpty || !seen.add(code)) continue;
+      result.add(Map<String, dynamic>.from(row)..['code'] = code);
+    }
+    return result;
   }
 
   Future<void> _openCurrencyPicker() async {
@@ -291,10 +302,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _selectedCurrency = (data['selected'] ?? chosen)
             .toString()
             .toUpperCase();
-        _currencyOptions = (data['options'] as List? ?? _currencyOptions)
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList();
+        _currencyOptions = _sanitizeCurrencyOptions(
+          data['options'] as List? ?? _currencyOptions,
+        );
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Currency changed to $_selectedCurrency.')),
