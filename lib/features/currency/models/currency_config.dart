@@ -12,10 +12,11 @@ class CurrencyMeta {
   final int decimals;
 
   factory CurrencyMeta.fromJson(String code, Map<String, dynamic> json) {
+    final normalized = code.trim().toUpperCase();
     return CurrencyMeta(
-      code: code,
-      name: (json['name'] ?? code).toString(),
-      symbol: (json['symbol'] ?? code).toString(),
+      code: normalized,
+      name: (json['name'] ?? normalized).toString(),
+      symbol: (json['symbol'] ?? normalized).toString(),
       decimals: int.tryParse('${json['decimals'] ?? 2}') ?? 2,
     );
   }
@@ -39,18 +40,26 @@ class CurrencyConfig {
   factory CurrencyConfig.fromJson(Map<String, dynamic> json) {
     final raw =
         (json['currencies'] as Map?)?.cast<String, dynamic>() ?? const {};
-    return CurrencyConfig(
-      baseCurrency: (json['base_currency'] ?? 'UGX').toString(),
-      displayCurrency: (json['display_currency'] ?? 'UGX').toString(),
-      rate: double.tryParse('${json['rate'] ?? 1}') ?? 1,
-      allowUserSelection: json['allow_user_selection'] == true ||
-          json['allow_user_selection'] == 1,
-      currencies: raw.map(
-        (key, value) => MapEntry(
-          key,
-          CurrencyMeta.fromJson(key, (value as Map).cast<String, dynamic>()),
-        ),
+    final normalizedCurrencies = raw.map(
+      (key, value) => MapEntry(
+        key.trim().toUpperCase(),
+        CurrencyMeta.fromJson(key, (value as Map).cast<String, dynamic>()),
       ),
+    );
+    return CurrencyConfig(
+      baseCurrency: (json['base_currency'] ?? 'UGX')
+          .toString()
+          .trim()
+          .toUpperCase(),
+      displayCurrency: (json['display_currency'] ?? 'UGX')
+          .toString()
+          .trim()
+          .toUpperCase(),
+      rate: double.tryParse('${json['rate'] ?? 1}') ?? 1,
+      allowUserSelection:
+          json['allow_user_selection'] == true ||
+          json['allow_user_selection'] == 1,
+      currencies: normalizedCurrencies,
     );
   }
 }

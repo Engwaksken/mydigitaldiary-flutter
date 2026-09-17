@@ -704,7 +704,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Recording too large'),
         content: const Text(
-          'This recording is bigger than the 25 MB limit, so it can\'t be '
+          'This recording is bigger than the 30 MB limit, so it can\'t be '
           'transcribed. Please top up your extra recording quota or record a '
           'shorter meeting.',
         ),

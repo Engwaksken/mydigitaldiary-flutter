@@ -277,6 +277,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
 
   bool get _isHealth => widget.config.endpoint == 'health-checkups';
 
+  bool get _isProjects => widget.config.endpoint == 'projects';
+
   List<DynamicItem> get _visibleItems {
     final items = _educationStatusFilter == 'all'
         ? List<DynamicItem>.from(_items)
@@ -339,6 +341,15 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
           item['checkup_date']?.toString() ??
           '',
     );
+    if (date == null) return null;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final due = DateUtils.dateOnly(date);
+    return _dayLabel(due.difference(today).inDays);
+  }
+
+  String? _projectDueLabel(DynamicItem item) {
+    if (!_isProjects || item['status'] == 'completed') return null;
+    final date = DateTime.tryParse(item['deadline']?.toString() ?? '');
     if (date == null) return null;
     final today = DateUtils.dateOnly(DateTime.now());
     final due = DateUtils.dateOnly(date);
@@ -603,7 +614,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                             }
                             final dueLabel =
                                 _educationDueLabel(item) ??
-                                _healthDueLabel(item);
+                                _healthDueLabel(item) ??
+                                _projectDueLabel(item);
                             if (dueLabel != null) subtitleParts.add(dueLabel);
 
                             return Dismissible(

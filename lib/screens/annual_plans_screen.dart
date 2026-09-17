@@ -565,7 +565,16 @@ class _AnnualPlansScreenState extends State<AnnualPlansScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (target != null)
+                  if (target != null) ...[
+                    Text(
+                      _daysLeftLabel(target),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: _daysLeftColor(target),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       'Target: ${DateFormat('d MMM yyyy').format(target)}',
                       style: const TextStyle(
@@ -573,6 +582,7 @@ class _AnnualPlansScreenState extends State<AnnualPlansScreen> {
                         color: Color(0xFF94A3B8),
                       ),
                     ),
+                  ],
                 ],
               ),
             ],
@@ -580,6 +590,27 @@ class _AnnualPlansScreenState extends State<AnnualPlansScreen> {
         ),
       ),
     );
+  }
+
+  String _daysLeftLabel(DateTime target) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(target.year, target.month, target.day);
+    final days = due.difference(today).inDays;
+    if (days < 0) return '${-days}d overdue';
+    if (days == 0) return 'Due today';
+    if (days == 1) return 'Due tomorrow';
+    return '$days days left';
+  }
+
+  Color _daysLeftColor(DateTime target) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(target.year, target.month, target.day);
+    final days = due.difference(today).inDays;
+    if (days < 0) return const Color(0xFFDC2626);
+    if (days <= 7) return const Color(0xFFD97706);
+    return const Color(0xFF00897B);
   }
 
   @override

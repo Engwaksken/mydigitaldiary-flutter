@@ -1029,18 +1029,25 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _refreshTodayInsight() async {
     var insight = <String, dynamic>{};
 
-    // Short timeout so this secondary fetch never holds the page open, and
-    // cacheable so a slow/failed refresh still serves the last insight the
-    // server produced instead of dropping back to a generic card.
+    // Never cache this response on the device. A server-side AI failure can
+    // return a fallback insight, and caching it would pin the "temporarily
+    // unavailable" copy on Home until the cache is cleared.
     try {
       final response = await ApiClient.instance
-          .get('dashboard/today-insight', cacheable: true)
+          .get('dashboard/today-insight', cacheable: false)
           .timeout(const Duration(seconds: 7));
 
       dynamic payload = response;
       if (payload is Map && payload['data'] is Map) payload = payload['data'];
       if (payload is Map && payload.isNotEmpty) {
         insight = Map<String, dynamic>.from(payload);
+      }
+
+      // The server fell back to the generic copy (e.g. active AI provider
+      // hiccuped). Ask Laravel to regenerate the insight through the active
+      // AI right now, so Home doesn't sit on the fallback for hours.
+      if ((insight['generated_by']?.toString() ?? '') == 'ai_fallback') {
+        insight = await _regenerateTodayInsight() ?? insight;
       }
     } catch (_) {
       // Transient failure: keep whatever insight the main dashboard payload
@@ -1068,6 +1075,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
 
     _scheduleInsightRefresh(insight['refresh_after']?.toString());
+  }
+
+  /// Ask Laravel to regenerate Today's Insight through the active AI provider.
+  /// Returns null when the refresh cannot run (e.g. server rate limit) so the
+  /// caller keeps whatever it already has.
+  Future<Map<String, dynamic>?> _regenerateTodayInsight() async {
+    try {
+      final response = await ApiClient.instance
+          .post('dashboard/today-insight/refresh', const {})
+          .timeout(const Duration(seconds: 10));
+
+      dynamic payload = response;
+      if (payload is Map && payload['data'] is Map) payload = payload['data'];
+      if (payload is Map && payload.isNotEmpty) {
+        return Map<String, dynamic>.from(payload);
+      }
+    } catch (_) {
+      // Rate-limited or unreachable: keep the existing insight.
+    }
+    return null;
   }
 
   void _scheduleInsightRefresh(String? refreshAfter) {

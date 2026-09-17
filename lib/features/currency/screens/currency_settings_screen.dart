@@ -12,9 +12,7 @@ class CurrencySettingsScreen extends StatelessWidget {
     final config = currency.config;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Currency'),
-      ),
+      appBar: AppBar(title: const Text('Currency')),
       body: RefreshIndicator(
         onRefresh: currency.refreshRate,
         child: ListView(
@@ -23,10 +21,7 @@ class CurrencySettingsScreen extends StatelessWidget {
           children: [
             const Text(
               'Display currency',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             const Text(
@@ -37,9 +32,7 @@ class CurrencySettingsScreen extends StatelessWidget {
             if (currency.loading && config == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               )
             else if (config == null)
               _CurrencyLoadError(
@@ -47,55 +40,62 @@ class CurrencySettingsScreen extends StatelessWidget {
                 onRetry: currency.load,
               )
             else ...[
-              DropdownButtonFormField<String>(
-                /*
-                 * Flutter 3.33+ deprecated value: for form fields.
-                 * initialValue is the supported replacement.
-                 *
-                 * The key forces a fresh form-field state if Laravel returns
-                 * a different authoritative display currency.
-                 */
-                key: ValueKey<String>(
-                  'currency-${currency.selectedCurrency}',
-                ),
-                initialValue: currency.selectedCurrency,
-                decoration: const InputDecoration(
-                  labelText: 'Currency',
-                  border: OutlineInputBorder(),
-                ),
-                items: config.currencies.entries
-                    .map(
-                      (entry) => DropdownMenuItem<String>(
-                        value: entry.key,
-                        child: Text(
-                          '${entry.key} — ${entry.value.name}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: config.allowUserSelection && !currency.loading
-                    ? (value) async {
-                        if (value == null) {
-                          return;
-                        }
+              Builder(
+                builder: (context) {
+                  final optionCodes = config.currencies.keys.toList();
+                  final selected =
+                      optionCodes.contains(currency.selectedCurrency)
+                      ? currency.selectedCurrency
+                      : (optionCodes.isNotEmpty ? optionCodes.first : null);
+                  return DropdownButtonFormField<String>(
+                    /*
+                     * Flutter 3.33+ deprecated value: for form fields.
+                     * initialValue is the supported replacement.
+                     *
+                     * The key forces a fresh form-field state if Laravel returns
+                     * a different authoritative display currency.
+                     */
+                    key: ValueKey<String>(
+                      'currency-${currency.selectedCurrency}',
+                    ),
+                    initialValue: selected,
+                    decoration: const InputDecoration(
+                      labelText: 'Currency',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: config.currencies.entries
+                        .map(
+                          (entry) => DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text('${entry.key} — ${entry.value.name}'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged:
+                        selected == null ||
+                            (!config.allowUserSelection || currency.loading)
+                        ? null
+                        : (value) async {
+                            if (value == null) {
+                              return;
+                            }
 
-                        await currency.selectCurrency(value);
-                      }
-                    : null,
+                            await currency.selectCurrency(value);
+                          },
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Card(
                 child: ListTile(
-                  leading: const Icon(
-                    Icons.currency_exchange,
-                  ),
+                  leading: const Icon(Icons.currency_exchange),
                   title: Text(
                     currency.selectedCurrency == config.baseCurrency
                         ? '1 ${config.baseCurrency} = '
-                            '1 ${config.displayCurrency}'
+                              '1 ${config.displayCurrency}'
                         : '1 ${config.baseCurrency} = '
-                            '${config.rate.toStringAsFixed(8)} '
-                            '${currency.selectedCurrency}',
+                              '${config.rate.toStringAsFixed(8)} '
+                              '${currency.selectedCurrency}',
                   ),
                   subtitle: const Text(
                     'Current exchange rate supplied by My Digital Diary.',
@@ -104,9 +104,7 @@ class CurrencySettingsScreen extends StatelessWidget {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : IconButton(
                           tooltip: 'Refresh exchange rate',
@@ -125,9 +123,7 @@ class CurrencySettingsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   currency.error!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ],
             ],
@@ -157,16 +153,13 @@ class _ConversionExample extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
             const SizedBox(height: 4),
             Text(
               '$base → $converted',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -176,10 +169,7 @@ class _ConversionExample extends StatelessWidget {
 }
 
 class _CurrencyLoadError extends StatelessWidget {
-  const _CurrencyLoadError({
-    required this.message,
-    required this.onRetry,
-  });
+  const _CurrencyLoadError({required this.message, required this.onRetry});
 
   final String message;
   final Future<void> Function() onRetry;
@@ -194,9 +184,7 @@ class _CurrencyLoadError extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
