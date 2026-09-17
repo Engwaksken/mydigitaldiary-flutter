@@ -14,6 +14,7 @@ import '../services/meeting_recording_service.dart';
 import '../services/pending_recording_sync_service.dart';
 import '../services/api_client.dart';
 import '../widgets/confirm_action_dialog.dart';
+import 'api_keys_screen.dart';
 import 'extra_recording_quota_screen.dart';
 
 /// Recording, transcript, and AI summary for one meeting — the mobile
@@ -688,7 +689,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.errorCode == 'recording_too_large') {
-        await _showRecordingTooLargeDialog();
+        await _showTopUpDialog(title: 'Recording too large');
+        return;
+      }
+      if (e.errorCode == 'recording_quota_required') {
+        await _showTopUpDialog(title: 'Recording quota needed');
         return;
       }
       ScaffoldMessenger.of(
@@ -697,33 +702,46 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  Future<void> _showRecordingTooLargeDialog() async {
-    final topUp = await showDialog<bool>(
+  Future<void> _showTopUpDialog({required String title}) async {
+    final message = title == 'Recording quota needed'
+        ? 'Your transcription needs an active subscription or extra recording '
+              'minutes. Top up to continue transcribing this recording.'
+        : 'This recording is bigger than the 30 MB limit, so it can\'t be '
+              'transcribed. Please top up your extra recording quota or record a '
+              'shorter meeting.';
+    final action = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Recording too large'),
-        content: const Text(
-          'This recording is bigger than the 30 MB limit, so it can\'t be '
-          'transcribed. Please top up your extra recording quota or record a '
-          'shorter meeting.',
-        ),
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
           ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'own-key'),
+            icon: const Icon(Icons.key_rounded),
+            label: const Text('Use My Own API Key'),
+          ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(ctx, 'topup'),
             icon: const Icon(Icons.credit_card),
             label: const Text('Top Up Quota'),
           ),
         ],
       ),
     );
-    if (topUp == true && mounted) {
+    if (!mounted) return;
+    if (action == 'topup') {
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const ExtraRecordingQuotaScreen()),
+      );
+      if (mounted) await _load();
+    } else if (action == 'own-key') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ApiKeysScreen()),
       );
     }
   }
@@ -1023,12 +1041,108 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
+                  if (_recordings.isNotEmpty)
+                    _buildTranscriptionCapacityCard(),
                   if (_recordings.isEmpty) const Text('No recordings yet.'),
                   ..._recordings.map(_buildRecordingCard),
                 ],
               ),
             ),
     );
+  }
+
+  Widget _buildTranscriptionCapacityCard() {
+    final first = _recordings.first;
+    final anyHeavy = _recordings.any((r) => r.isOverUploadLimit);
+    final canTranscribe = _recordings.any((r) => r.canTranscribe);
+    final needsAction = !canTranscribe || anyHeavy;
+
+    final parts = <String>[];
+    if (first.hasActiveAccess) {
+      parts.add('Active subscription');
+    }
+    if (first.extraRecordingMinutesRemaining > 0) {
+      final expires = first.extraQuotaExpiresAt;
+      parts.add(
+        '${first.extraRecordingMinutesRemaining} extra min'
+        '${expires != null ? ' (exp ${DateFormat('d MMM').format(expires)})' : ''}',
+      );
+    }
+    if (parts.isEmpty) {
+      parts.add('No active subscription or extra recording quota');
+    }
+    if (anyHeavy) {
+      parts.add('A recording is over the ${first.transcriptionLimitMb} MB limit');
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  canTranscribe ? Icons.check_circle_outline : Icons.lock_outline,
+                  size: 18,
+                  color: canTranscribe ? Colors.green.shade700 : Colors.orange.shade800,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Transcription capacity',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              parts.join(' · '),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            if (needsAction) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _openTopUpScreen,
+                      icon: const Icon(Icons.credit_card, size: 18),
+                      label: const Text('Top Up Quota'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _openApiKeysScreen,
+                      icon: const Icon(Icons.key_rounded, size: 18),
+                      label: const Text('Use My Own API'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openTopUpScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ExtraRecordingQuotaScreen()),
+    );
+    if (mounted) await _load();
+  }
+
+  Future<void> _openApiKeysScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ApiKeysScreen()),
+    );
+    if (mounted) await _load();
   }
 
   Widget _buildRecordingCard(MeetingRecording recording) {
@@ -1055,6 +1169,50 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                 ),
               ],
             ),
+            if (recording.audioUrl != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.data_usage_rounded,
+                    size: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${recording.fileSizeMb.toStringAsFixed(1)} MB · up to '
+                      '${recording.transcriptionLimitMb} MB per recording',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                  if (recording.isOverUploadLimit) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'HEAVY',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
             if (recording.audioUrl != null)
               TextButton.icon(
                 onPressed: () => _openAudio(recording.audioUrl),

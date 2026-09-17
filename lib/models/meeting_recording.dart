@@ -52,6 +52,14 @@ class MeetingRecording {
   final int durationSeconds;
   final String formattedDuration;
   final String? audioUrl;
+  final int fileSizeBytes;
+  final double fileSizeMb;
+  final int transcriptionLimitMb;
+  final bool isOverUploadLimit;
+  final bool hasActiveAccess;
+  final int extraRecordingMinutesRemaining;
+  final DateTime? extraQuotaExpiresAt;
+  final bool canTranscribe;
   final String? transcript;
   final List<TranscriptSegment> transcriptSegments;
   final String transcriptionStatus;
@@ -67,6 +75,14 @@ class MeetingRecording {
     required this.durationSeconds,
     required this.formattedDuration,
     this.audioUrl,
+    this.fileSizeBytes = 0,
+    this.fileSizeMb = 0,
+    this.transcriptionLimitMb = 30,
+    this.isOverUploadLimit = false,
+    this.hasActiveAccess = false,
+    this.extraRecordingMinutesRemaining = 0,
+    this.extraQuotaExpiresAt,
+    this.canTranscribe = false,
     this.transcript,
     required this.transcriptSegments,
     required this.transcriptionStatus,
@@ -101,6 +117,23 @@ class MeetingRecording {
       formattedDuration:
           json['formatted_duration']?.toString() ?? _formatDuration(duration),
       audioUrl: _nullableString(json['audio_url']),
+      fileSizeBytes: _asInt(json['file_size_bytes']),
+      fileSizeMb: _asDouble(json['file_size_mb']),
+      transcriptionLimitMb: json['transcription_limit_mb'] is int
+          ? json['transcription_limit_mb'] as int
+          : (json['transcription_limit_mb'] is num
+              ? (json['transcription_limit_mb'] as num).toInt()
+              : 30),
+      isOverUploadLimit: json['is_over_upload_limit'] == true,
+      hasActiveAccess: json['has_active_access'] == true,
+      extraRecordingMinutesRemaining: _asInt(
+          json['extra_recording_minutes_remaining']),
+      extraQuotaExpiresAt:
+          _nullableString(json['extra_quota_expires_at']) != null
+              ? DateTime.tryParse(json['extra_quota_expires_at'] as String)
+                  ?.toLocal()
+              : null,
+      canTranscribe: json['can_transcribe'] == true,
       transcript: _nullableString(json['transcript']),
       transcriptSegments: segments,
       transcriptionStatus:
