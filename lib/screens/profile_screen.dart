@@ -134,13 +134,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_currencyOptions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('No additional currencies are configured yet.')),
+          content: Text('No additional currencies are configured yet.'),
+        ),
       );
       return;
     }
 
-    String value = _selectedCurrency ??
-        (_currencyOptions.first['code'] ?? 'UGX').toString().toUpperCase();
+    final optionCodes = _currencyOptions
+        .map((option) => (option['code'] ?? '').toString().toUpperCase())
+        .toList(growable: false);
+    String value = optionCodes.contains(_selectedCurrency)
+        ? _selectedCurrency!
+        : optionCodes.first;
 
     final chosen = await showModalBottomSheet<String>(
       context: context,
@@ -148,120 +153,127 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  4,
-                  20,
-                  24 + MediaQuery.viewInsetsOf(context).bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Preferred Currency',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Choose how amounts are displayed in My Digital Diary. This does not change the original stored amounts or payment gateway settlement currency.',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: value,
-                      isExpanded: true,
-                      menuMaxHeight: MediaQuery.sizeOf(context).height * 0.42,
-                      decoration: InputDecoration(
-                        labelText: 'Display currency',
-                        prefixIcon: const Icon(Icons.currency_exchange),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
+          child: SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    4,
+                    20,
+                    24 + MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Preferred Currency',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      selectedItemBuilder: (context) =>
-                          _currencyOptions.map((option) {
-                        final code =
-                            (option['code'] ?? '').toString().toUpperCase();
-                        final symbol = (option['symbol'] ?? code).toString();
-                        final rate = double.tryParse(
-                                (option['rate'] ?? '1').toString()) ??
-                            1;
-                        final suffix = rate == 1 ? ' · Base' : '';
-                        return Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '$code ($symbol)$suffix',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      items: _currencyOptions.map((option) {
-                        final code =
-                            (option['code'] ?? '').toString().toUpperCase();
-                        final symbol = (option['symbol'] ?? code).toString();
-                        final rate = double.tryParse(
-                                (option['rate'] ?? '1').toString()) ??
-                            1;
-                        final hint = rate == 1
-                            ? 'Base currency'
-                            : '1 $code = ${rate.toStringAsFixed(rate == rate.roundToDouble() ? 0 : 2)} base units';
-                        return DropdownMenuItem(
-                          value: code,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '$code ($symbol)',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  hint,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.right,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Colors.black54,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (next) {
-                        if (next != null) setSheetState(() => value = next);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () => Navigator.pop(sheetContext, value),
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('Use this currency'),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Choose how amounts are displayed in My Digital Diary. This does not change the original stored amounts or payment gateway settlement currency.',
+                        style: TextStyle(color: Colors.black54),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: value,
+                        isExpanded: true,
+                        menuMaxHeight: MediaQuery.sizeOf(context).height * 0.42,
+                        decoration: InputDecoration(
+                          labelText: 'Display currency',
+                          prefixIcon: const Icon(Icons.currency_exchange),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                        ),
+                        selectedItemBuilder: (context) => _currencyOptions.map((
+                          option,
+                        ) {
+                          final code = (option['code'] ?? '')
+                              .toString()
+                              .toUpperCase();
+                          final symbol = (option['symbol'] ?? code).toString();
+                          final rate =
+                              double.tryParse(
+                                (option['rate'] ?? '1').toString(),
+                              ) ??
+                              1;
+                          final suffix = rate == 1 ? ' · Base' : '';
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '$code ($symbol)$suffix',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        items: _currencyOptions.map((option) {
+                          final code = (option['code'] ?? '')
+                              .toString()
+                              .toUpperCase();
+                          final symbol = (option['symbol'] ?? code).toString();
+                          final rate =
+                              double.tryParse(
+                                (option['rate'] ?? '1').toString(),
+                              ) ??
+                              1;
+                          final hint = rate == 1
+                              ? 'Base currency'
+                              : '1 $code = ${rate.toStringAsFixed(rate == rate.roundToDouble() ? 0 : 2)} base units';
+                          return DropdownMenuItem(
+                            value: code,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '$code ($symbol)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    hint,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: Colors.black54),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (next) {
+                          if (next != null) setSheetState(() => value = next);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.pop(sheetContext, value),
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Use this currency'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -276,8 +288,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       BrandingService.applyCurrencyPreference(data);
       if (!mounted) return;
       setState(() {
-        _selectedCurrency =
-            (data['selected'] ?? chosen).toString().toUpperCase();
+        _selectedCurrency = (data['selected'] ?? chosen)
+            .toString()
+            .toUpperCase();
         _currencyOptions = (data['options'] as List? ?? _currencyOptions)
             .whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row))
@@ -288,15 +301,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   Future<void> _openEditProfile() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const EditProfileScreen()));
 
     if (!mounted) return;
 
@@ -308,8 +322,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _avatar(BuildContext context, String? name) {
     final primary = Theme.of(context).colorScheme.primary;
-    final initial =
-        (name?.trim().isNotEmpty == true ? name!.trim()[0] : '?').toUpperCase();
+    final initial = (name?.trim().isNotEmpty == true ? name!.trim()[0] : '?')
+        .toUpperCase();
 
     return CircleAvatar(
       radius: 40,
@@ -318,22 +332,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: _avatarBytes != null
           ? null
           : _avatarLoading
-              ? SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: primary,
-                  ),
-                )
-              : Text(
-                  initial,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: primary,
-                  ),
-                ),
+          ? SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+            )
+          : Text(
+              initial,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: primary,
+              ),
+            ),
     );
   }
 
@@ -389,7 +400,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const SubscriptionScreen()),
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -399,7 +411,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const OrganizationScreen()),
+                        builder: (_) => const OrganizationScreen(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -410,8 +423,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _currencyLoading
                           ? 'Loading currencies…'
                           : (_selectedCurrency?.isNotEmpty == true
-                              ? 'Display amounts in $_selectedCurrency'
-                              : 'Choose how amounts are displayed'),
+                                ? 'Display amounts in $_selectedCurrency'
+                                : 'Choose how amounts are displayed'),
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _openCurrencyPicker,
@@ -423,8 +436,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: Text(_syncSummary),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const OfflineSyncQueueScreen()));
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const OfflineSyncQueueScreen(),
+                        ),
+                      );
                       await _loadSyncStatus();
                     },
                   ),
@@ -435,19 +451,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const AppearanceScreen()),
+                        builder: (_) => const AppearanceScreen(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.tune_outlined),
                     title: const Text('Personalisation & AI Privacy'),
-                    subtitle:
-                        const Text('Choose priorities and what AI may use'),
+                    subtitle: const Text(
+                      'Choose priorities and what AI may use',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const PersonalisationScreen()),
+                        builder: (_) => const PersonalisationScreen(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -455,11 +474,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     leading: const Icon(Icons.campaign_outlined),
                     title: const Text('Social Media Settings'),
                     subtitle: const Text(
-                        'WhatsApp Status, Channel and social accounts'),
+                      'WhatsApp Status, Channel and social accounts',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const SocialMediaAccountsScreen()),
+                        builder: (_) => const SocialMediaAccountsScreen(),
+                      ),
                     ),
                   ),
                   if (user != null &&
@@ -469,11 +490,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       leading: const Icon(Icons.admin_panel_settings_outlined),
                       title: const Text('Admin Social Media'),
                       subtitle: const Text(
-                          'Review users, accounts and scheduled communication'),
+                        'Review users, accounts and scheduled communication',
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                            builder: (_) => const AdminSocialMediaScreen()),
+                          builder: (_) => const AdminSocialMediaScreen(),
+                        ),
                       ),
                     ),
                   ],
@@ -481,12 +504,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.calendar_view_month_outlined),
                     title: const Text('My Month in Review'),
-                    subtitle:
-                        const Text('See progress, wins and next-month focus'),
+                    subtitle: const Text(
+                      'See progress, wins and next-month focus',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const MonthlyReviewScreen()),
+                        builder: (_) => const MonthlyReviewScreen(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1),

@@ -23,10 +23,12 @@ class IoTecPaymentStart {
   factory IoTecPaymentStart.fromJson(Map<String, dynamic> json) {
     final rawId = json['transaction_id'] ?? json['transactionId'] ?? json['id'];
 
-    final parsedId =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final parsedId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '');
 
-    final redirect = json['redirect_url'] ??
+    final redirect =
+        json['redirect_url'] ??
         json['card_redirect_url'] ??
         json['cardRedirectUrl'] ??
         json['checkout_url'] ??
@@ -36,19 +38,21 @@ class IoTecPaymentStart {
 
     return IoTecPaymentStart(
       // Some successful initiation responses only return transaction/status.
-      success:
-          explicitSuccess == null ? parsedId != null : explicitSuccess == true,
+      success: explicitSuccess == null
+          ? parsedId != null
+          : explicitSuccess == true,
       transactionId: parsedId,
       paymentChannel: (json['payment_channel'] ?? json['paymentChannel'] ?? '')
           .toString()
           .toLowerCase(),
       status: (json['status'] ?? 'pending').toString().toLowerCase(),
       redirectUrl: redirect?.toString(),
-      message: (json['message'] ??
-              json['status_message'] ??
-              json['statusMessage'] ??
-              '')
-          .toString(),
+      message:
+          (json['message'] ??
+                  json['status_message'] ??
+                  json['statusMessage'] ??
+                  '')
+              .toString(),
     );
   }
 }
@@ -122,8 +126,9 @@ class IoTecPaymentStatus {
       statusMessage: transaction['status_message']?.toString(),
       paid: transaction['paid'] == true,
       activated: transaction['activated'] == true,
-      subscriptionStatus:
-          (subscription['status'] ?? '').toString().toLowerCase(),
+      subscriptionStatus: (subscription['status'] ?? '')
+          .toString()
+          .toLowerCase(),
       subscriptionPlanId: parseInt(subscription['plan_id']),
       subscriptionStartedAt: parseDate(subscription['started_at']),
       subscriptionExpiresAt: parseDate(subscription['expires_at']),
@@ -167,12 +172,7 @@ class IoTecGatewayOptions {
 class SubscriptionService {
   final _api = ApiClient.instance;
 
-  Future<Map<String, dynamic>> status() async {
-    final response = await _api.get(
-      'subscription/status',
-      cacheable: false,
-    );
-
+  Map<String, dynamic> _parseStatusPayload(dynamic response) {
     final root = Map<String, dynamic>.from(response);
     final dynamic payload = root['data'] is Map ? root['data'] : root;
 
@@ -186,26 +186,82 @@ class SubscriptionService {
     return Map<String, dynamic>.from(payload);
   }
 
-  Future<List<SubscriptionPlanInfo>> plans() async {
-    final response = await _api.get('subscription/plans');
-    final rows = (response['data'] as List).cast<Map<String, dynamic>>();
-    return rows.map(SubscriptionPlanInfo.fromJson).toList();
+  /// [cacheFirst] serves the last successful response instantly and refreshes
+  /// in the background, calling [onRefresh] with the fresh value when it
+  /// arrives — used by screens that would otherwise wait on every open.
+  Future<Map<String, dynamic>> status({
+    bool cacheFirst = false,
+    void Function(Map<String, dynamic> data)? onRefresh,
+  }) async {
+    if (cacheFirst) {
+      final raw = await _api.getFast(
+        'subscription/status',
+        onRefresh: (json) => onRefresh?.call(_parseStatusPayload(json)),
+      );
+      return _parseStatusPayload(raw);
+    }
+    final response = await _api.get('subscription/status', cacheable: true);
+    return _parseStatusPayload(response);
   }
 
-  Future<List<PaymentGatewayInfo>> gateways() async {
-    final response = await _api.get('subscription/gateways');
-    final rows = (response['data'] as List).cast<Map<String, dynamic>>();
-    return rows.map(PaymentGatewayInfo.fromJson).toList();
+  Future<List<SubscriptionPlanInfo>> plans({
+    bool cacheFirst = false,
+    void Function(List<SubscriptionPlanInfo> data)? onRefresh,
+  }) async {
+    List<SubscriptionPlanInfo> parse(dynamic response) {
+      final rows = (response['data'] as List).cast<Map<String, dynamic>>();
+      return rows.map(SubscriptionPlanInfo.fromJson).toList();
+    }
+
+    if (cacheFirst) {
+      final raw = await _api.getFast(
+        'subscription/plans',
+        onRefresh: (json) => onRefresh?.call(parse(json)),
+      );
+      return parse(raw);
+    }
+    final response = await _api.get('subscription/plans', cacheable: true);
+    return parse(response);
+  }
+
+  Future<List<PaymentGatewayInfo>> gateways({
+    bool cacheFirst = false,
+    void Function(List<PaymentGatewayInfo> data)? onRefresh,
+  }) async {
+    List<PaymentGatewayInfo> parse(dynamic response) {
+      final rows = (response['data'] as List).cast<Map<String, dynamic>>();
+      return rows.map(PaymentGatewayInfo.fromJson).toList();
+    }
+
+    if (cacheFirst) {
+      final raw = await _api.getFast(
+        'subscription/gateways',
+        onRefresh: (json) => onRefresh?.call(parse(json)),
+      );
+      return parse(raw);
+    }
+    final response = await _api.get('subscription/gateways', cacheable: true);
+    return parse(response);
   }
 
   Future<PaymentPage> payments({
     int page = 1,
     int perPage = 10,
+    bool cacheFirst = false,
+    void Function(PaymentPage data)? onRefresh,
   }) async {
-    final response = await _api.get(
-      'subscription/payments?page=$page&per_page=$perPage',
-    );
-    return PaymentPage.fromJson(response);
+    final path = 'subscription/payments?page=$page&per_page=$perPage';
+    PaymentPage parse(dynamic json) => PaymentPage.fromJson(json);
+
+    if (cacheFirst) {
+      final raw = await _api.getFast(
+        path,
+        onRefresh: (json) => onRefresh?.call(parse(json)),
+      );
+      return parse(raw);
+    }
+    final response = await _api.get(path, cacheable: true);
+    return parse(response);
   }
 
   // ---------------------------------------------------------------------------
@@ -218,58 +274,42 @@ class SubscriptionService {
       cacheable: false,
     );
 
-    return IoTecGatewayOptions.fromJson(
-      Map<String, dynamic>.from(response),
-    );
+    return IoTecGatewayOptions.fromJson(Map<String, dynamic>.from(response));
   }
 
   Future<IoTecPaymentStart> payWithIoTecMobileMoney(
     int planId,
     String phoneNumber,
   ) async {
-    final response = await _api.post(
-      'subscription/pay/iotec',
-      {
-        'subscription_plan_id': planId,
-        'payment_channel': 'mobile_money',
-        'phone': phoneNumber.trim(),
-      },
-    );
+    final response = await _api.post('subscription/pay/iotec', {
+      'subscription_plan_id': planId,
+      'payment_channel': 'mobile_money',
+      'phone': phoneNumber.trim(),
+    });
 
-    return IoTecPaymentStart.fromJson(
-      Map<String, dynamic>.from(response),
-    );
+    return IoTecPaymentStart.fromJson(Map<String, dynamic>.from(response));
   }
 
   Future<IoTecPaymentStart> payWithIoTecCard(
     int planId, {
     String cardBrand = 'visa',
   }) async {
-    final response = await _api.post(
-      'subscription/pay/iotec',
-      {
-        'subscription_plan_id': planId,
-        'payment_channel': 'card',
-        'card_brand': cardBrand,
-      },
-    );
+    final response = await _api.post('subscription/pay/iotec', {
+      'subscription_plan_id': planId,
+      'payment_channel': 'card',
+      'card_brand': cardBrand,
+    });
 
-    return IoTecPaymentStart.fromJson(
-      Map<String, dynamic>.from(response),
-    );
+    return IoTecPaymentStart.fromJson(Map<String, dynamic>.from(response));
   }
 
-  Future<IoTecPaymentStatus> ioTecPaymentStatus(
-    int transactionId,
-  ) async {
+  Future<IoTecPaymentStatus> ioTecPaymentStatus(int transactionId) async {
     final response = await _api.get(
       'subscription/pay/iotec/$transactionId/status',
       cacheable: false,
     );
 
-    return IoTecPaymentStatus.fromJson(
-      Map<String, dynamic>.from(response),
-    );
+    return IoTecPaymentStatus.fromJson(Map<String, dynamic>.from(response));
   }
 
   Future<IoTecPaymentStatus> waitForIoTecPayment(
@@ -300,10 +340,7 @@ class SubscriptionService {
   ) async {
     final response = await _api.post(
       'subscription/payments/$paymentId/mobile-money',
-      {
-        'phone_number': phoneNumber,
-        'network': network,
-      },
+      {'phone_number': phoneNumber, 'network': network},
     );
 
     return response['message'] as String? ?? 'Payment prompt sent.';
@@ -314,13 +351,10 @@ class SubscriptionService {
     int paymentGatewayId,
     String reference,
   ) async {
-    final response = await _api.post(
-      'subscription/payments/$paymentId/bank',
-      {
-        'payment_gateway_id': paymentGatewayId,
-        'reference': reference,
-      },
-    );
+    final response = await _api.post('subscription/payments/$paymentId/bank', {
+      'payment_gateway_id': paymentGatewayId,
+      'reference': reference,
+    });
 
     return response['message'] as String? ?? 'Bank payment submitted.';
   }
@@ -330,14 +364,11 @@ class SubscriptionService {
     int paymentGatewayId,
     String reference,
   ) async {
-    final response = await _api.post(
-      'subscription/pay/manual',
-      {
-        'plan_id': planId,
-        'payment_gateway_id': paymentGatewayId,
-        'reference': reference,
-      },
-    );
+    final response = await _api.post('subscription/pay/manual', {
+      'plan_id': planId,
+      'payment_gateway_id': paymentGatewayId,
+      'reference': reference,
+    });
 
     return response['message'] as String? ??
         'Payment submitted for verification.';
@@ -382,10 +413,7 @@ class SubscriptionService {
     // ioTec determines the network from the phone number/payment request,
     // so the legacy `network` argument is intentionally retained only for
     // compatibility with existing screen code.
-    final start = await payWithIoTecMobileMoney(
-      planId,
-      phoneNumber,
-    );
+    final start = await payWithIoTecMobileMoney(planId, phoneNumber);
 
     if (!start.success) {
       throw ApiException(

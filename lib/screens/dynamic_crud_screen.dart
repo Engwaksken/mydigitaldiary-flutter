@@ -275,6 +275,8 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
 
   bool get _isEducation => widget.config.endpoint == 'education-plans';
 
+  bool get _isHealth => widget.config.endpoint == 'health-checkups';
+
   List<DynamicItem> get _visibleItems {
     final items = _educationStatusFilter == 'all'
         ? List<DynamicItem>.from(_items)
@@ -321,6 +323,26 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
     if (days == 1) return 'Due tomorrow';
     if (days <= 14) return 'Due in $days days';
     return null;
+  }
+
+  String _dayLabel(int days) {
+    if (days < 0) return '${-days}d overdue';
+    if (days == 0) return 'Due today';
+    if (days == 1) return 'Due tomorrow';
+    return 'Due in $days days';
+  }
+
+  String? _healthDueLabel(DynamicItem item) {
+    if (!_isHealth) return null;
+    final date = DateTime.tryParse(
+      item['next_due_date']?.toString() ??
+          item['checkup_date']?.toString() ??
+          '',
+    );
+    if (date == null) return null;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final due = DateUtils.dateOnly(date);
+    return _dayLabel(due.difference(today).inDays);
   }
 
   Widget _buildEducationFilters() {
@@ -579,7 +601,9 @@ class _DynamicCrudScreenState extends State<DynamicCrudScreen> {
                                 _formatValue(item[config.dateField!]),
                               );
                             }
-                            final dueLabel = _educationDueLabel(item);
+                            final dueLabel =
+                                _educationDueLabel(item) ??
+                                _healthDueLabel(item);
                             if (dueLabel != null) subtitleParts.add(dueLabel);
 
                             return Dismissible(

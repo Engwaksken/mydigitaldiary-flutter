@@ -695,11 +695,12 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
 
   Widget _statCard(String label, String value, IconData icon) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 4),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            CircleAvatar(child: Icon(icon, size: 19)),
+            CircleAvatar(radius: 14, child: Icon(icon, size: 17)),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -725,6 +726,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     final duration = _taskDurationMinutes(item);
 
     return Card(
+      margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
         child: Row(

@@ -278,7 +278,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     final payload = Map<String, dynamic>.from(response);
     final items = payload['data'] is List
         ? payload['data'] as List
-        : (payload['top_tasks'] is List ? payload['top_tasks'] as List : const []);
+        : (payload['top_tasks'] is List
+              ? payload['top_tasks'] as List
+              : const []);
 
     return _normaliseTodayFocus(items);
   }
@@ -405,7 +407,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       return text.length >= 5 ? text.substring(0, 5) : text;
     }
 
-    final time = timeKey(first([raw['time'], raw['start_time'], raw['due_time']]));
+    final time = timeKey(
+      first([raw['time'], raw['start_time'], raw['due_time']]),
+    );
     final startTime = timeKey(first([raw['start_time'], raw['time']]));
 
     return <String, dynamic>{
@@ -1023,35 +1027,47 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _refreshTodayInsight() async {
+    var insight = <String, dynamic>{};
+
+    // Short timeout so this secondary fetch never holds the page open, and
+    // cacheable so a slow/failed refresh still serves the last insight the
+    // server produced instead of dropping back to a generic card.
     try {
-      final response = await ApiClient.instance.get(
-        'dashboard/today-insight',
-        cacheable: false,
-      );
+      final response = await ApiClient.instance
+          .get('dashboard/today-insight', cacheable: true)
+          .timeout(const Duration(seconds: 7));
 
       dynamic payload = response;
       if (payload is Map && payload['data'] is Map) payload = payload['data'];
-      if (payload is! Map || payload.isEmpty || !mounted) return;
-
-      final insight = Map<String, dynamic>.from(payload);
-      setState(() {
-        final next = Map<String, dynamic>.from(_stats ?? const {});
-        next['today_insight'] = insight;
-        _stats = next;
-
-        // Today's Insight is generated on Laravel using the signed-in user's
-        // preferred currency. Keep Flutter's active currency in sync with the
-        // insight payload as well as the finance summary.
-        _currencyCode =
-            _extractCurrency(insight) ??
-            _extractCurrency(next) ??
-            _currencyCode;
-      });
-
-      _scheduleInsightRefresh(insight['refresh_after']?.toString());
+      if (payload is Map && payload.isNotEmpty) {
+        insight = Map<String, dynamic>.from(payload);
+      }
     } catch (_) {
-      // Keep the dashboard payload or local time-aware fallback insight.
+      // Transient failure: keep whatever insight the main dashboard payload
+      // already carries, or the time-aware local fallback.
+      if (mounted) {
+        final cached = _stats?['today_insight'];
+        if (cached is Map && Map<String, dynamic>.from(cached).isNotEmpty) {
+          return;
+        }
+      }
     }
+
+    if (insight.isEmpty || !mounted) return;
+
+    setState(() {
+      final next = Map<String, dynamic>.from(_stats ?? const {});
+      next['today_insight'] = insight;
+      _stats = next;
+
+      // Today's Insight is generated on Laravel using the signed-in user's
+      // preferred currency. Keep Flutter's active currency in sync with the
+      // insight payload as well as the finance summary.
+      _currencyCode =
+          _extractCurrency(insight) ?? _extractCurrency(next) ?? _currencyCode;
+    });
+
+    _scheduleInsightRefresh(insight['refresh_after']?.toString());
   }
 
   void _scheduleInsightRefresh(String? refreshAfter) {
@@ -1609,9 +1625,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       task['type'],
       task['endpoint'],
       task['route'],
-    ]
-        .map((value) => value?.toString().toLowerCase() ?? '')
-        .join(' ');
+    ].map((value) => value?.toString().toLowerCase() ?? '').join(' ');
 
     if (haystack.contains('meeting')) {
       _open(const MeetingsScreen());
@@ -3610,105 +3624,107 @@ class _TodayTask extends StatelessWidget {
           onTap: tap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
-          constraints: const BoxConstraints(minHeight: 76),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x100F172A),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(width: 5, color: accent),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(icon, color: accent, size: 21),
+            constraints: const BoxConstraints(minHeight: 76),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x100F172A),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(width: 5, color: accent),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 12,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                source.isEmpty ? 'TODAY' : source.toUpperCase(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: accent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: .25,
-                                ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF111827),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.2,
-                                ),
-                              ),
-                              if (time.isNotEmpty) ...[
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.schedule_rounded,
-                                      size: 14,
-                                      color: Color(0xFF64748B),
+                              child: Icon(icon, color: accent, size: 21),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    source.isEmpty
+                                        ? 'TODAY'
+                                        : source.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: accent,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: .25,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      time,
-                                      style: const TextStyle(
-                                        color: Color(0xFF64748B),
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF111827),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  if (time.isNotEmpty) ...[
+                                    const SizedBox(height: 5),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.schedule_rounded,
+                                          size: 14,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          time,
+                                          style: const TextStyle(
+                                            color: Color(0xFF64748B),
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
-                            ],
-                          ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );

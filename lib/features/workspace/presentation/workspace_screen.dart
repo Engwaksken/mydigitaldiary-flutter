@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../services/api_client.dart';
 import '../models/workspace_models.dart';
@@ -73,38 +77,33 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final workspace = _workspace;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Shared Workspace'),
-      ),
+      appBar: AppBar(title: const Text('Shared Workspace')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _ErrorState(
-                  message: _error!,
-                  onRetry: _load,
-                )
-              : workspace == null || !workspace.enabled
-                  ? const _NoWorkspaceState()
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                        children: [
-                          _WorkspaceHero(workspace: workspace),
-                          const SizedBox(height: 12),
-                          _TabStrip(
-                            tabs: _tabs,
-                            selectedIndex: _tabIndex,
-                            onChanged: (index) {
-                              setState(() => _tabIndex = index);
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          _buildSelectedTab(workspace),
-                        ],
-                      ),
-                    ),
+          ? _ErrorState(message: _error!, onRetry: _load)
+          : workspace == null || !workspace.enabled
+          ? const _NoWorkspaceState()
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                children: [
+                  _WorkspaceHero(workspace: workspace),
+                  const SizedBox(height: 12),
+                  _TabStrip(
+                    tabs: _tabs,
+                    selectedIndex: _tabIndex,
+                    onChanged: (index) {
+                      setState(() => _tabIndex = index);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  _buildSelectedTab(workspace),
+                ],
+              ),
+            ),
     );
   }
 
@@ -115,10 +114,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       case 2:
         return _SharedSection(items: workspace.sharedItems);
       case 3:
-        return _FilesSection(
-          files: workspace.files,
-          onDownload: _downloadFile,
-        );
+        return _FilesSection(files: workspace.files, onDownload: _downloadFile);
       case 4:
         return _ActivitySection(activity: workspace.activity);
       default:
@@ -127,27 +123,36 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _downloadFile(WorkspaceFile file) async {
-    /*
-     * The Laravel workspace endpoint is authenticated. This screen therefore
-     * does not construct a public URL or put a bearer token in the browser
-     * query string.
-     *
-     * Wire this call to the project's existing authenticated file-download
-     * helper. If ApiClient already exposes downloadFile/downloadBytes, replace
-     * this message with that helper and save/open the returned bytes.
-     */
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          'Download ${file.name} using authenticated API path: '
-          '${_service.fileDownloadPath(file.id)}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        content: Text('Downloading ${file.name}…'),
+        duration: const Duration(seconds: 30),
       ),
     );
+    try {
+      final bytes = await ApiClient.instance.downloadBytes(
+        _service.fileDownloadPath(file.id),
+      );
+      final dir = await getTemporaryDirectory();
+      final safeName = file.name
+          .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+          .trim();
+      final path = '${dir.path}/${safeName.isEmpty ? 'file' : safeName}';
+      await File(path).writeAsBytes(bytes);
+      messenger.hideCurrentSnackBar();
+      if (!mounted) return;
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], subject: file.name),
+      );
+    } catch (error) {
+      messenger.hideCurrentSnackBar();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not download ${file.name}: $error')),
+      );
+    }
   }
 }
 
@@ -186,29 +191,22 @@ class _WorkspaceHero extends StatelessWidget {
                     workspace.organizationName,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '${workspace.membersCount} member'
                     '${workspace.membersCount == 1 ? '' : 's'} • '
                     '${workspace.role}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                   const SizedBox(height: 7),
                   const Text(
                     'Your personal diary stays private unless you choose '
                     'to share an item with this workspace.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Colors.black54,
-                    ),
+                    style: TextStyle(fontSize: 11.5, color: Colors.black54),
                   ),
                 ],
               ),
@@ -311,10 +309,10 @@ class _OverviewSection extends StatelessWidget {
                   child: Text(
                     workspace.canManageMembers
                         ? 'You can manage this workspace. Member invitation '
-                            'and seat controls remain governed by the same '
-                            'Laravel organisation used on the web.'
+                              'and seat controls remain governed by the same '
+                              'Laravel organisation used on the web.'
                         : 'You can view items deliberately shared with your '
-                            'workspace. Private personal items stay private.',
+                              'workspace. Private personal items stay private.',
                     style: const TextStyle(fontSize: 12.5),
                   ),
                 ),
@@ -351,19 +349,13 @@ class _MetricCard extends StatelessWidget {
             Text(
               value,
               maxLines: 1,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: Colors.black54,
-              ),
+              style: const TextStyle(fontSize: 10.5, color: Colors.black54),
             ),
           ],
         ),
@@ -388,47 +380,49 @@ class _MembersSection extends StatelessWidget {
     }
 
     return Column(
-      children: workspace.members.map((member) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: CircleAvatar(
-                child: Text(
-                  member.name.trim().isEmpty
-                      ? '?'
-                      : member.name.trim()[0].toUpperCase(),
-                ),
-              ),
-              title: Text(
-                member.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                member.email,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 90),
-                child: Text(
-                  member.role,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF00897B),
+      children: workspace.members
+          .map((member) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text(
+                      member.name.trim().isEmpty
+                          ? '?'
+                          : member.name.trim()[0].toUpperCase(),
+                    ),
+                  ),
+                  title: Text(
+                    member.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    member.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 90),
+                    child: Text(
+                      member.role,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF00897B),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(growable: false),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
@@ -450,38 +444,37 @@ class _SharedSection extends StatelessWidget {
     }
 
     return Column(
-      children: items.map((item) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.link_outlined),
-              title: Text(
-                item.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                [
-                  item.itemType,
-                  if ((item.sharedByName ?? '').isNotEmpty)
-                    'by ${item.sharedByName}',
-                ].join(' • '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Text(
-                item.permission,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.black54,
+      children: items
+          .map((item) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  leading: const Icon(Icons.link_outlined),
+                  title: Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    [
+                      item.itemType,
+                      if ((item.sharedByName ?? '').isNotEmpty)
+                        'by ${item.sharedByName}',
+                    ].join(' • '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Text(
+                    item.permission,
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(growable: false),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
@@ -490,10 +483,7 @@ class _FilesSection extends StatelessWidget {
   final List<WorkspaceFile> files;
   final ValueChanged<WorkspaceFile> onDownload;
 
-  const _FilesSection({
-    required this.files,
-    required this.onDownload,
-  });
+  const _FilesSection({required this.files, required this.onDownload});
 
   @override
   Widget build(BuildContext context) {
@@ -506,15 +496,17 @@ class _FilesSection extends StatelessWidget {
     }
 
     return Column(
-      children: files.map((file) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: WorkspaceFileCard(
-            file: file,
-            onDownload: () => onDownload(file),
-          ),
-        );
-      }).toList(growable: false),
+      children: files
+          .map((file) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: WorkspaceFileCard(
+                file: file,
+                onDownload: () => onDownload(file),
+              ),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
@@ -535,27 +527,29 @@ class _ActivitySection extends StatelessWidget {
     }
 
     return Column(
-      children: activity.map((entry) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.history_outlined),
-              title: Text(
-                entry.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      children: activity
+          .map((entry) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  leading: const Icon(Icons.history_outlined),
+                  title: Text(
+                    entry.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    entry.actorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
-              subtitle: Text(
-                entry.actorName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        );
-      }).toList(growable: false),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
@@ -569,11 +563,7 @@ class _NoWorkspaceState extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       children: const [
         SizedBox(height: 60),
-        Icon(
-          Icons.groups_2_outlined,
-          size: 58,
-          color: Colors.black26,
-        ),
+        Icon(Icons.groups_2_outlined, size: 58, color: Colors.black26),
         SizedBox(height: 16),
         Text(
           'No shared workspace',
@@ -621,10 +611,7 @@ class _EmptyCard extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: Colors.black54,
-              ),
+              style: const TextStyle(fontSize: 12.5, color: Colors.black54),
             ),
           ],
         ),
@@ -637,10 +624,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
