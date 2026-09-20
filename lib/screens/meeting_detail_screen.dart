@@ -683,11 +683,34 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _transcribe(MeetingRecording recording) async {
+    if (recording.isOverUploadLimit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This recording is over the 30 MB limit. Please record a shorter meeting.',
+          ),
+        ),
+      );
+      return;
+    }
     try {
       await _service.transcribe(recording.id, language: _transcriptionLanguage);
       await _load();
     } on ApiException catch (e) {
       if (!mounted) return;
+      final message = e.message.toLowerCase();
+      if (message.contains('supported audio') ||
+          message.contains('under 30 mb') ||
+          message.contains('could not transcribe')) {
+        final action = await _showTopUpDialog(
+          title: 'Unsupported audio format',
+          recording: recording,
+        );
+        if (action == 'topup') {
+          await _retryTranscribe(recording);
+        }
+        return;
+      }
       if (e.errorCode == 'recording_too_large') {
         final action = await _showTopUpDialog(
           title: 'Recording too large',
@@ -730,6 +753,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final lower = error.toLowerCase();
     if (lower.contains('clipboard') || lower.contains('image input')) {
       return 'This model does not support image input. Please use an audio-only recording or switch to a model that supports audio transcription.';
+    }
+    if (lower.contains('supported audio') || lower.contains('under 30 mb')) {
+      return 'This recording could not be transcribed. Please try again with a supported audio file under 30 MB.';
     }
     return error;
   }
