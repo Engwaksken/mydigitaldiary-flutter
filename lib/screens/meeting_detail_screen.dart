@@ -689,11 +689,23 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.errorCode == 'recording_too_large') {
-        await _showTopUpDialog(title: 'Recording too large');
+        final action = await _showTopUpDialog(
+          title: 'Recording too large',
+          recording: recording,
+        );
+        if (action == 'topup') {
+          await _retryTranscribe(recording);
+        }
         return;
       }
       if (e.errorCode == 'recording_quota_required') {
-        await _showTopUpDialog(title: 'Recording quota needed');
+        final action = await _showTopUpDialog(
+          title: 'Recording quota needed',
+          recording: recording,
+        );
+        if (action == 'topup') {
+          await _retryTranscribe(recording);
+        }
         return;
       }
       ScaffoldMessenger.of(
@@ -702,7 +714,28 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  Future<void> _showTopUpDialog({required String title}) async {
+  Future<void> _retryTranscribe(MeetingRecording recording) async {
+    if (!mounted) return;
+    try {
+      await _service.transcribe(recording.id, language: _transcriptionLanguage);
+      await _load();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  String _formatTranscriptionError(String error) {
+    final lower = error.toLowerCase();
+    if (lower.contains('clipboard') || lower.contains('image input')) {
+      return 'This model does not support image input. Please use an audio-only recording or switch to a model that supports audio transcription.';
+    }
+    return error;
+  }
+
+  Future<String?> _showTopUpDialog(
+      {required String title, MeetingRecording? recording}) async {
     final message = title == 'Recording quota needed'
         ? 'Your transcription needs an active subscription or extra recording '
               'minutes. Top up to continue transcribing this recording.'
@@ -733,17 +766,20 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         ],
       ),
     );
-    if (!mounted) return;
+    if (!mounted) return null;
     if (action == 'topup') {
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const ExtraRecordingQuotaScreen()),
       );
       if (mounted) await _load();
+      return 'topup';
     } else if (action == 'own-key') {
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const ApiKeysScreen()),
       );
+      return 'own-key';
     }
+    return action;
   }
 
   Future<void> _summarize(MeetingRecording recording) async {
@@ -1279,14 +1315,52 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Text(
-                    recording.transcriptionError!,
+                    _formatTranscriptionError(recording.transcriptionError!),
                     style: const TextStyle(color: Colors.orange, fontSize: 12),
                   ),
                 ),
-              OutlinedButton(
-                onPressed: () => _transcribe(recording),
-                child: const Text('Transcribe Recording'),
-              ),
+              if (!recording.canTranscribe) ...[
+                if (recording.transcript != null &&
+                    recording.transcriptionStatus != 'completed')
+                  OutlinedButton(
+                    onPressed: () => _transcribe(recording),
+                    child: const Text('Continue Transcription'),
+                  ),
+                if (recording.transcript == null ||
+                    recording.transcriptionStatus == 'pending') ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'No transcription available. Top up or add an API key to transcribe.',
+                    style: TextStyle(
+                        color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _openTopUpScreen,
+                          icon: const Icon(Icons.credit_card, size: 18),
+                          label: const Text('Top Up Quota'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openApiKeysScreen,
+                          icon: const Icon(Icons.key_rounded, size: 18),
+                          label: const Text('Use My Own API'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ] else ...[
+                OutlinedButton(
+                  onPressed: () => _transcribe(recording),
+                  child: const Text('Transcribe Recording'),
+                ),
+              ],
             ],
             if (recording.transcript != null) ...[
               const Divider(),
