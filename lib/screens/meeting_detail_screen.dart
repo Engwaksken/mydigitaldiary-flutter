@@ -1225,6 +1225,36 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: recording.status == 'completed'
+                        ? const Color(0xFFECFDF5)
+                        : recording.status == 'processing'
+                            ? const Color(0xFFFFF7ED)
+                            : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    recording.status == 'completed'
+                        ? 'Completed'
+                        : recording.status == 'processing'
+                            ? 'Processing'
+                            : recording.status,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: recording.status == 'completed'
+                          ? const Color(0xFF047857)
+                          : recording.status == 'processing'
+                              ? const Color(0xFFD97706)
+                              : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   onPressed: () => _deleteRecording(recording),
