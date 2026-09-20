@@ -731,6 +731,16 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         }
         return;
       }
+      if (e.errorCode == 'unsupported_audio') {
+        final action = await _showTopUpDialog(
+          title: 'Unsupported audio format',
+          recording: recording,
+        );
+        if (action == 'topup') {
+          await _retryTranscribe(recording);
+        }
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
