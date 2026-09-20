@@ -97,6 +97,12 @@ class _DashboardStepsCardState extends State<DashboardStepsCard> {
     }
   }
 
+  String _formatDistance(int? distanceM) {
+    if (distanceM == null || distanceM == 0) return '';
+    final km = distanceM / 1000;
+    return '${km.toStringAsFixed(2)} km';
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = _state;
@@ -104,6 +110,8 @@ class _DashboardStepsCardState extends State<DashboardStepsCard> {
     final goal = state?.dailyGoal ?? 5000;
     final progress = state?.progressPercent ?? 0;
     final tracking = state?.isTracking ?? false;
+    final distance = state?.distanceM;
+    final distanceText = _formatDistance(distance);
 
     return Card(
       child: Padding(
@@ -159,6 +167,17 @@ class _DashboardStepsCardState extends State<DashboardStepsCard> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              if (distanceText.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  distanceText,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF047857),
+                  ),
+                ),
+              ],
               const SizedBox(height: 7),
               LinearProgressIndicator(
                 value: progress / 100,

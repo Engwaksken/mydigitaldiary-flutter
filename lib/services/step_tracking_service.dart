@@ -28,6 +28,7 @@ class StepTrackingState {
   final bool serverAvailable;
   final String? statusMessage;
   final StepSensorMode sensorMode;
+  final int? distanceM;
 
   const StepTrackingState({
     required this.steps,
@@ -38,6 +39,7 @@ class StepTrackingState {
     this.serverAvailable = true,
     this.statusMessage,
     this.sensorMode = StepSensorMode.waiting,
+    this.distanceM,
   });
 
   factory StepTrackingState.fromMap(Map<String, dynamic> map) {
@@ -51,8 +53,19 @@ class StepTrackingState {
           int.tryParse('${map['progress_percent'] ?? 0}') ?? 0,
       lastSyncedAt:
           DateTime.tryParse('${map['last_synced_at'] ?? ''}')?.toLocal(),
-      serverAvailable: true,
+      serverAvailable: map['server_available'] ?? true,
+      statusMessage: map['status_message']?.toString(),
+      sensorMode: _sensorModeFromString(map['sensor_mode']),
+      distanceM: int.tryParse('${map['distance_m'] ?? 0}') ?? 0,
     );
+  }
+
+  static StepSensorMode _sensorModeFromString(dynamic value) {
+    final str = value?.toString() ?? '';
+    if (str == 'hardware') return StepSensorMode.hardware;
+    if (str == 'validatedMotion') return StepSensorMode.validatedMotion;
+    if (str == 'unavailable') return StepSensorMode.unavailable;
+    return StepSensorMode.waiting;
   }
 }
 
@@ -83,6 +96,7 @@ class StepTrackingService {
   int _dailyGoal = 5000;
   int _validatedSessionSteps = 0;
   int? _nativeBaseline;
+  int? _distanceM;
 
   double _gravityEstimate = 9.81;
   bool _peakArmed = true;
@@ -111,6 +125,7 @@ class StepTrackingService {
       _dailyGoal = _normaliseGoal(server.dailyGoal);
       _tracking = server.isTracking;
       _serverAvailable = true;
+      _distanceM = server.distanceM;
 
       if (_tracking) {
         _scheduleMidnightRollover();
@@ -162,6 +177,7 @@ class StepTrackingService {
       }
       _dailyGoal = _normaliseGoal(server.dailyGoal);
       _serverAvailable = true;
+      _distanceM = server.distanceM;
     } catch (_) {
       _serverAvailable = false;
     }
@@ -584,6 +600,9 @@ class StepTrackingService {
 
     _serverSteps =
         serverReturned > total ? serverReturned : total;
+    if (payload['distance_m'] != null) {
+      _distanceM = int.tryParse('${payload['distance_m']}') ?? _distanceM ?? 0;
+    }
 
     if (_mode == StepSensorMode.hardware &&
         _nativeBaseline != null &&
@@ -611,6 +630,7 @@ class StepTrackingService {
       serverAvailable: _serverAvailable,
       statusMessage: message,
       sensorMode: _mode,
+      distanceM: _distanceM,
     );
   }
 

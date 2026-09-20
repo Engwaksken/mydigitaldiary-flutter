@@ -555,6 +555,12 @@ class ApiClient {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (decoded == null && response.body.isNotEmpty) {
+        throw ApiException(
+          response.statusCode,
+          'The provider responded, but the reply was not valid JSON. The selected model or endpoint may not support JSON mode; check it in AI Providers, then retry.',
+        );
+      }
       return decoded;
     }
 
