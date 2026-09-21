@@ -42,9 +42,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
@@ -62,9 +63,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Expense deleted.')));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -96,9 +98,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Selected expenses deleted.')));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _bulkDeleting = false);
     }
@@ -281,8 +284,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                         color: Colors.red),
                                     tooltip: 'Delete expense',
                                     onPressed: () async {
-                                      if (await _confirmDelete(expense))
+                                      if (await _confirmDelete(expense)) {
                                         await _delete(expense);
+                                      }
                                     },
                                   ),
                               ],
@@ -585,8 +589,9 @@ class _ExpenseFormState extends State<_ExpenseForm> {
 
   void _applyReceipt(Map<String, dynamic> data) {
     final category = data['category']?.toString().trim();
-    if (category != null && category.isNotEmpty)
+    if (category != null && category.isNotEmpty) {
       _categoryController.text = category;
+    }
 
     final total = data['total'];
     if (total != null) _amountController.text = total.toString();
@@ -595,20 +600,24 @@ class _ExpenseFormState extends State<_ExpenseForm> {
     if (date != null) _spentAt = date;
 
     final payment = data['payment_method']?.toString().trim();
-    if (payment != null && payment.isNotEmpty)
+    if (payment != null && payment.isNotEmpty) {
       _paymentMethodController.text = payment;
+    }
 
     if (_notesController.text.trim().isEmpty) {
       final notes = <String>[];
       final merchant = data['merchant']?.toString().trim();
       final receiptNumber = data['receipt_number']?.toString().trim();
       final extractedNotes = data['notes']?.toString().trim();
-      if (merchant != null && merchant.isNotEmpty)
+      if (merchant != null && merchant.isNotEmpty) {
         notes.add('Merchant: $merchant');
-      if (receiptNumber != null && receiptNumber.isNotEmpty)
+      }
+      if (receiptNumber != null && receiptNumber.isNotEmpty) {
         notes.add('Receipt #: $receiptNumber');
-      if (extractedNotes != null && extractedNotes.isNotEmpty)
+      }
+      if (extractedNotes != null && extractedNotes.isNotEmpty) {
         notes.add(extractedNotes);
+      }
       if (notes.isNotEmpty) _notesController.text = notes.join(' · ');
     }
 

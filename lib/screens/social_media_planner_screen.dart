@@ -625,21 +625,24 @@ class _SocialMediaPlannerScreenState extends State<SocialMediaPlannerScreen> {
                   );
                   if (day == null) return;
 
-                  final time = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.fromDateTime(initial),
-                  );
-                  if (time == null) return;
-
-                  setLocal(() {
-                    scheduled = DateTime(
-                      day.year,
-                      day.month,
-                      day.day,
-                      time.hour,
-                      time.minute,
+                  if (mounted) {
+                    final time = await showTimePicker(
+                      // ignore: use_build_context_synchronously
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(initial),
                     );
-                  });
+                    if (time == null) return;
+
+                    setLocal(() {
+                      scheduled = DateTime(
+                        day.year,
+                        day.month,
+                        day.day,
+                        time.hour,
+                        time.minute,
+                      );
+                    });
+                  }
                 }
 
                 void validateAndClose() {

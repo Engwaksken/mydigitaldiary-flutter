@@ -135,7 +135,7 @@ class _ConnectivityGateState extends State<ConnectivityGate> {
   Future<void> _promptPendingCalendarSync() async {
     if (!mounted) return;
 
-    final service = const MeetingCalendarSyncService();
+    const service = MeetingCalendarSyncService();
     if (!await service.hasPending()) return;
 
     final selection = await service.lastSelection();

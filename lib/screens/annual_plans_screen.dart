@@ -213,22 +213,25 @@ class _AnnualPlansScreenState extends State<AnnualPlansScreen> {
                       lastDate: DateTime(_year + 5, 12, 31),
                     );
                     if (date == null) return;
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: reminder == null
-                          ? TimeOfDay.now()
-                          : TimeOfDay.fromDateTime(reminder!),
-                    );
-                    if (time == null) return;
-                    setLocal(() {
-                      reminder = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        time.hour,
-                        time.minute,
+                    if (mounted) {
+                      final time = await showTimePicker(
+                        // ignore: use_build_context_synchronously
+                        context: context,
+                        initialTime: reminder == null
+                            ? TimeOfDay.now()
+                            : TimeOfDay.fromDateTime(reminder!),
                       );
-                    });
+                      if (time == null) return;
+                      setLocal(() {
+                        reminder = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 12),

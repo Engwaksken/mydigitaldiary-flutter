@@ -266,9 +266,10 @@ class _FinancialPlannerScreenState extends State<FinancialPlannerScreen> {
         });
         await _load();
       } on ApiException catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
     }
   }

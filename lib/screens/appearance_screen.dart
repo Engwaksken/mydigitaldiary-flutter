@@ -85,13 +85,15 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             fontFamily: _fontFamily,
             fontSize: _fontSize.round(),
           );
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Appearance saved.')));
+      }
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

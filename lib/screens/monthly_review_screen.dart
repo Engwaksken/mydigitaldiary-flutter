@@ -359,9 +359,10 @@ class _MonthlyReviewScreenState extends State<MonthlyReviewScreen> {
               childAspectRatio: 2.05,
               children: items.map((item) {
                 final raw = item.$2;
-                if (raw == null)
+                if (raw == null) {
                   return _deltaTile(
                       item.$1, 'No previous data', Colors.black45, item.$5);
+                }
                 final value = _num(raw).toDouble();
                 final good = item.$3 ? value < 0 : value > 0;
                 final same = value.abs() < .05;

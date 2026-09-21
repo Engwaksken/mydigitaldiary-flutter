@@ -36,9 +36,10 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -89,14 +90,16 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
 
     try {
       final message = await _service.invite(emailController.text.trim(), role);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(message)));
+      }
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -105,9 +108,10 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       await _service.activate(member.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -116,9 +120,10 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
       await _service.deactivate(member.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -143,14 +148,16 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
 
     try {
       await _service.removeMember(member.id);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Removed — their member slot is now free.')));
+      }
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -205,14 +212,16 @@ class _OrganizationScreenState extends State<OrganizationScreen> {
     try {
       final message =
           await _service.replace(member.id, emailController.text.trim(), role);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(message)));
+      }
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 

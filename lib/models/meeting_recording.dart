@@ -97,16 +97,18 @@ class MeetingRecording {
     final rawSegments = json['transcript_segments'];
     if (rawSegments is List) {
       for (final item in rawSegments) {
-        if (item is Map)
+        if (item is Map) {
           segments
               .add(TranscriptSegment.fromJson(Map<String, dynamic>.from(item)));
+        }
       }
     }
 
     MeetingSummary? summary;
     final rawSummary = json['summary'];
-    if (rawSummary is Map)
+    if (rawSummary is Map) {
       summary = MeetingSummary.fromJson(Map<String, dynamic>.from(rawSummary));
+    }
 
     final duration = _asInt(json['duration_seconds']);
     return MeetingRecording(

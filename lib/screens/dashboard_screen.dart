@@ -552,8 +552,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         DateTime.sunday: 'SU',
       };
       final code = codes[date.weekday];
-      if (!upper.contains('BYDAY='))
+      if (!upper.contains('BYDAY=')) {
         return start == null || start.weekday == date.weekday;
+      }
       return code != null && upper.contains(code);
     }
     if (upper.contains('FREQ=MONTHLY')) {
@@ -1374,13 +1375,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   IconData _insightIcon(String category, String destination) {
     final value = '$category $destination'.toLowerCase();
-    if (value.contains('digital') || value.contains('device'))
+    if (value.contains('digital') || value.contains('device')) {
       return Icons.devices_outlined;
+    }
     if (value.contains('saving')) return Icons.savings_outlined;
     if (value.contains('expense') ||
         value.contains('budget') ||
-        value.contains('financial'))
+        value.contains('financial')) {
       return Icons.account_balance_wallet_outlined;
+    }
     if (value.contains('sleep')) return Icons.bedtime_outlined;
     if (value.contains('spiritual')) return Icons.self_improvement_outlined;
     if (value.contains('reminder')) return Icons.notifications_outlined;
@@ -1620,10 +1623,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -3183,36 +3187,41 @@ class _FinanceCard extends StatelessWidget {
 
   (Color, Color, IconData) _style(String title) {
     final key = title.toLowerCase();
-    if (key.contains('income'))
+    if (key.contains('income')) {
       return (
         const Color(0xFFEAFBF3),
         const Color(0xFF047857),
         Icons.trending_up_rounded,
       );
-    if (key.contains('expense'))
+    }
+    if (key.contains('expense')) {
       return (
         const Color(0xFFFFEEF1),
         const Color(0xFFBE123C),
         Icons.receipt_long_outlined,
       );
-    if (key.contains('budget'))
+    }
+    if (key.contains('budget')) {
       return (
         const Color(0xFFEDF5FF),
         const Color(0xFF1D4ED8),
         Icons.account_balance_wallet_outlined,
       );
-    if (key.contains('saving'))
+    }
+    if (key.contains('saving')) {
       return (
         const Color(0xFFF4F0FF),
         const Color(0xFF6D28D9),
         Icons.savings_outlined,
       );
-    if (key.contains('debt'))
+    }
+    if (key.contains('debt')) {
       return (
         const Color(0xFFFFF3E8),
         const Color(0xFFC2410C),
         Icons.credit_card_outlined,
       );
+    }
     return (
       const Color(0xFFECFAFC),
       const Color(0xFF0E7490),

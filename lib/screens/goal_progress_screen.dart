@@ -115,9 +115,10 @@ class _GoalProgressScreenState extends State<GoalProgressScreen> {
       });
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -131,9 +132,10 @@ class _GoalProgressScreenState extends State<GoalProgressScreen> {
           'personal-goals/${widget.goalId}/milestones/$id/toggle', const {});
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
@@ -161,9 +163,10 @@ class _GoalProgressScreenState extends State<GoalProgressScreen> {
           .delete('personal-goals/${widget.goalId}/milestones/$id');
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
@@ -187,9 +190,10 @@ class _GoalProgressScreenState extends State<GoalProgressScreen> {
           {'target_date': date});
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
@@ -249,9 +253,10 @@ class _GoalProgressScreenState extends State<GoalProgressScreen> {
       });
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 

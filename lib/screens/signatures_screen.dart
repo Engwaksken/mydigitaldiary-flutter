@@ -144,9 +144,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -189,9 +190,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _uploadingSignature = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -219,16 +221,18 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       _signatureImageFutures.remove(sig.id);
       setState(() => _signatures.removeWhere((s) => s.id == sig.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
   Future<void> _download(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri))
+    if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _view(SignedDocument doc) async {
@@ -252,9 +256,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       await _service.deleteDocument(doc.id);
       setState(() => _documents.removeWhere((d) => d.id == doc.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -277,9 +282,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       // Share.shareXFiles([XFile(file.path)]) instead.
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      }
     }
   }
 
@@ -306,9 +312,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       if (!mounted) return;
       await SharePlus.instance.share(ShareParams(files: files));
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      }
     } finally {
       if (mounted) setState(() => _bulkWorking = false);
     }
@@ -333,9 +340,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _bulkWorking = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 

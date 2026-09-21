@@ -98,8 +98,9 @@ class _PersonalisationScreenState extends State<PersonalisationScreen> {
         final prefs = data['engagement_notification_preferences'];
         if (prefs is Map) {
           for (final entry in _notifyPrefs.keys.toList()) {
-            if (prefs.containsKey(entry))
+            if (prefs.containsKey(entry)) {
               _notifyPrefs[entry] = prefs[entry] == true || prefs[entry] == 1;
+            }
           }
         }
         _loading = false;
@@ -122,9 +123,10 @@ class _PersonalisationScreenState extends State<PersonalisationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Personalisation saved.')));
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

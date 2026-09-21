@@ -25,16 +25,19 @@ class DynamicCrudService {
       int page = 1,
       Map<String, String> extra = const {}}) async {
     final params = <String>['archived=${archived ? 1 : 0}', 'page=$page'];
-    if (search != null && search.trim().isNotEmpty)
+    if (search != null && search.trim().isNotEmpty) {
       params.add('q=${Uri.encodeQueryComponent(search.trim())}');
+    }
     if (period != null && period.isNotEmpty) params.add('period=$period');
-    if (from != null)
+    if (from != null) {
       params.add('from=${from.toIso8601String().split('T').first}');
+    }
     if (to != null) params.add('to=${to.toIso8601String().split('T').first}');
     extra.forEach((key, value) {
-      if (value.isNotEmpty)
+      if (value.isNotEmpty) {
         params.add(
             '${Uri.encodeQueryComponent(key)}=${Uri.encodeQueryComponent(value)}');
+      }
     });
     dynamic response;
     try {
@@ -73,8 +76,9 @@ class DynamicCrudService {
           '_offline_pending': true
         };
         byId[mutation.localId!] = data;
-        if (!order.contains(mutation.localId))
+        if (!order.contains(mutation.localId)) {
           order.insert(0, mutation.localId!);
+        }
         continue;
       }
       final id = int.tryParse(mutation.path.split('/').last);

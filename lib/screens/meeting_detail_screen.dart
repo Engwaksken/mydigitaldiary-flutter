@@ -79,10 +79,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _pendingRecordings = pending;
         _loading = false;
       });
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
       // No connection — still show whatever's pending locally even
       // though the server-side recordings list couldn't be fetched.
@@ -481,8 +482,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Future<void> _openAudio(String? url) async {
     if (url == null) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri))
+    if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _joinMeeting() async {
@@ -823,10 +825,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       await _service.summarize(recording.id);
       await _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -845,10 +848,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       setState(() => _recordings.removeWhere((r) => r.id == recording.id));
       _showMessage('Recording deleted.');
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -1017,8 +1021,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                               ),
                             ],
                             onChanged: (value) {
-                              if (value != null)
+                              if (value != null) {
                                 setState(() => _transcriptionLanguage = value);
+                              }
                             },
                           ),
                           const SizedBox(height: 6),

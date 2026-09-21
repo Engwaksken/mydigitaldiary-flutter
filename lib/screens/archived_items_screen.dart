@@ -39,9 +39,10 @@ class _ArchivedItemsScreenState extends State<ArchivedItemsScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _loading = false);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -50,9 +51,10 @@ class _ArchivedItemsScreenState extends State<ArchivedItemsScreen> {
       await _service.unarchive(item.id);
       setState(() => _items.removeWhere((i) => i.id == item.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -75,9 +77,10 @@ class _ArchivedItemsScreenState extends State<ArchivedItemsScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Item deleted.')));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 

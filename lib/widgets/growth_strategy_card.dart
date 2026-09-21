@@ -29,9 +29,10 @@ class _GrowthStrategyCardState extends State<GrowthStrategyCard> {
       await const GrowthStrategyService().joinChallenge();
       widget.onChanged();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Could not join the challenge right now.')));
+      }
     } finally {
       if (mounted) setState(() => _joining = false);
     }
@@ -56,9 +57,10 @@ class _GrowthStrategyCardState extends State<GrowthStrategyCard> {
       await const GrowthStrategyService()
           .track('referral_shared', source: 'dashboard');
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Could not create your invite right now.')));
+      }
     } finally {
       if (mounted) setState(() => _sharing = false);
     }

@@ -22,18 +22,20 @@ class _PastDailyPlansScreenState extends State<PastDailyPlansScreen> {
   }
 
   Future<void> _load() async {
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = true;
         _error = null;
       });
+    }
     try {
       dynamic response = await ApiClient.instance.get(
         'daily-planner/history?period=all&per_page=50',
         cacheable: false,
       );
-      if (response is Map && response['data'] is List)
+      if (response is Map && response['data'] is List) {
         response = response['data'];
+      }
       final rows = response is List
           ? response
                 .whereType<Map>()

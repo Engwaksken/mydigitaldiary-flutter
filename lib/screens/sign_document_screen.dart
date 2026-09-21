@@ -194,9 +194,10 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
         _selectedSignature = signature;
       });
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -206,7 +207,9 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
     if (box == null ||
         pageRect == null ||
         pageRect.width <= 0 ||
-        pageRect.height <= 0) return;
+        pageRect.height <= 0) {
+      return;
+    }
 
     final local = box.globalToLocal(details.globalPosition);
     setState(() {
@@ -236,11 +239,12 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
           widthPercent: _sigWidthFraction * 100,
           heightPercent: _sigWidthFraction * 40,
         );
-        if (result['was_stamped'] != true)
+        if (result['was_stamped'] != true) {
           throw ApiException(
               422,
               result['stamp_error']?.toString() ??
                   'Page ${i + 1} could not be signed.');
+        }
         createdIds.add((result['id'] as num).toInt());
       }
 
@@ -256,9 +260,10 @@ class _SignDocumentScreenState extends State<SignDocumentScreen> {
               : 'Signed document saved.')));
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -476,8 +481,9 @@ class _DrawSignatureDialogState extends State<_DrawSignatureDialog> {
     if (boundary == null) return;
     final image = await boundary.toImage(pixelRatio: 3);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (data != null && mounted)
+    if (data != null && mounted) {
       Navigator.pop(context, data.buffer.asUint8List());
+    }
   }
 
   @override

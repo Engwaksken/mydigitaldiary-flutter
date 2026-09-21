@@ -119,8 +119,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _openDownload(String? url) async {
     if (url == null) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri))
+    if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   List<Widget> _buildGroupedPlans() {
@@ -231,8 +232,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _openContactSales() async {
     final base = ApiClient.baseUrl.replaceAll('/api', '');
     final uri = Uri.parse('$base/enterprise/contact');
-    if (await canLaunchUrl(uri))
+    if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   ({Color background, Color border, Color text}) _stickyColors(int months) {

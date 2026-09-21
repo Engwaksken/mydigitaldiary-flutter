@@ -51,9 +51,10 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       await _service.activate(credential.id);
       _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -80,9 +81,10 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       await _service.delete(credential.id);
       _load();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -247,8 +249,9 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
                                 subtitle: Text(credential.provider),
                                 trailing: PopupMenuButton<String>(
                                   onSelected: (value) {
-                                    if (value == 'activate')
+                                    if (value == 'activate') {
                                       _activate(credential);
+                                    }
                                     if (value == 'delete') _delete(credential);
                                   },
                                   itemBuilder: (context) => [

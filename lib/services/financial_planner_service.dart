@@ -21,8 +21,9 @@ class FinancialPlannerService {
   Future<FinancialPlannerSnapshot> load(
       {String? startDate, String? endDate}) async {
     final q = <String>[];
-    if (startDate != null)
+    if (startDate != null) {
       q.add('start_date=${Uri.encodeQueryComponent(startDate)}');
+    }
     if (endDate != null) q.add('end_date=${Uri.encodeQueryComponent(endDate)}');
     final response = await _api.get(
         'financial-planner${q.isEmpty ? '' : '?${q.join('&')}'}',

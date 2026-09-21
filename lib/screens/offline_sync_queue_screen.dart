@@ -22,11 +22,12 @@ class _OfflineSyncQueueScreenState extends State<OfflineSyncQueueScreen> {
 
   Future<void> _load() async {
     final items = await OfflineMutationQueue.instance.all();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _items = items;
         _loading = false;
       });
+    }
   }
 
   Future<void> _sync() async {
@@ -121,15 +122,18 @@ class _OfflineSyncQueueScreenState extends State<OfflineSyncQueueScreen> {
                               ]),
                           trailing: PopupMenuButton<String>(
                             onSelected: (value) async {
-                              if (value == 'retry')
+                              if (value == 'retry') {
                                 await OfflineMutationQueue.instance
                                     .retry(item.id);
-                              if (value == 'force')
+                              }
+                              if (value == 'force') {
                                 await OfflineMutationQueue.instance
                                     .forceLocalVersion(item.id);
-                              if (value == 'discard')
+                              }
+                              if (value == 'discard') {
                                 await OfflineMutationQueue.instance
                                     .discard(item.id);
+                              }
                               await _load();
                             },
                             itemBuilder: (_) => [
